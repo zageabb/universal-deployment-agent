@@ -6,7 +6,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=%h/ollama-chat/context-lab
 Environment=PATH=%h/ollama-chat/venv/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/ollama-chat/context-lab/start.sh
+ExecStart=%h/ollama-chat/venv/bin/python %h/ollama-chat/context-lab/app.py
 Restart=on-failure
 RestartSec=3
 KillMode=control-group

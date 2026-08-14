@@ -54,3 +54,5 @@ For private repositories, install a repository-scoped read-only GitHub deploy ke
 ## Ollama-chat example
 
 `examples/ollama-chat` contains the monitor-only registry, user services, and canonical root launchers for the six applications on the reference Ubuntu host. The launchers live in `~/ollama-chat` and delegate process lifecycle to systemd, preventing duplicate background processes.
+
+The reference registry enables automatic deployment only for clean, prepared checkouts. Applications containing locally edited prompts or runtime files remain monitor-only until that state is moved outside Git.
