@@ -25,3 +25,15 @@ def test_dashboard_requires_authentication(tmp_path):
     config.write_text('{"applications": [], "dashboard_token": "secret"}')
     client = dashboard.create_app(config).test_client()
     assert client.get("/").status_code == 401
+
+
+def test_dashboard_refreshes_every_two_minutes(tmp_path):
+    config = tmp_path / "config.json"
+    config.write_text('{"applications": [], "dashboard_token": "secret"}')
+    client = dashboard.create_app(config).test_client()
+    header = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+
+    response = client.get("/", headers=header)
+
+    assert response.status_code == 200
+    assert b'<meta http-equiv="refresh" content="120">' in response.data
