@@ -2,6 +2,15 @@
 
 A small, dependency-free deployment poller for multiple applications on one Linux host. It checks configured Git branches, fast-forwards clean repositories, runs allowlisted update commands, restarts the corresponding systemd user service, verifies its health endpoint, and rolls back a failed deployment.
 
+## Documentation
+
+- [Architecture and deployment lifecycle](docs/architecture.md)
+- [Installation and initial configuration](docs/installation.md)
+- [Registry reference and application onboarding](docs/configuration.md)
+- [Operations, monitoring, and recovery](docs/operations.md)
+- [Security model](docs/security.md)
+- [Ollama Chat reference deployment](docs/ollama-chat.md)
+
 ## Safety model
 
 - Applications are disabled unless explicitly enabled.
@@ -43,6 +52,8 @@ journalctl --user -u deployment-agent.service
 tail -f ~/.local/state/deployment-agent/deploy.log
 ```
 
+For a production installation, follow the complete [installation guide](docs/installation.md), including user-service persistence and a dry-run audit.
+
 ## Registry
 
 See `config.example.json`. Each application defines its repository path, deployment branch, optional update commands, systemd restart command, health endpoint, timeouts, and rollback policy.
@@ -53,6 +64,6 @@ For private repositories, install a repository-scoped read-only GitHub deploy ke
 
 ## Ollama-chat example
 
-`examples/ollama-chat` contains the monitor-only registry, user services, and canonical root launchers for the six applications on the reference Ubuntu host. The launchers live in `~/ollama-chat` and delegate process lifecycle to systemd, preventing duplicate background processes.
+`examples/ollama-chat` contains the reference registry, user services, and canonical root launchers for the six applications on the Ubuntu host. The launchers live in `~/ollama-chat` and delegate process lifecycle to systemd, preventing duplicate background processes.
 
 The reference registry enables automatic deployment only for clean, prepared checkouts. Applications containing locally edited prompts or runtime files remain monitor-only until that state is moved outside Git.
