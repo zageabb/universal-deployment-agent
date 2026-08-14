@@ -92,10 +92,13 @@ def deploy_application(app: dict[str, Any], dry_run: bool, logger: logging.Logge
         return {"name": name, "status": "disabled"}
     state = inspect_application(app)
     if state["dirty"]:
-        raise DeployError("Working tree has local changes; refusing automatic deployment")
+        if app.get("auto_deploy", False):
+            raise DeployError("Working tree has local changes; refusing automatic deployment")
+        return {"name": name, "status": "monitored_dirty", "commit": state["local"],
+                "update_available": state["update_available"]}
     if not state["update_available"]:
         return {"name": name, "status": "current", "commit": state["local"]}
-    if dry_run:
+    if dry_run or not app.get("auto_deploy", False):
         return {"name": name, "status": "update_available", "from": state["local"], "to": state["remote"]}
     repo, previous = state["repo"], state["local"]
     logger.info("%s updating %s -> %s", name, previous[:12], state["remote"][:12])

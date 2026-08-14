@@ -5,6 +5,7 @@ A small, dependency-free deployment poller for multiple applications on one Linu
 ## Safety model
 
 - Applications are disabled unless explicitly enabled.
+- Enabled applications default to monitor-only until `auto_deploy` is explicitly set to `true`.
 - Dirty working trees are never modified.
 - Updates must be fast-forwardable from the configured remote branch.
 - Only argument-array commands stored in the local registry can run.
@@ -45,5 +46,7 @@ tail -f ~/.local/state/deployment-agent/deploy.log
 ## Registry
 
 See `config.example.json`. Each application defines its repository path, deployment branch, optional update commands, systemd restart command, health endpoint, timeouts, and rollback policy.
+
+Use `"enabled": true, "auto_deploy": false` while preparing an existing checkout. The agent will fetch and report its state but will not change files or restart it. Change `auto_deploy` to `true` only after the working tree is clean and operational data has been moved outside the repository.
 
 For private repositories, install a repository-scoped read-only GitHub deploy key. Do not place tokens in the registry.

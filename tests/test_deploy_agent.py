@@ -18,11 +18,21 @@ def test_disabled_application_never_inspects_repository(tmp_path, monkeypatch):
 
 
 def test_dirty_repository_is_blocked(tmp_path, monkeypatch):
+    value = app(tmp_path) | {"auto_deploy": True}
     monkeypatch.setattr(deploy_agent, "inspect_application", lambda *_: {
         "repo": Path(tmp_path), "dirty": " M settings.py", "local": "a", "remote": "b", "update_available": True
     })
     with pytest.raises(deploy_agent.DeployError, match="local changes"):
-        deploy_agent.deploy_application(app(tmp_path), False, deploy_agent.logging.getLogger())
+        deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())
+
+
+def test_monitor_only_dirty_repository_reports_without_mutation(tmp_path, monkeypatch):
+    monkeypatch.setattr(deploy_agent, "inspect_application", lambda *_: {
+        "repo": Path(tmp_path), "dirty": " M settings.py", "local": "a", "remote": "b", "update_available": True
+    })
+    result = deploy_agent.deploy_application(app(tmp_path), False, deploy_agent.logging.getLogger())
+    assert result["status"] == "monitored_dirty"
+    assert result["update_available"] is True
 
 
 def test_dry_run_reports_update_without_mutation(tmp_path, monkeypatch):

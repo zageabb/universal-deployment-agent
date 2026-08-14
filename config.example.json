@@ -5,6 +5,7 @@
     {
       "name": "example-app",
       "enabled": true,
+      "auto_deploy": false,
       "repo_path": "/home/example/apps/example-app",
       "branch": "main",
       "update_commands": [["./venv/bin/pip", "install", "-r", "requirements.txt"]],
