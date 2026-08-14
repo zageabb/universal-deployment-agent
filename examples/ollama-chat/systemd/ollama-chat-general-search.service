@@ -5,6 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/ollama-chat/general-search
+Environment=PATH=%h/ollama-chat/venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/ollama-chat/general-search/start.sh
 Restart=on-failure
 RestartSec=3

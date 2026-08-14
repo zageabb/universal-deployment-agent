@@ -5,6 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/ollama-chat/flask_chat
+Environment=PATH=%h/ollama-chat/venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=%h/ollama-chat/flask_chat/start.sh
 Restart=on-failure
 RestartSec=3
