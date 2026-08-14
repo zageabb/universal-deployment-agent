@@ -6,7 +6,8 @@ After=network-online.target
 Type=simple
 WorkingDirectory=%h/ollama-chat/general-search
 Environment=PATH=%h/ollama-chat/venv/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=%h/ollama-chat/general-search/start.sh
+EnvironmentFile=-%h/.config/ollama-chat/general-search.env
+ExecStart=%h/ollama-chat/venv/bin/python %h/ollama-chat/general-search/app.py
 Restart=on-failure
 RestartSec=3
 KillMode=control-group
