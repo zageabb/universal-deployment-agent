@@ -1,0 +1,10 @@
+[Unit]
+Description=Check registered Git applications for safe deployments
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/deployment-agent/deploy_agent.py --config %h/.config/deployment-agent/config.json
+
+[Install]
+WantedBy=default.target

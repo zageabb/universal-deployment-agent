@@ -1,0 +1,17 @@
+{
+  "lock_file": "/home/example/.local/state/deployment-agent/deploy.lock",
+  "log_file": "/home/example/.local/state/deployment-agent/deploy.log",
+  "applications": [
+    {
+      "name": "example-app",
+      "enabled": true,
+      "repo_path": "/home/example/apps/example-app",
+      "branch": "main",
+      "update_commands": [["./venv/bin/pip", "install", "-r", "requirements.txt"]],
+      "restart_command": ["systemctl", "--user", "restart", "example-app.service"],
+      "health_url": "http://127.0.0.1:5055/health",
+      "health_timeout": 30,
+      "rollback": true
+    }
+  ]
+}
