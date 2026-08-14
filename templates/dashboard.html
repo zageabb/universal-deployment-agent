@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deployment Agent</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#172b2a;background:#f4f7f5}body{margin:0}.wrap{max-width:1200px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;align-items:end;margin-bottom:24px}h1{margin:0;font-size:28px}.muted{color:#647572}.summary,.card{background:white;border:1px solid #dce5e2;border-radius:14px;box-shadow:0 3px 14px #173b3210}.summary{padding:16px 20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px}.card{padding:20px}.top{display:flex;justify-content:space-between;gap:12px}.pill{border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;background:#edf2f0}.ok{background:#daf4e5;color:#17633b}.bad{background:#fde2df;color:#8a2520}.warn{background:#fff0c7;color:#795900}dl{display:grid;grid-template-columns:110px 1fr;gap:8px;margin:18px 0;font-size:14px}dt{color:#647572}dd{margin:0;overflow-wrap:anywhere}button{border:0;border-radius:9px;padding:10px 14px;background:#123f38;color:white;font-weight:700;cursor:pointer}button:disabled{background:#b8c3c0;cursor:not-allowed}.message{padding:12px;background:#dff3e8;border-radius:9px;margin-bottom:16px}code{font-size:12px}
+</style></head><body><main class="wrap">
+<header><div><div class="muted">UNIVERSAL DEPLOYMENT AGENT</div><h1>Application status</h1></div><div>Version {{ version }}</div></header>
+{% if message %}<div class="message">{{ message }}</div>{% endif %}
+<section class="summary"><strong>Last agent run:</strong> {{ state.last_run or "No recorded run" }} · <strong>Result:</strong> {{ "Healthy" if state.ok else "Attention required" }}</section>
+<section class="grid">{% for app in applications %}<article class="card">
+<div class="top"><div><h2>{{ app.name }}</h2><span class="muted">{{ app.branch }} · {{ "automatic" if app.auto_deploy else "monitor only" }}</span></div>
+{% if app.health and app.health.healthy %}<span class="pill ok">Healthy</span>{% elif app.health %}<span class="pill bad">Unavailable</span>{% else %}<span class="pill">Disabled</span>{% endif %}</div>
+<dl><dt>Last status</dt><dd>{{ app.last_result.status if app.last_result else "Not checked" }}</dd><dt>Commit</dt><dd><code>{{ (app.last_result.commit or app.last_result.to or "Unknown")[:12] if app.last_result else "Unknown" }}</code></dd><dt>Health URL</dt><dd>{{ app.health_url }}</dd><dt>Response</dt><dd>{{ (app.health.detail ~ " · " ~ app.health.latency_ms ~ " ms") if app.health else "Not checked" }}</dd><dt>Repository</dt><dd>{{ app.repo_path }}</dd></dl>
+<form method="post" action="{{ url_for('update', name=app.name) }}" onsubmit="return confirm('Check and update {{ app.name }} now?')"><button {% if not app.enabled or not app.auto_deploy %}disabled title="Enable automatic deployment in the registry first"{% endif %}>Update now</button></form>
+</article>{% endfor %}</section></main></body></html>

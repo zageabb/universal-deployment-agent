@@ -50,3 +50,16 @@ def test_current_repository_does_not_restart(tmp_path, monkeypatch):
     })
     monkeypatch.setattr(deploy_agent, "run", lambda *_: pytest.fail("must not restart"))
     assert deploy_agent.deploy_application(app(tmp_path), False, deploy_agent.logging.getLogger())["status"] == "current"
+
+
+def test_execute_writes_status_file(tmp_path, monkeypatch):
+    value = app(tmp_path) | {"auto_deploy": False}
+    config = {"applications": [value], "lock_file": str(tmp_path / "lock"),
+              "state_file": str(tmp_path / "status.json")}
+    monkeypatch.setattr(deploy_agent, "deploy_application", lambda *_: {
+        "name": "demo", "status": "current", "commit": "abc"
+    })
+    deploy_agent.execute(config, False, False)
+    status = __import__("json").loads((tmp_path / "status.json").read_text())
+    assert status["version"] == deploy_agent.VERSION
+    assert status["applications"][0]["status"] == "current"

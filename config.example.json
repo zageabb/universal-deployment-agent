@@ -1,6 +1,8 @@
 {
   "lock_file": "/home/example/.local/state/deployment-agent/deploy.lock",
   "log_file": "/home/example/.local/state/deployment-agent/deploy.log",
+  "state_file": "/home/example/.local/state/deployment-agent/status.json",
+  "dashboard_token": "replace-with-a-long-random-password",
   "applications": [
     {
       "name": "example-app",

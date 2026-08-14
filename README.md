@@ -2,6 +2,8 @@
 
 A small, dependency-free deployment poller for multiple applications on one Linux host. It checks configured Git branches, fast-forwards clean repositories, runs allowlisted update commands, restarts the corresponding systemd user service, verifies its health endpoint, and rolls back a failed deployment.
 
+The Flask dashboard shows agent version and last-run status, application health, commits and deployment results. Authorized applications can be checked and updated immediately from their card. It listens on port 5030 and requires HTTP Basic authentication: username `admin`, password from `dashboard_token` in the local configuration. Open `http://SERVER:5030` from the trusted network.
+
 ## Documentation
 
 - [Architecture and deployment lifecycle](docs/architecture.md)

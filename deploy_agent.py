@@ -11,8 +11,11 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from typing import Any
 from urllib.request import urlopen
+
+VERSION = "1.1.0"
 
 
 class DeployError(RuntimeError):
@@ -136,7 +139,32 @@ def configure_logging(config: dict[str, Any], verbose: bool) -> logging.Logger:
     return logger
 
 
-def execute(config: dict[str, Any], dry_run: bool, verbose: bool) -> list[dict[str, Any]]:
+def write_state(config: dict[str, Any], results: list[dict[str, Any]], dry_run: bool,
+                partial: bool = False) -> None:
+    path = Path(config.get("state_file", "~/.local/state/deployment-agent/status.json")).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if partial and path.exists():
+        try:
+            existing = json.loads(path.read_text()).get("applications", [])
+        except (OSError, json.JSONDecodeError):
+            existing = []
+        replacements = {item["name"]: item for item in results}
+        results = [replacements.pop(item["name"], item) for item in existing]
+        results.extend(replacements.values())
+    payload = {
+        "version": VERSION,
+        "last_run": datetime.now(timezone.utc).isoformat(),
+        "dry_run": dry_run,
+        "ok": not any(item["status"] == "blocked" for item in results),
+        "applications": results,
+    }
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n")
+    temporary.replace(path)
+
+
+def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
+            application_name: str | None = None) -> list[dict[str, Any]]:
     logger = configure_logging(config, verbose)
     lock_path = Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,7 +174,12 @@ def execute(config: dict[str, Any], dry_run: bool, verbose: bool) -> list[dict[s
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise DeployError("Another deployment-agent run is active") from exc
-        for app in config["applications"]:
+        applications = config["applications"]
+        if application_name is not None:
+            applications = [app for app in applications if app["name"] == application_name]
+            if not applications:
+                raise DeployError(f"Unknown application: {application_name}")
+        for app in applications:
             try:
                 result = deploy_application(app, dry_run, logger)
                 logger.info("%s: %s", app["name"], result["status"])
@@ -154,6 +187,7 @@ def execute(config: dict[str, Any], dry_run: bool, verbose: bool) -> list[dict[s
                 result = {"name": app.get("name", "unknown"), "status": "blocked", "error": str(exc)}
                 logger.error("%s: %s", result["name"], exc)
             results.append(result)
+    write_state(config, results, dry_run, partial=application_name is not None)
     return results
 
 
@@ -162,9 +196,10 @@ def main() -> int:
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--dry-run", action="store_true", help="Fetch and report without changing applications")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--application", help="Only inspect or deploy the named application")
     args = parser.parse_args()
     try:
-        results = execute(load_config(args.config), args.dry_run, args.verbose)
+        results = execute(load_config(args.config), args.dry_run, args.verbose, args.application)
     except DeployError as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 2
