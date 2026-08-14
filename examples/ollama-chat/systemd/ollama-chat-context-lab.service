@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Chat Context Lab
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/context-lab
+ExecStart=%h/ollama-chat/context-lab/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

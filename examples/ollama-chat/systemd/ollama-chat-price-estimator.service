@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Chat Should-Cost Price Estimator
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/should-cost-price-estimator
+ExecStart=%h/ollama-chat/should-cost-price-estimator/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

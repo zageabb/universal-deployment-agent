@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Chat Tender Designer
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/Tender_Designer
+ExecStart=%h/ollama-chat/Tender_Designer/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

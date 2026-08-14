@@ -50,3 +50,7 @@ See `config.example.json`. Each application defines its repository path, deploym
 Use `"enabled": true, "auto_deploy": false` while preparing an existing checkout. The agent will fetch and report its state but will not change files or restart it. Change `auto_deploy` to `true` only after the working tree is clean and operational data has been moved outside the repository.
 
 For private repositories, install a repository-scoped read-only GitHub deploy key. Do not place tokens in the registry.
+
+## Ollama-chat example
+
+`examples/ollama-chat` contains the monitor-only registry, user services, and canonical root launchers for the six applications on the reference Ubuntu host. The launchers live in `~/ollama-chat` and delegate process lifecycle to systemd, preventing duplicate background processes.

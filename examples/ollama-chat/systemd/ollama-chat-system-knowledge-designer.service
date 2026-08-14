@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Chat System Knowledge Designer
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/system-knowledge-designer
+ExecStart=%h/ollama-chat/system-knowledge-designer/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

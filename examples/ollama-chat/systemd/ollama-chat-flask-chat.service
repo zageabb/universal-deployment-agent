@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Flask Chat
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/flask_chat
+ExecStart=%h/ollama-chat/flask_chat/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

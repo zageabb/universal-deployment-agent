@@ -1,0 +1,14 @@
+[Unit]
+Description=Ollama Chat General Search
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ollama-chat/general-search
+ExecStart=%h/ollama-chat/general-search/start.sh
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+
+[Install]
+WantedBy=default.target
