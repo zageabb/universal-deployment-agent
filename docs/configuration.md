@@ -22,6 +22,9 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `branch` | Yes | Local and `origin` branch to follow |
 | `restart_command` | Yes | Argument array used after update or rollback |
 | `health_url` | Yes | HTTP endpoint that must return a successful response |
+| `app_url` | No | Front-end URL for the home-page card; takes precedence over the health URL |
+| `display_name` | No | Friendly application title on the home page |
+| `show_on_home` | No | Set false to omit a service from the home page; libraries are always omitted |
 | `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
 | `rollback` | No | Restore the prior commit after failure; defaults to true |

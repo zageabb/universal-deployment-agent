@@ -4,6 +4,32 @@ A small, dependency-free deployment poller for multiple applications on one Linu
 
 The Flask dashboard shows agent version and last-run status, application health, commits and deployment results. Authorized applications can be checked and updated immediately from their card. It listens on port 5030 and requires HTTP Basic authentication: username `admin`, password from `dashboard_token` in the local configuration. Open `http://SERVER:5030` from the trusted network.
 
+## Application Home
+
+The optional read-only home page lists enabled applications from the same UDA
+registry, with Context Studio's navy and blue styling. Cards open in a new tab.
+It runs on port **5048**; port 5049 remains available for the existing pgAdmin
+installation. After installation, start it with:
+
+```bash
+systemctl --user enable --now deployment-agent-home.service
+```
+
+Open `http://SERVER:5048/`. The page refreshes its directory every minute without
+reloading the page. Libraries and entries with `show_on_home: false` are omitted.
+Use `app_url` when the application's front end differs from its health endpoint
+(for example, Context Studio uses 5075 while its health endpoint uses 8074).
+Without `app_url`, the health URL's origin is used with `/` as the path. Loopback
+hosts are replaced by the hostname used to open the home page. An explicit
+`--public-host` can override that hostname. `display_name` optionally supplies a
+friendly card title.
+
+This is a trusted-network launcher without authentication or service controls.
+Its JSON endpoint exposes only names, titles, links, initials, and addresses;
+registry secrets, filesystem paths, and deployment commands are never included.
+Each destination retains its own authentication. The management dashboard on
+5030 remains separate and authenticated.
+
 ## Documentation
 
 - [Architecture and deployment lifecycle](docs/architecture.md)

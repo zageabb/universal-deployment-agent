@@ -1,0 +1,12 @@
+[Unit]
+Description=Application Home from the Universal Deployment Agent registry
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/deployment-agent/venv/bin/python %h/.local/share/deployment-agent/home.py --config %h/.config/deployment-agent/config.json --host 0.0.0.0 --port 5048
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your applications, together in one place.">
+  <title>Application Home</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+  <script defer src="{{ url_for('static', filename='home.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Application Home">
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span>Application Home</span>
+    </a>
+    <span class="source">Powered by UDA</span>
+  </header>
+  <main>
+    <div class="page-heading">
+      <div><p class="eyebrow">WORKSPACE</p><h1>Your applications</h1><p class="intro">Choose an application to open it in a new tab.</p></div>
+      <span class="count" id="app-count">{{ applications|length }} applications</span>
+    </div>
+    <p id="registry-message" class="notice" role="status" {% if not error %}hidden{% endif %}>The application list is temporarily unavailable. Retrying shortly.</p>
+    <div class="app-grid" id="app-grid">
+      {% for app in applications %}
+      <a class="app-card" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ app.title }} (opens in a new tab)">
+        <div class="card-top"><span class="app-icon" aria-hidden="true">{{ app.initials }}</span><span class="open-icon" aria-hidden="true">↗</span></div>
+        <h2>{{ app.title }}</h2>
+        <span class="address">{{ app.address }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <p id="empty-message" class="empty" {% if applications or error %}hidden{% endif %}>No applications are listed yet.</p>
+    <footer>Application directory<span>Updated from Universal Deployment Agent</span></footer>
+  </main>
+</body>
+</html>
