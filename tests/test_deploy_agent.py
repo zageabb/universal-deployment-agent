@@ -1,3 +1,4 @@
+from unittest.mock import Mock
 from pathlib import Path
 
 import pytest
@@ -135,3 +136,19 @@ def test_health_failure_restores_dependencies_before_restart(tmp_path, monkeypat
     with pytest.raises(deploy_agent.DeployError, match='unhealthy'):
         deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())
     assert calls[-3:] == [['reset', '--hard', 'a'], deploy_agent.dependency_command(value), value['restart_command']]
+
+
+def test_service_only_application_skips_git_inspection(tmp_path):
+    app = {
+        "name": "legacy-app",
+        "enabled": True,
+        "deployment_enabled": False,
+        "repo_path": str(tmp_path / "not-a-repository"),
+        "branch": "main",
+        "restart_command": ["true"],
+        "health_url": "http://127.0.0.1:5999/",
+    }
+
+    result = deploy_agent.deploy_application(app, dry_run=False, logger=Mock())
+
+    assert result == {"name": "legacy-app", "status": "service_only"}

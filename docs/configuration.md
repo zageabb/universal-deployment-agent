@@ -17,10 +17,12 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `name` | Yes | Unique log and result identifier |
 | `enabled` | No | Whether to inspect the application; defaults to false |
 | `auto_deploy` | No | Whether clean updates may be applied; defaults to false |
+| `deployment_enabled` | No | Set false for service-only legacy apps that should skip all Git inspection and deployment |
 | `repo_path` | Yes | Absolute or home-relative Git checkout path |
 | `branch` | Yes | Local and `origin` branch to follow |
 | `restart_command` | Yes | Argument array used after update or rollback |
 | `health_url` | Yes | HTTP endpoint that must return a successful response |
+| `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
 | `rollback` | No | Restore the prior commit after failure; defaults to true |
 | `git_timeout` | No | Fetch timeout in seconds; defaults to 120 |
@@ -29,6 +31,8 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `health_timeout` | No | Total health polling window; defaults to 30 |
 
 Commands are arrays rather than shell strings. Shell expansion, pipes, redirects, command substitution, and implicit environment interpolation are not performed.
+
+When `service_unit` is configured, the authenticated dashboard may run only `systemctl --user start`, `stop`, or `restart` for that exact validated unit. It does not accept arbitrary service names or commands from requests. Mutating dashboard requests also require the form token provided by the authenticated dashboard. Refresh the page after restarting the dashboard to obtain a new token. Service actions use the deployment lock and return HTTP 409 while a deployment or another service action is running.
 
 ## Onboarding checklist
 
@@ -136,3 +140,15 @@ Run `python3 -m pytest -q` from the repository root. The optional real-pip test
 `python3 tests/check_git_pin.py` creates temporary local Git commits with the same
 package version, tests SHA A → B → A in a disposable virtualenv, and requires
 package-index access for wheel. It does not modify application repositories.
+
+## Service-only mode
+
+Legacy applications without a Git checkout can still use dashboard health and service controls:
+
+```json
+"enabled": true,
+"deployment_enabled": false,
+"auto_deploy": false
+```
+
+The recurring agent records `service_only` and performs no Git operations for that application.
