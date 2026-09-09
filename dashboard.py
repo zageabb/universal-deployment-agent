@@ -59,7 +59,7 @@ def create_app(config_path: Path) -> Flask:
         for item in cfg["applications"]:
             applications.append(item | {
                 "last_result": prior_by_name.get(item["name"]),
-                "health": health(str(item["health_url"])) if item.get("enabled") else None,
+                "health": health(str(item["health_url"])) if item.get("enabled") and item.get("health_url") else None,
             })
         return render_template("dashboard.html", version=VERSION, state=previous,
                                applications=applications, message=request.args.get("message"))

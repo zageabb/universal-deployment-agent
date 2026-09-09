@@ -1,0 +1,75 @@
+{
+  "applications": [
+    {
+      "name": "tender-designer",
+      "enabled": true,
+      "auto_deploy": true,
+      "repo_path": "/home/zageabb/ollama-chat/Tender_Designer",
+      "branch": "main",
+      "python": "/home/zageabb/ollama-chat/Tender_Designer/.venv/bin/python",
+      "command_timeout": 900,
+      "update_commands": [],
+      "restart_command": [
+        "systemctl",
+        "--user",
+        "restart",
+        "ollama-chat-tender-designer.service"
+      ],
+      "service_unit": "ollama-chat-tender-designer.service",
+      "health_url": "http://127.0.0.1:5050/",
+      "rollback": true
+    },
+    {
+      "name": "internet-pricing",
+      "enabled": true,
+      "auto_deploy": true,
+      "repo_path": "/home/zageabb/ollama-chat/internet-pricing",
+      "branch": "main",
+      "python": "/home/zageabb/ollama-chat/internet-pricing/.venv/bin/python",
+      "command_timeout": 900,
+      "update_commands": [],
+      "restart_command": [
+        "systemctl",
+        "--user",
+        "restart",
+        "ollama-chat-internet-pricing.service"
+      ],
+      "service_unit": "ollama-chat-internet-pricing.service",
+      "health_url": "http://127.0.0.1:5054/",
+      "rollback": true
+    },
+    {
+      "name": "should-cost-intelligence",
+      "enabled": true,
+      "auto_deploy": true,
+      "repo_path": "/home/zageabb/ollama-chat/should-cost-intelligence",
+      "branch": "main",
+      "python": "/home/zageabb/ollama-chat/should-cost-intelligence/.venv/bin/python",
+      "command_timeout": 900,
+      "update_commands": [
+        [
+          "/usr/bin/mkdir",
+          "-p",
+          "instance"
+        ],
+        [
+          "/home/zageabb/ollama-chat/should-cost-intelligence/.venv/bin/python",
+          "-m",
+          "alembic",
+          "upgrade",
+          "head"
+        ]
+      ],
+      "restart_command": [
+        "systemctl",
+        "--user",
+        "restart",
+        "ollama-chat-should-cost-intelligence.service"
+      ],
+      "service_unit": "ollama-chat-should-cost-intelligence.service",
+      "health_url": "http://127.0.0.1:5076/health",
+      "rollback": true,
+      "health_timeout": 60
+    }
+  ]
+}
