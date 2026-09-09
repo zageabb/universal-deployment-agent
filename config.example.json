@@ -12,6 +12,7 @@
       "branch": "main",
       "update_commands": [["./venv/bin/pip", "install", "-r", "requirements.txt"]],
       "restart_command": ["systemctl", "--user", "restart", "example-app.service"],
+      "service_unit": "example-app.service",
       "health_url": "http://127.0.0.1:5055/health",
       "health_timeout": 30,
       "rollback": true
