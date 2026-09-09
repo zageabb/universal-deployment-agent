@@ -9,7 +9,7 @@ def test_health_endpoint(tmp_path):
     client = dashboard.create_app(config).test_client()
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.get_json()["version"] == "1.1.0"
+    assert response.get_json()["version"] == dashboard.VERSION
 
 
 def test_unknown_application_update_is_404(tmp_path):
@@ -37,3 +37,12 @@ def test_dashboard_refreshes_every_two_minutes(tmp_path):
 
     assert response.status_code == 200
     assert b'<meta http-equiv="refresh" content="120">' in response.data
+
+
+def test_library_dashboard_has_no_health_endpoint(tmp_path):
+    import json
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"applications": [{"name": "research-core", "enabled": True,
+        "kind": "library", "update_commands": [["pytest"]], "repo_path": "/tmp/library", "branch": "main"}], "dashboard_token": "secret"}))
+    response = dashboard.create_app(config).test_client().get("/", headers={"Authorization": "Basic YWRtaW46c2VjcmV0"})
+    assert response.status_code == 200

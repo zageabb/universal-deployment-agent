@@ -6,6 +6,8 @@ import argparse
 import fcntl
 import json
 import logging
+import re
+import socket
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import subprocess
@@ -14,8 +16,11 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.request import urlopen
+from urllib.parse import urlsplit
 
-VERSION = "1.1.0"
+VERSION = "1.3.0"
+
+SERVICE_UNIT_PATTERN = re.compile(r"^[A-Za-z0-9_.@-]+\.service$")
 
 
 class DeployError(RuntimeError):
@@ -42,15 +47,24 @@ def load_config(path: Path) -> dict[str, Any]:
         raise DeployError("Configuration must contain an applications list")
     names = set()
     for app in value["applications"]:
-        required = {"name", "repo_path", "branch", "restart_command", "health_url"}
+        required = {"name", "repo_path", "branch"}
+        if app.get("kind", "service") not in {"service", "library"}:
+            raise DeployError("kind must be service or library")
+        if app.get("kind", "service") == "service":
+            required |= {"restart_command", "health_url"}
+        elif not app.get("update_commands"):
+            raise DeployError("Library requires update_commands to validate the revision")
         missing = required - set(app)
         if missing:
             raise DeployError(f"Application is missing fields: {sorted(missing)}")
         if app["name"] in names:
             raise DeployError(f"Duplicate application name: {app['name']}")
         names.add(app["name"])
-        if not isinstance(app["restart_command"], list) or not app["restart_command"]:
+        if app.get("kind", "service") == "service" and (not isinstance(app["restart_command"], list) or not app["restart_command"]):
             raise DeployError(f"{app['name']} restart_command must be a non-empty argument list")
+        service_unit = app.get("service_unit")
+        if service_unit is not None and not SERVICE_UNIT_PATTERN.fullmatch(str(service_unit)):
+            raise DeployError(f"{app['name']} service_unit must be a valid .service unit name")
     return value
 
 
@@ -93,6 +107,8 @@ def deploy_application(app: dict[str, Any], dry_run: bool, logger: logging.Logge
     name = app["name"]
     if not app.get("enabled", False):
         return {"name": name, "status": "disabled"}
+    if not app.get("deployment_enabled", True):
+        return {"name": name, "status": "service_only"}
     state = inspect_application(app)
     if state["dirty"]:
         if app.get("auto_deploy", False):
@@ -106,19 +122,86 @@ def deploy_application(app: dict[str, Any], dry_run: bool, logger: logging.Logge
     repo, previous = state["repo"], state["local"]
     logger.info("%s updating %s -> %s", name, previous[:12], state["remote"][:12])
     git(repo, "merge", "--ff-only", f"origin/{app['branch']}")
+    restarted = False
+    service = app.get("kind", "service") == "service"
     try:
+        install_dependencies(app, repo)
         for command in app.get("update_commands", []):
             run([str(part) for part in command], cwd=repo, timeout=int(app.get("command_timeout", 300)))
-        run([str(part) for part in app["restart_command"]], timeout=int(app.get("restart_timeout", 60)))
-        health_check(str(app["health_url"]), int(app.get("health_timeout", 30)))
-    except DeployError:
-        if app.get("rollback", True):
-            logger.exception("%s deployment failed; rolling back to %s", name, previous[:12])
-            git(repo, "reset", "--hard", previous)
+        if service:
+            restarted = True
             run([str(part) for part in app["restart_command"]], timeout=int(app.get("restart_timeout", 60)))
             health_check(str(app["health_url"]), int(app.get("health_timeout", 30)))
+    except DeployError as original:
+        if app.get("rollback", True):
+            logger.exception("%s deployment failed; rolling back to %s", name, previous[:12])
+            try:
+                git(repo, "reset", "--hard", previous)
+                # pip can partially mutate an environment. Never restart until the
+                # previous requirements have been restored successfully.
+                install_dependencies(app, repo)
+                if restarted and service:
+                    run([str(part) for part in app["restart_command"]], timeout=int(app.get("restart_timeout", 60)))
+                    health_check(str(app["health_url"]), int(app.get("health_timeout", 30)))
+            except DeployError as recovery:
+                raise DeployError(f"{original}; rollback failed: {recovery}") from original
         raise
-    return {"name": name, "status": "deployed", "from": previous, "to": state["remote"]}
+    result = {"name": name, "status": "deployed", "from": previous, "to": state["remote"]}
+    result["diagnostics"] = diagnostics(app, repo)
+    return result
+
+
+def dependency_command(app: dict[str, Any]) -> list[str] | None:
+    """Opt-in Python installs, using each application's existing environment."""
+    if not app.get("python"):
+        return None
+    return [str(Path(app["python"]).expanduser()), "-m", "pip", "install", "--upgrade", "--force-reinstall",
+            "-r", str(app.get("requirements", "requirements.txt"))]
+
+
+def install_dependencies(app: dict[str, Any], repo: Path) -> None:
+    command = dependency_command(app)
+    if command:
+        try:
+            run(command, cwd=repo, timeout=int(app.get("command_timeout", 300)))
+        except DeployError as exc:
+            raise DeployError(f"Dependency installation failed: {exc}") from exc
+
+
+def diagnostics(app: dict[str, Any], repo: Path) -> dict[str, Any]:
+    """Best-effort metadata must not roll back an otherwise healthy deployment."""
+    result = {"repository": str(repo), "service": app.get("service_unit"),
+              "health": "passed" if app.get("kind", "service") == "service" else "not applicable"}
+    if app.get("python"):
+        script = """import json, sys, importlib.metadata as m
+r = {'virtualenv': sys.prefix, 'python': sys.version}
+try:
+ d = m.distribution('research-core')
+ r['research_core_version'] = d.version
+ r['research_core_revision'] = json.loads(d.read_text('direct_url.json') or '{}').get('vcs_info', {}).get('commit_id')
+except m.PackageNotFoundError:
+ r['research_core_version'] = None
+print(json.dumps(r))
+"""
+        try:
+            result.update(json.loads(run([str(Path(app["python"]).expanduser()), "-c", script], cwd=repo)))
+        except (DeployError, ValueError) as exc:
+            result["python_diagnostic_error"] = str(exc)
+    if app.get("health_url"):
+        endpoint = urlsplit(app["health_url"])
+        port = endpoint.port or (443 if endpoint.scheme == "https" else 80)
+        result["port"] = port
+        try:
+            with socket.create_connection((endpoint.hostname, port), timeout=2):
+                result["port_listening"] = True
+        except OSError:
+            result["port_listening"] = False
+    if app.get("service_unit"):
+        try:
+            result["service_state"] = run(["systemctl", "--user", "is-active", app["service_unit"]])
+        except DeployError as exc:
+            result["service_state"] = str(exc)
+    return result
 
 
 def configure_logging(config: dict[str, Any], verbose: bool) -> logging.Logger:

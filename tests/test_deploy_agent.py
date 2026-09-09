@@ -63,3 +63,75 @@ def test_execute_writes_status_file(tmp_path, monkeypatch):
     status = __import__("json").loads((tmp_path / "status.json").read_text())
     assert status["version"] == deploy_agent.VERSION
     assert status["applications"][0]["status"] == "current"
+
+
+def deployment_fixture(tmp_path, monkeypatch):
+    value = app(tmp_path) | {"auto_deploy": True, "python": str(tmp_path / '.venv/bin/python')}
+    monkeypatch.setattr(deploy_agent, "inspect_application", lambda *_: {
+        "repo": tmp_path, "dirty": "", "local": "a", "remote": "b", "update_available": True})
+    return value
+
+
+@pytest.mark.parametrize('name', ['tender-designer', 'internet-pricing', 'should-cost-intelligence'])
+def test_python_install_precedes_setup_and_existing_restart(tmp_path, monkeypatch, name):
+    value = deployment_fixture(tmp_path, monkeypatch) | {'name': name, 'update_commands': [['setup']]}
+    calls = []
+    monkeypatch.setattr(deploy_agent, 'git', lambda *args: calls.append(list(args[1:])))
+    monkeypatch.setattr(deploy_agent, 'run', lambda cmd, **kw: calls.append(cmd) or '')
+    monkeypatch.setattr(deploy_agent, 'health_check', lambda *args: calls.append(['health']))
+    monkeypatch.setattr(deploy_agent, 'diagnostics', lambda *args: {})
+    deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())
+    assert calls == [['merge', '--ff-only', 'origin/main'],
+                     [value['python'], '-m', 'pip', 'install', '--upgrade', '--force-reinstall', '-r', 'requirements.txt'],
+                     ['setup'], value['restart_command'], ['health']]
+
+
+@pytest.mark.parametrize('recovery_fails', [False, True])
+def test_failed_pip_never_restarts(tmp_path, monkeypatch, recovery_fails):
+    value = deployment_fixture(tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(deploy_agent, 'git', lambda *args: calls.append(list(args[1:])))
+    count = 0
+    def run(cmd, **kw):
+        nonlocal count
+        calls.append(cmd)
+        count += 1
+        if count == 1 or recovery_fails:
+            raise deploy_agent.DeployError('pip network failure')
+    monkeypatch.setattr(deploy_agent, 'run', run)
+    with pytest.raises(deploy_agent.DeployError, match='Dependency installation failed.*pip network failure'):
+        deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())
+    assert value['restart_command'] not in calls
+    assert ['reset', '--hard', 'a'] in calls
+    assert count == 2
+
+
+def test_library_validates_without_service(tmp_path, monkeypatch):
+    import json
+    value = deployment_fixture(tmp_path, monkeypatch) | {'kind': 'library', 'update_commands': [['pytest']]}
+    value.pop('python')
+    value.pop('restart_command')
+    value.pop('health_url')
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({'applications': [value]}))
+    deploy_agent.load_config(config)
+    calls = []
+    monkeypatch.setattr(deploy_agent, 'git', lambda *a: '')
+    monkeypatch.setattr(deploy_agent, 'run', lambda cmd, **kw: calls.append(cmd) or '')
+    monkeypatch.setattr(deploy_agent, 'health_check', lambda *a: pytest.fail('library has no web service'))
+    assert deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())['status'] == 'deployed'
+    assert calls == [['pytest']]
+
+
+def test_health_failure_restores_dependencies_before_restart(tmp_path, monkeypatch):
+    value = deployment_fixture(tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(deploy_agent, 'git', lambda *a: calls.append(list(a[1:])))
+    monkeypatch.setattr(deploy_agent, 'run', lambda cmd, **kw: calls.append(cmd))
+    def health(*a):
+        if calls.count(value['restart_command']) == 1:
+            raise deploy_agent.DeployError('unhealthy')
+    monkeypatch.setattr(deploy_agent, 'health_check', health)
+    with pytest.raises(deploy_agent.DeployError, match='unhealthy'):
+        deploy_agent.deploy_application(value, False, deploy_agent.logging.getLogger())
+    assert calls[-3:] == [['reset', '--hard', 'a'], deploy_agent.dependency_command(value), value['restart_command']]
