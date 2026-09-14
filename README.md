@@ -1,5 +1,34 @@
 # Universal Git Deployment Agent
 
+## Ubuntu server deployment
+
+Verified on **14 September 2026** against the listeners, user systemd services,
+Docker port mappings and deployment registry on `192.168.1.249`.
+
+| Endpoint | Host TCP port | LAN URL |
+|---|---:|---|
+| Authenticated dashboard | 5030 | http://192.168.1.249:5030/ |
+| Application Home | 5048 | http://192.168.1.249:5048/ |
+
+Checkout: `/home/zageabb/ollama-chat/universal-deployment-agent`.
+
+Installed runtime: `/home/zageabb/.local/share/deployment-agent`.
+
+These are **user** systemd units. Inspect them with:
+
+```bash
+systemctl --user status deployment-agent-dashboard.service deployment-agent-home.service
+systemctl --user cat deployment-agent-dashboard.service deployment-agent-home.service
+```
+
+Local verification URL: `http://127.0.0.1:5030/`. The dashboard returns HTTP 401 until authenticated.
+
+Development defaults and container-internal ports elsewhere in this repository
+may differ from this host deployment. Use the live ports above when accessing
+this Ubuntu server; do not start a second copy on a port already occupied.
+
+[Complete Ubuntu port inventory](https://github.com/zageabb/universal-deployment-agent/blob/main/UBUNTU_PORTS.md).
+
 A small, dependency-free deployment poller for multiple applications on one Linux host. It checks configured Git branches, fast-forwards clean repositories, runs allowlisted update commands, restarts the corresponding systemd user service, verifies its health endpoint, and rolls back a failed deployment.
 
 The Flask dashboard shows agent version and last-run status, application health, commits and deployment results. Authorized applications can be checked and updated immediately from their card. It listens on port 5030 and requires HTTP Basic authentication: username `admin`, password from `dashboard_token` in the local configuration. Open `http://SERVER:5030` from the trusted network.
