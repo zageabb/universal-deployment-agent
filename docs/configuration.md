@@ -32,8 +32,13 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `command_timeout` | No | Per-update-command timeout; defaults to 300 |
 | `restart_timeout` | No | Restart-command timeout; defaults to 60 |
 | `health_timeout` | No | Total health polling window; defaults to 30 |
+| `environment_file` | No | Default protected environment file inherited by scheduled jobs |
+| `scheduled_jobs` | No | Declarative scheduled oneshot jobs; defaults to an empty list |
 
 Commands are arrays rather than shell strings. Shell expansion, pipes, redirects, command substitution, and implicit environment interpolation are not performed.
+
+See [Scheduled application jobs](scheduled-jobs.md) for the job schema,
+supported schedule types, lifecycle, and LedgerOne example.
 
 When `service_unit` is configured, the authenticated dashboard may run only `systemctl --user start`, `stop`, or `restart` for that exact validated unit. It does not accept arbitrary service names or commands from requests. Mutating dashboard requests also require the form token provided by the authenticated dashboard. Refresh the page after restarting the dashboard to obtain a new token. Service actions use the deployment lock and return HTTP 409 while a deployment or another service action is running.
 

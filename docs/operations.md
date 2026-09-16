@@ -21,6 +21,7 @@ Inspect scheduling and the most recent run:
 ```bash
 systemctl --user list-timers deployment-agent.timer
 systemctl --user status deployment-agent.service
+systemctl --user list-timers 'uda-*'
 ```
 
 Follow logs:
@@ -28,6 +29,14 @@ Follow logs:
 ```bash
 journalctl --user -u deployment-agent.service -f
 tail -f ~/.local/state/deployment-agent/deploy.log
+```
+
+For a scheduled job, inspect both units and the job journal:
+
+```bash
+systemctl --user status uda-ledgerone-recurring-transactions.timer
+systemctl --user status uda-ledgerone-recurring-transactions.service
+journalctl --user -u uda-ledgerone-recurring-transactions.service
 ```
 
 Restart a registered application manually:

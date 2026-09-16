@@ -13,6 +13,7 @@ It deliberately avoids a resident web service, inbound webhook, privileged daemo
 | `deployment-agent.timer` | Starts a check every five minutes |
 | `deployment-agent.service` | Runs one isolated check and exits |
 | Application systemd services | Own application process lifecycle and restart behavior |
+| Generated `uda-*.service` and `uda-*.timer` units | Run declarative application jobs independently of the web service |
 | Root launchers | Provide memorable manual restart commands that delegate to systemd |
 | Rotating log | Records decisions, blocks, deployments, and rollback outcomes |
 
@@ -33,6 +34,11 @@ For each enabled application, the agent:
 11. Restores the prior commit and restarts again if deployment validation fails.
 
 A host-wide non-blocking file lock ensures only one agent run can operate at a time.
+
+Before a normal (non-dry) run, UDA reconciles enabled scheduled jobs with user
+systemd units. Unit reconciliation never starts the job command. Timers invoke
+oneshot services later, independently of application deployment. A later job
+failure is runtime state and cannot trigger a Git rollback.
 
 ## State transitions
 

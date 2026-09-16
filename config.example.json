@@ -15,7 +15,17 @@
       "service_unit": "example-app.service",
       "health_url": "http://127.0.0.1:5055/health",
       "health_timeout": 30,
-      "rollback": true
+      "rollback": true,
+      "scheduled_jobs": [
+        {
+          "name": "daily-maintenance",
+          "description": "Run the application's daily maintenance",
+          "enabled": true,
+          "schedule": "daily",
+          "time": "06:00",
+          "command": ["./venv/bin/python", "manage.py", "maintenance"]
+        }
+      ]
     }
   ]
 }

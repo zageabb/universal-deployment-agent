@@ -144,3 +144,46 @@ def test_service_only_update_is_rejected(tmp_path):
     with patch('dashboard.subprocess.run') as run:
         assert client.post('/applications/example/update', headers=headers, data=data).status_code == 403
         run.assert_not_called()
+
+
+def test_scheduled_job_is_visible_and_can_be_run(tmp_path):
+    import json
+    entry = {"name": "example", "enabled": True, "auto_deploy": False,
+             "repo_path": "/tmp/example", "branch": "main", "restart_command": ["true"],
+             "health_url": "", "scheduled_jobs": [{"name": "cleanup", "enabled": True,
+                 "schedule": "daily", "time": "06:00", "command": ["./cleanup"]}]}
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"applications": [entry], "dashboard_token": "secret",
+                                  "lock_file": str(tmp_path / "deploy.lock")}))
+    client = dashboard.create_app(config).test_client()
+    headers = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    data = {"csrf_token": client.application.config["CSRF_TOKEN"]}
+    status = {"name": "cleanup", "enabled": True, "schedule": "*-*-* 06:00:00",
+              "timer_active": True, "next_run": "tomorrow", "previous_run": "today",
+              "result": "success", "timer_unit": "uda-example-cleanup.timer",
+              "service_unit": "uda-example-cleanup.service"}
+    with patch("dashboard.scheduled_job_status", return_value=status), \
+         patch("dashboard.subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")) as run:
+        page = client.get("/", headers=headers)
+        response = client.post("/applications/example/scheduled-jobs/cleanup/run",
+                               headers=headers, data=data)
+    assert b"uda-example-cleanup.timer" in page.data
+    assert response.status_code == 302
+    run.assert_called_once_with(["systemctl", "--user", "start", "--", "uda-example-cleanup.service"],
+                                text=True, capture_output=True, timeout=600, check=False)
+
+
+def test_disabled_scheduled_job_cannot_be_run(tmp_path):
+    import json
+    entry = {"name": "example", "enabled": True, "repo_path": "/tmp/example", "branch": "main",
+             "restart_command": ["true"], "health_url": "", "scheduled_jobs": [{"name": "cleanup",
+                 "enabled": False, "schedule": "hourly", "command": ["./cleanup"]}]}
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"applications": [entry], "dashboard_token": "secret"}))
+    client = dashboard.create_app(config).test_client()
+    headers = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    data = {"csrf_token": client.application.config["CSRF_TOKEN"]}
+    with patch("dashboard.subprocess.run") as run:
+        response = client.post("/applications/example/scheduled-jobs/cleanup/run", headers=headers, data=data)
+    assert response.status_code == 403
+    run.assert_not_called()

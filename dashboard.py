@@ -13,7 +13,7 @@ from urllib.request import urlopen
 
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
-from deploy_agent import VERSION, load_config
+from deploy_agent import VERSION, load_config, scheduled_job_status, unit_names
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
 
@@ -83,6 +83,8 @@ def create_app(config_path: Path) -> Flask:
                 "last_result": prior_by_name.get(item["name"]),
                 "health": health(str(item["health_url"])) if item.get("enabled") and item.get("health_url") else None,
                 "service": service_status(item.get("service_unit")),
+                "scheduled_job_statuses": [scheduled_job_status(item, job)
+                                           for job in item.get("scheduled_jobs", [])],
             })
         return render_template("dashboard.html", version=VERSION, state=previous,
                                applications=applications, message=request.args.get("message"),
@@ -136,6 +138,39 @@ def create_app(config_path: Path) -> Flask:
         else:
             detail = (result.stderr or result.stdout).strip()[-300:]
             message = f"{name}: {action} failed: {detail}"
+        return redirect(url_for("index", message=message))
+
+    @app.post("/applications/<name>/scheduled-jobs/<job_name>/run")
+    def run_scheduled_job(name: str, job_name: str):
+        cfg = config()
+        selected = next((item for item in cfg["applications"] if item["name"] == name), None)
+        if selected is None:
+            abort(404)
+        job = next((item for item in selected.get("scheduled_jobs", []) if item["name"] == job_name), None)
+        if job is None:
+            abort(404)
+        if not selected.get("enabled") or not job.get("enabled", True):
+            abort(403, "Scheduled job is not enabled in the registry")
+        service_unit, _ = unit_names(name, job_name)
+        try:
+            lock_path = Path(cfg.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            with lock_path.open("a") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    abort(409, "A deployment or service action is already running")
+                result = subprocess.run(
+                    ["systemctl", "--user", "start", "--", service_unit],
+                    text=True, capture_output=True, timeout=600, check=False,
+                )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return redirect(url_for("index", message=f"{name}/{job_name}: run failed: {exc}"))
+        if result.returncode == 0:
+            message = f"{name}/{job_name}: run completed"
+        else:
+            detail = (result.stderr or result.stdout).strip()[-300:]
+            message = f"{name}/{job_name}: run failed: {detail}"
         return redirect(url_for("index", message=message))
 
     return app

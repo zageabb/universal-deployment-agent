@@ -66,6 +66,7 @@ Each destination retains its own authentication. The management dashboard on
 - [Registry reference and application onboarding](docs/configuration.md)
 - [Operations, monitoring, and recovery](docs/operations.md)
 - [Security model](docs/security.md)
+- [Scheduled application jobs](docs/scheduled-jobs.md)
 - [Ollama Chat reference deployment](docs/ollama-chat.md)
 
 ## Safety model
@@ -77,6 +78,7 @@ Each destination retains its own authentication. The management dashboard on
 - Only argument-array commands stored in the local registry can run.
 - A host-wide lock prevents concurrent deployments.
 - Failed restarts or health checks restore the previous commit.
+- Scheduled jobs run independently as generated systemd user services and timers; they never participate in deployment rollback.
 - Rotating logs preserve deployment outcomes without growing indefinitely.
 
 Operational data, environment files, logs, uploads, databases, and server-specific configuration should live outside Git checkouts.

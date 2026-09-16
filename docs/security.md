@@ -15,6 +15,8 @@ The deployment agent is intentionally narrow. It reads one local allowlist, perf
 - No webhook endpoint
 - No `shell=True`
 - No shell-string commands
+- Validated lowercase application/job names and fixed `uda-` unit filenames
+- Generated units confined to the user's systemd unit directory
 - No deployment from arbitrary branches
 - Dirty-tree refusal before automatic mutation
 - File lock against concurrent runs
@@ -35,6 +37,11 @@ chmod 700 ~/.config/deployment-agent
 ```
 
 Environment files should use the same restrictions.
+
+Scheduled-job status and the dashboard expose unit names, schedule, timer state,
+and result only. They never expose job commands, environment-file contents, or
+secrets. Environment files are referenced by path from generated services and
+remain under host-administrator control.
 
 ## GitHub controls
 
