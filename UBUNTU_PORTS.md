@@ -48,6 +48,14 @@ Application Home runs from the installed deployment-agent runtime at
 `/home/zageabb/.local/share/deployment-agent`; its source repository is
 `~/ollama-chat/universal-deployment-agent`.
 
+## Reserved / prepared application ports
+
+These entries are prepared in source control but were **not** part of the 14 September live-listener verification. Recheck the host before first start.
+
+| Repository | Planned host TCP port | Planned checkout | Deployment state |
+|---|---:|---|---|
+| [PackBridge](https://github.com/zageabb/PackBridge) | **5085** | `/home/zageabb/ollama-chat/PackBridge` | monitor-only UDA entry prepared; first manual health check required |
+
 ## Other application and infrastructure listeners
 
 These listeners are present on the server but do not map to an identified
