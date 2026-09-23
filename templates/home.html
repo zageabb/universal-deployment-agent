@@ -6,6 +6,7 @@
   <meta name="description" content="Your applications, together in one place.">
   <title>Application Home</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+  <script defer src="{{ url_for('static', filename='group-filter.js') }}"></script>
   <script defer src="{{ url_for('static', filename='home.js') }}"></script>
 </head>
 <body>
@@ -16,22 +17,36 @@
     </a>
     <span class="source">Powered by UDA</span>
   </header>
-  <main>
+  <main data-group-root data-group-storage-key="uda-home-group">
     <div class="page-heading">
-      <div><p class="eyebrow">WORKSPACE</p><h1>Your applications</h1><p class="intro">Choose an application to open it in a new tab.</p></div>
-      <span class="count" id="app-count">{{ applications|length }} applications</span>
+      <div><p class="eyebrow">WORKSPACE</p><h1>Your applications</h1><p class="intro">Choose a group, then open an application in a new tab.</p></div>
+      <span class="count" id="app-count" data-visible-count>{{ applications|length }} applications</span>
     </div>
     <p id="registry-message" class="notice" role="status" {% if not error %}hidden{% endif %}>The application list is temporarily unavailable. Retrying shortly.</p>
-    <div class="app-grid" id="app-grid">
-      {% for app in applications %}
-      <a class="app-card" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ app.title }} (opens in a new tab)">
-        <div class="card-top"><span class="app-icon" aria-hidden="true">{{ app.initials }}</span><span class="open-icon" aria-hidden="true">↗</span></div>
-        <h2>{{ app.title }}</h2>
-        <span class="address">{{ app.address }}</span>
-      </a>
-      {% endfor %}
+    <div class="directory-layout">
+      <aside class="group-panel" aria-label="Application groups">
+        <p class="group-heading">Groups</p>
+        <nav class="group-nav" data-group-nav>
+          <button type="button" class="group-button active" data-group-button data-group="all" aria-pressed="true"><span>All applications</span><span class="group-count">{{ applications|length }}</span></button>
+          {% for group in groups %}
+          <button type="button" class="group-button" data-group-button data-group="{{ group.name }}" aria-pressed="false"><span>{{ group.name }}</span><span class="group-count">{{ group.count }}</span></button>
+          {% endfor %}
+        </nav>
+      </aside>
+      <section class="applications-pane" aria-label="Applications">
+        <div class="app-grid" id="app-grid">
+          {% for app in applications %}
+          <a class="app-card" data-app-group="{{ app.group }}" href="{{ app.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ app.title }} (opens in a new tab)">
+            <div class="card-top"><span class="app-icon" aria-hidden="true">{{ app.initials }}</span><span class="open-icon" aria-hidden="true">↗</span></div>
+            <h2>{{ app.title }}</h2>
+            <span class="app-group">{{ app.group }}</span>
+            <span class="address">{{ app.address }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        <p id="empty-message" class="empty" {% if applications or error %}hidden{% endif %}>No applications are listed yet.</p>
+      </section>
     </div>
-    <p id="empty-message" class="empty" {% if applications or error %}hidden{% endif %}>No applications are listed yet.</p>
     <footer>Application directory<span>Updated from Universal Deployment Agent</span></footer>
   </main>
 </body>

@@ -19,7 +19,7 @@ from typing import Any
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 SERVICE_UNIT_PATTERN = re.compile(r"^[A-Za-z0-9_.@-]+\.service$")
 SAFE_NAME_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -139,6 +139,10 @@ def load_config(path: Path) -> dict[str, Any]:
         if app["name"] in names:
             raise DeployError(f"Duplicate application name: {app['name']}")
         names.add(app["name"])
+        if "group" in app:
+            group = app["group"]
+            if not isinstance(group, str) or not group.strip() or any(character in group for character in "\x00\n\r"):
+                raise DeployError(f"{app['name']} group must be a non-empty string")
         if app.get("kind", "service") == "service" and (not isinstance(app["restart_command"], list) or not app["restart_command"]):
             raise DeployError(f"{app['name']} restart_command must be a non-empty argument list")
         service_unit = app.get("service_unit")

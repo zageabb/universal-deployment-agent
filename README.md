@@ -56,6 +56,10 @@ friendly card title.
 This is a trusted-network launcher without authentication or service controls.
 Its JSON endpoint exposes only names, titles, links, initials, and addresses;
 registry secrets, filesystem paths, and deployment commands are never included.
+Set an optional `group` on each registry entry to place it in the left-hand
+group filter. Apps without a group appear under `Other`. The same grouping is
+shown on the authenticated 5030 management dashboard, and each page remembers
+the selected group for the current browser tab.
 Each destination retains its own authentication. The management dashboard on
 5030 remains separate and authenticated.
 

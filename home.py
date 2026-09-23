@@ -9,6 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask, jsonify, render_template, request
 from deploy_agent import DeployError, load_config
+from ui_groups import application_group, group_summary
 
 LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1', '::'}
 
@@ -48,7 +49,8 @@ def application_cards(config: dict, public_host: str) -> list[dict]:
         words = title.split()
         cards.append({'name': entry['name'], 'title': title, 'url': url,
                       'initials': ''.join(word[0] for word in words[:2]).upper(),
-                      'address': urlsplit(url).netloc})
+                      'address': urlsplit(url).netloc,
+                      'group': application_group(entry)})
     return sorted(cards, key=lambda card: card['title'].casefold())
 
 
@@ -70,15 +72,18 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     @app.get('/')
     def index():
         try:
-            return render_template('home.html', applications=cards(), error=False)
+            applications = cards()
+            return render_template('home.html', applications=applications,
+                                   groups=group_summary(applications), error=False)
         except DeployError:
             app.logger.warning('Application registry unavailable')
-            return render_template('home.html', applications=[], error=True), 503
+            return render_template('home.html', applications=[], groups=[], error=True), 503
 
     @app.get('/api/applications')
     def applications():
         try:
-            return jsonify(applications=cards())
+            listed = cards()
+            return jsonify(applications=listed, groups=group_summary(listed))
         except DeployError:
             return jsonify(error='The application list is temporarily unavailable.'), 503
 
