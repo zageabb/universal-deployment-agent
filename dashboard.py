@@ -94,7 +94,7 @@ def create_app(config_path: Path) -> Flask:
             name = clean_group_name(request.form.get("name"))
         except ValueError as exc:
             abort(400, str(exc))
-        if name == DEFAULT_GROUP:
+        if name.casefold() == DEFAULT_GROUP.casefold():
             abort(400, f"{DEFAULT_GROUP} is reserved for ungrouped applications")
         return name
 
