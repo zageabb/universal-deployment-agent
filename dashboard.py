@@ -6,15 +6,17 @@ import argparse
 import fcntl
 from datetime import datetime, timezone
 import json
+import os
 import secrets
 from pathlib import Path
 import subprocess
+from threading import Lock
 from urllib.request import urlopen
 
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
-from deploy_agent import VERSION, load_config, scheduled_job_status, unit_names
-from ui_groups import application_group, group_summary
+from deploy_agent import VERSION, DeployError, load_config, scheduled_job_status, unit_names
+from ui_groups import DEFAULT_GROUP, application_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
 
@@ -23,24 +25,38 @@ def create_app(config_path: Path) -> Flask:
     app = Flask(__name__)
     app.config["DEPLOY_CONFIG"] = config_path
     app.config["CSRF_TOKEN"] = secrets.token_urlsafe(32)
+    config_write_lock = Lock()
 
     def config():
         return load_config(app.config["DEPLOY_CONFIG"])
 
-    @app.before_request
-    def require_auth():
-        if request.endpoint == "dashboard_health":
-            return None
-        expected = config().get("dashboard_token")
-        supplied = request.authorization
-        if not expected or not supplied or supplied.username != "admin" or supplied.password != expected:
-            return Response("Authentication required", 401,
-                            {"WWW-Authenticate": 'Basic realm="Deployment Agent"'})
-        if request.method == "POST":
-            token = request.form.get("csrf_token", "")
-            if not secrets.compare_digest(token.encode(), app.config["CSRF_TOKEN"].encode()):
-                abort(403, "Refresh the dashboard and try again")
-        return None
+    def save_config(cfg: dict) -> None:
+        """Validate and atomically replace the registry without widening its permissions."""
+        path = Path(app.config["DEPLOY_CONFIG"])
+        try:
+            mode = path.stat().st_mode & 0o777
+            temporary = path.with_name(f".{path.name}.{secrets.token_hex(6)}.tmp")
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+            try:
+                with os.fdopen(fd, "w") as handle:
+                    json.dump(cfg, handle, indent=2)
+                    handle.write("\n")
+                os.chmod(temporary, mode)
+                load_config(temporary)
+                os.replace(temporary, path)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+        except (OSError, DeployError) as exc:
+            app.logger.error("Could not update deployment registry: %s", exc)
+            abort(500, "Could not update the application registry")
+
+    def mutate_config(mutator):
+        with config_write_lock:
+            cfg = config()
+            mutator(cfg)
+            save_config(cfg)
+            return cfg
 
     def state(cfg):
         path = Path(cfg.get("state_file", "~/.local/state/deployment-agent/status.json")).expanduser()
@@ -70,8 +86,32 @@ def create_app(config_path: Path) -> Flask:
             )
         except (OSError, subprocess.TimeoutExpired):
             return {"unit": unit, "state": "unknown", "active": False}
-        state = (result.stdout or result.stderr).strip() or "unknown"
-        return {"unit": unit, "state": state, "active": result.returncode == 0}
+        state_value = (result.stdout or result.stderr).strip() or "unknown"
+        return {"unit": unit, "state": state_value, "active": result.returncode == 0}
+
+    def submitted_group_name() -> str:
+        try:
+            name = clean_group_name(request.form.get("name"))
+        except ValueError as exc:
+            abort(400, str(exc))
+        if name == DEFAULT_GROUP:
+            abort(400, f"{DEFAULT_GROUP} is reserved for ungrouped applications")
+        return name
+
+    @app.before_request
+    def require_auth():
+        if request.endpoint == "dashboard_health":
+            return None
+        expected = config().get("dashboard_token")
+        supplied = request.authorization
+        if not expected or not supplied or supplied.username != "admin" or supplied.password != expected:
+            return Response("Authentication required", 401,
+                            {"WWW-Authenticate": 'Basic realm="Deployment Agent"'})
+        if request.method == "POST":
+            token = request.form.get("csrf_token", "")
+            if not secrets.compare_digest(token.encode(), app.config["CSRF_TOKEN"].encode()):
+                abort(403, "Refresh the dashboard and try again")
+        return None
 
     @app.get("/")
     def index():
@@ -89,9 +129,123 @@ def create_app(config_path: Path) -> Flask:
                                            for job in item.get("scheduled_jobs", [])],
             })
         return render_template("dashboard.html", version=VERSION, state=previous,
-                               applications=applications, groups=group_summary(applications),
+                               applications=applications,
+                               groups=group_summary(applications, configured_groups(cfg)),
                                message=request.args.get("message"),
                                csrf_token=app.config["CSRF_TOKEN"])
+
+    @app.get("/groups")
+    def manage_groups():
+        cfg = config()
+        groups = configured_groups(cfg)
+        summary = {row["name"]: row["count"]
+                   for row in group_summary(cfg["applications"], groups, include_empty=True)}
+        managed = [{"name": name, "count": summary.get(name, 0),
+                    "first": index == 0, "last": index == len(groups) - 1}
+                   for index, name in enumerate(groups)]
+        applications = sorted(
+            [{"name": entry["name"],
+              "title": entry.get("display_name") or entry["name"],
+              "group": application_group(entry)}
+             for entry in cfg["applications"]],
+            key=lambda item: item["title"].casefold(),
+        )
+        return render_template("groups.html", version=VERSION, groups=managed,
+                               ungrouped_count=summary.get(DEFAULT_GROUP, 0),
+                               applications=applications, default_group=DEFAULT_GROUP,
+                               message=request.args.get("message"),
+                               csrf_token=app.config["CSRF_TOKEN"])
+
+    @app.post("/groups/create")
+    def create_group():
+        name = submitted_group_name()
+
+        def mutate(cfg):
+            groups = configured_groups(cfg)
+            if any(existing.casefold() == name.casefold() for existing in groups):
+                abort(409, "A group with that name already exists")
+            cfg["groups"] = [*groups, name]
+
+        mutate_config(mutate)
+        return redirect(url_for("manage_groups", message=f"Created group: {name}"))
+
+    @app.post("/groups/rename")
+    def rename_group():
+        old_name = request.form.get("old_name", "")
+        new_name = submitted_group_name()
+
+        def mutate(cfg):
+            groups = configured_groups(cfg)
+            if old_name not in groups:
+                abort(404)
+            if any(existing != old_name and existing.casefold() == new_name.casefold()
+                   for existing in groups):
+                abort(409, "A group with that name already exists")
+            cfg["groups"] = [new_name if item == old_name else item for item in groups]
+            for entry in cfg["applications"]:
+                if application_group(entry) == old_name:
+                    entry["group"] = new_name
+
+        mutate_config(mutate)
+        return redirect(url_for("manage_groups", message=f"Renamed {old_name} to {new_name}"))
+
+    @app.post("/groups/delete")
+    def delete_group():
+        name = request.form.get("name", "")
+
+        def mutate(cfg):
+            groups = configured_groups(cfg)
+            if name not in groups:
+                abort(404)
+            cfg["groups"] = [item for item in groups if item != name]
+            for entry in cfg["applications"]:
+                if application_group(entry) == name:
+                    entry.pop("group", None)
+
+        mutate_config(mutate)
+        return redirect(url_for("manage_groups", message=f"Deleted {name}; its applications moved to {DEFAULT_GROUP}"))
+
+    @app.post("/groups/reorder")
+    def reorder_group():
+        name = request.form.get("name", "")
+        direction = request.form.get("direction", "")
+        if direction not in {"up", "down"}:
+            abort(400, "direction must be up or down")
+
+        def mutate(cfg):
+            groups = configured_groups(cfg)
+            if name not in groups:
+                abort(404)
+            index = groups.index(name)
+            target = index - 1 if direction == "up" else index + 1
+            if 0 <= target < len(groups):
+                groups[index], groups[target] = groups[target], groups[index]
+            cfg["groups"] = groups
+
+        mutate_config(mutate)
+        return redirect(url_for("manage_groups", message=f"Updated group order: {name}"))
+
+    @app.post("/applications/<name>/group")
+    def assign_group(name: str):
+        selected_group = request.form.get("group", "")
+
+        def mutate(cfg):
+            selected = next((item for item in cfg["applications"] if item["name"] == name), None)
+            if selected is None:
+                abort(404)
+            groups = configured_groups(cfg)
+            cfg["groups"] = groups
+            if not selected_group or selected_group == DEFAULT_GROUP:
+                selected.pop("group", None)
+            else:
+                target = next((item for item in groups if item == selected_group), None)
+                if target is None:
+                    abort(400, "Unknown group")
+                selected["group"] = target
+
+        mutate_config(mutate)
+        label = selected_group or DEFAULT_GROUP
+        return redirect(url_for("manage_groups", message=f"{name} moved to {label}"))
 
     @app.get("/health")
     def dashboard_health():
