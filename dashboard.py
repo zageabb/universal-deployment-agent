@@ -14,6 +14,7 @@ from urllib.request import urlopen
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
 from deploy_agent import VERSION, load_config, scheduled_job_status, unit_names
+from ui_groups import application_group, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
 
@@ -80,6 +81,7 @@ def create_app(config_path: Path) -> Flask:
         applications = []
         for item in cfg["applications"]:
             applications.append(item | {
+                "group": application_group(item),
                 "last_result": prior_by_name.get(item["name"]),
                 "health": health(str(item["health_url"])) if item.get("enabled") and item.get("health_url") else None,
                 "service": service_status(item.get("service_unit")),
@@ -87,7 +89,8 @@ def create_app(config_path: Path) -> Flask:
                                            for job in item.get("scheduled_jobs", [])],
             })
         return render_template("dashboard.html", version=VERSION, state=previous,
-                               applications=applications, message=request.args.get("message"),
+                               applications=applications, groups=group_summary(applications),
+                               message=request.args.get("message"),
                                csrf_token=app.config["CSRF_TOKEN"])
 
     @app.get("/health")
