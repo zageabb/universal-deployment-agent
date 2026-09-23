@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manage groups · Deployment Agent</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#172b2a;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1200px;margin:auto;padding:32px}.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.1em;font-weight:800;color:#647572}.topbar h1{margin:4px 0 8px;font-size:30px}.muted{color:#647572}.top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.button,.link-button,button{border:0;border-radius:9px;padding:10px 14px;background:#123f38;color:#fff;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.link-button.secondary,button.secondary{background:#47645f}.link-button.light,button.light{background:#edf2f0;color:#23433e}.danger{background:#8a2520}.button:disabled,button:disabled{background:#b8c3c0;cursor:not-allowed}.message{padding:12px 14px;background:#dff3e8;border-radius:9px;margin-bottom:18px}.panel{background:#fff;border:1px solid #dce5e2;border-radius:14px;box-shadow:0 3px 14px #173b3210;padding:20px;margin-bottom:18px}.panel-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:16px}.panel h2{margin:0 0 6px;font-size:20px}.panel p{margin:0}.create-form{display:flex;gap:8px;align-items:center}.create-form input,.rename-form input,select{border:1px solid #cdd9d5;border-radius:8px;background:#fff;padding:9px 10px;font:inherit;color:#172b2a}.create-form input{min-width:240px}.group-list{display:grid;gap:10px}.group-row{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(280px,1.3fr) auto;gap:12px;align-items:center;border:1px solid #e0e8e5;border-radius:10px;padding:12px}.group-name{font-weight:800}.count{font-size:12px;background:#edf2f0;color:#526662;border-radius:999px;padding:4px 9px;white-space:nowrap}.rename-form,.order-actions,.delete-form{display:flex;gap:7px;align-items:center}.rename-form input{width:100%}.order-actions button{padding:8px 10px}.special-row{display:flex;justify-content:space-between;gap:14px;align-items:center;border-top:1px solid #e0e8e5;margin-top:14px;padding-top:14px}.apps-table{width:100%;border-collapse:collapse}.apps-table th,.apps-table td{text-align:left;padding:12px 10px;border-top:1px solid #e0e8e5;vertical-align:middle}.apps-table th{border-top:0;color:#647572;font-size:12px;letter-spacing:.04em;text-transform:uppercase}.app-name{font-weight:700}.internal{display:block;color:#647572;font-size:12px;margin-top:3px}.assign-form{display:flex;gap:8px;align-items:center}.assign-form select{min-width:190px}.note{font-size:13px;color:#647572;line-height:1.45}
+@media(max-width:850px){.wrap{padding:24px 16px}.topbar,.panel-head{flex-direction:column}.group-row{grid-template-columns:1fr}.rename-form{width:100%}.apps-table,.apps-table tbody,.apps-table tr,.apps-table td{display:block}.apps-table thead{display:none}.apps-table tr{border-top:1px solid #e0e8e5;padding:12px 0}.apps-table td{border:0;padding:5px 0}.assign-form{align-items:stretch;flex-direction:column}.assign-form select{width:100%}}
+</style></head><body><main class="wrap">
+<header class="topbar">
+  <div><div class="eyebrow">UNIVERSAL DEPLOYMENT AGENT</div><h1>Manage groups</h1><p class="muted">Create the groups you want to use, set their order, and assign applications without editing the registry by hand.</p></div>
+  <div class="top-actions"><span class="muted">Version {{ version }}</span><a class="link-button secondary" href="{{ url_for('index') }}">← Application status</a></div>
+</header>
+{% if message %}<div class="message" role="status">{{ message }}</div>{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Groups</h2><p class="muted">The order here is the order used by the group navigation on 5030 and 5048.</p></div>
+    <form class="create-form" method="post" action="{{ url_for('create_group') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input name="name" maxlength="80" required placeholder="New group name" aria-label="New group name">
+      <button>Add group</button>
+    </form>
+  </div>
+  <div class="group-list">
+    {% for group in groups %}
+    <div class="group-row">
+      <div><span class="group-name">{{ group.name }}</span></div>
+      <span class="count">{{ group.count }} {{ "app" if group.count == 1 else "apps" }}</span>
+      <form class="rename-form" method="post" action="{{ url_for('rename_group') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="old_name" value="{{ group.name }}">
+        <input name="name" value="{{ group.name }}" maxlength="80" required aria-label="Rename {{ group.name }}">
+        <button class="light">Rename</button>
+      </form>
+      <div class="order-actions">
+        <form method="post" action="{{ url_for('reorder_group') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ group.name }}"><input type="hidden" name="direction" value="up"><button class="light" {% if group.first %}disabled{% endif %} title="Move up">↑</button></form>
+        <form method="post" action="{{ url_for('reorder_group') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ group.name }}"><input type="hidden" name="direction" value="down"><button class="light" {% if group.last %}disabled{% endif %} title="Move down">↓</button></form>
+        <form class="delete-form" method="post" action="{{ url_for('delete_group') }}" data-confirm="Delete {{ group.name }}? Applications in this group will move to {{ default_group }}." onsubmit="return confirm(this.dataset.confirm)"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ group.name }}"><button class="danger">Delete</button></form>
+      </div>
+    </div>
+    {% else %}
+    <p class="note">No managed groups yet. Add one above; any older group names already assigned to applications will automatically be imported when this page is used.</p>
+    {% endfor %}
+  </div>
+  <div class="special-row"><div><strong>{{ default_group }}</strong><div class="note">Built-in fallback for applications that have not been assigned to a managed group.</div></div><span class="count">{{ ungrouped_count }} {{ "app" if ungrouped_count == 1 else "apps" }}</span></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Application assignments</h2><p class="muted">Choose where each registered application belongs. Changes appear on both the 5030 status page and the 5048 application home.</p></div></div>
+  <table class="apps-table">
+    <thead><tr><th>Application</th><th>Current group</th><th>Assign group</th></tr></thead>
+    <tbody>
+      {% for app in applications %}
+      <tr>
+        <td><span class="app-name">{{ app.title }}</span>{% if app.title != app.name %}<span class="internal">{{ app.name }}</span>{% endif %}</td>
+        <td>{{ app.group }}</td>
+        <td>
+          <form class="assign-form" method="post" action="{{ url_for('assign_group', name=app.name) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select name="group" aria-label="Group for {{ app.title }}">
+              <option value="{{ default_group }}" {% if app.group == default_group %}selected{% endif %}>{{ default_group }} (unassigned)</option>
+              {% for group in groups %}<option value="{{ group.name }}" {% if app.group == group.name %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+            </select>
+            <button class="light">Apply</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+</main></body></html>
