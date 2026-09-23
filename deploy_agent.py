@@ -135,7 +135,7 @@ def load_config(path: Path) -> dict[str, Any]:
             group = clean_group_name(raw_group)
         except ValueError as exc:
             raise DeployError(str(exc)) from exc
-        if group == DEFAULT_GROUP:
+        if group.casefold() == DEFAULT_GROUP.casefold():
             raise DeployError(f"{DEFAULT_GROUP} is reserved for ungrouped applications")
         key = group.casefold()
         if key in seen_groups:
