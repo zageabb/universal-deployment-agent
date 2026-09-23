@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask, jsonify, render_template, request
 from deploy_agent import DeployError, load_config
-from ui_groups import application_group, group_summary
+from ui_groups import application_group, configured_groups, group_summary
 
 LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1', '::'}
 
@@ -57,9 +57,10 @@ def application_cards(config: dict, public_host: str) -> list[dict]:
 def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     app = Flask(__name__)
 
-    def cards():
+    def directory():
         host = public_host or urlsplit(request.host_url).hostname
-        return application_cards(load_config(config_path), host)
+        cfg = load_config(config_path)
+        return application_cards(cfg, host), configured_groups(cfg)
 
     @app.after_request
     def headers(response):
@@ -72,9 +73,9 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     @app.get('/')
     def index():
         try:
-            applications = cards()
+            applications, groups = directory()
             return render_template('home.html', applications=applications,
-                                   groups=group_summary(applications), error=False)
+                                   groups=group_summary(applications, groups), error=False)
         except DeployError:
             app.logger.warning('Application registry unavailable')
             return render_template('home.html', applications=[], groups=[], error=True), 503
@@ -82,15 +83,15 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     @app.get('/api/applications')
     def applications():
         try:
-            listed = cards()
-            return jsonify(applications=listed, groups=group_summary(listed))
+            listed, groups = directory()
+            return jsonify(applications=listed, groups=group_summary(listed, groups))
         except DeployError:
             return jsonify(error='The application list is temporarily unavailable.'), 503
 
     @app.get('/health')
     def health():
         try:
-            cards()
+            directory()
             return jsonify(ok=True)
         except DeployError:
             return jsonify(ok=False), 503
