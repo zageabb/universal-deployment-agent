@@ -73,6 +73,7 @@ def test_invalid_group_is_rejected(tmp_path):
     ('not-a-list', 'groups must be a list'),
     (['Tools', 'tools'], 'Duplicate group name'),
     ([DEFAULT_GROUP], 'reserved for ungrouped applications'),
+    (['other'], 'reserved for ungrouped applications'),
 ])
 def test_invalid_managed_groups_are_rejected(tmp_path, groups, message):
     config = tmp_path / 'config.json'
