@@ -5,13 +5,6 @@ const message = document.getElementById('registry-message');
 const empty = document.getElementById('empty-message');
 let lastSnapshot;
 
-function summaries(applications) {
-  const counts = new Map();
-  applications.forEach(app => counts.set(app.group || 'Other', (counts.get(app.group || 'Other') || 0) + 1));
-  return Array.from(counts, ([name, count]) => ({name, count}))
-    .sort((a, b) => (a.name === 'Other') - (b.name === 'Other') || a.name.localeCompare(b.name));
-}
-
 function groupButton(name, count, all = false) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -51,15 +44,15 @@ async function refresh() {
   try {
     const response = await fetch('/api/applications', {cache: 'no-store'});
     if (!response.ok) throw new Error('Directory unavailable');
-    const {applications} = await response.json();
-    const snapshot = JSON.stringify(applications);
+    const {applications, groups = []} = await response.json();
+    const snapshot = JSON.stringify({applications, groups});
     if (snapshot !== lastSnapshot) {
       const nodes = applications.map(appCard);
       const focusedUrl = grid.contains(document.activeElement) ? document.activeElement.href : null;
       grid.replaceChildren(...nodes);
       groupNav.replaceChildren(
         groupButton('all', applications.length, true),
-        ...summaries(applications).map(group => groupButton(group.name, group.count))
+        ...groups.map(group => groupButton(group.name, group.count))
       );
       if (focusedUrl) nodes.find(node => node.href === focusedUrl)?.focus();
       empty.hidden = applications.length > 0;
