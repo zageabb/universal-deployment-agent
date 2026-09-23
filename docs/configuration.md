@@ -7,6 +7,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | Field | Required | Description |
 |---|---:|---|
 | `applications` | Yes | Application allowlist |
+| `groups` | No | Ordered managed group names used by the 5030 and 5048 navigation; the 5030 Manage groups page maintains this list |
 | `lock_file` | No | Cross-process lock; defaults to `/tmp/deployment-agent.lock` |
 | `log_file` | No | Rotating operational log |
 
@@ -24,7 +25,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `health_url` | Yes | HTTP endpoint that must return a successful response |
 | `app_url` | No | Front-end URL for the home-page card; takes precedence over the health URL |
 | `display_name` | No | Friendly application title on the home page |
-| `group` | No | Friendly group used by the 5048 launcher and 5030 status filters; omitted entries appear under `Other` |
+| `group` | No | Managed group assignment used by the 5048 launcher and 5030 status filters; omitted entries appear under `Other` |
 | `show_on_home` | No | Set false to omit a service from the home page; libraries are always omitted |
 | `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
@@ -35,6 +36,12 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `health_timeout` | No | Total health polling window; defaults to 30 |
 | `environment_file` | No | Default protected environment file inherited by scheduled jobs |
 | `scheduled_jobs` | No | Declarative scheduled oneshot jobs; defaults to an empty list |
+
+### Managing groups
+
+Open the authenticated dashboard on port 5030 and choose **Manage groups**. The interface can create, rename, reorder, and delete groups, and assign every registered application from a dropdown. Group changes are written atomically to the same registry used by the deployment agent and the 5048 Application Home.
+
+The top-level `groups` array stores display order. Existing application-level `group` values are imported automatically when the management page is first used, so older registries remain compatible. `Other` is reserved as the fallback for unassigned applications. Deleting a managed group removes that assignment from its applications, which moves them to `Other`.
 
 Commands are arrays rather than shell strings. Shell expansion, pipes, redirects, command substitution, and implicit environment interpolation are not performed.
 

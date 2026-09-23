@@ -2,9 +2,21 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 DEFAULT_GROUP = "Other"
+
+
+def clean_group_name(value: Any) -> str:
+    """Normalize and validate a user-facing group name."""
+    if not isinstance(value, str):
+        raise ValueError("Group name must be text")
+    name = value.strip()
+    if not name or any(character in name for character in "\x00\n\r"):
+        raise ValueError("Group name must be a non-empty single-line value")
+    if len(name) > 80:
+        raise ValueError("Group name must be 80 characters or fewer")
+    return name
 
 
 def application_group(entry: dict[str, Any]) -> str:
@@ -15,8 +27,49 @@ def application_group(entry: dict[str, Any]) -> str:
     return value.strip() or DEFAULT_GROUP
 
 
-def group_summary(applications: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return alphabetic group counts with the default catch-all group last."""
+def configured_groups(config: dict[str, Any]) -> list[str]:
+    """Return managed groups in display order, importing legacy app group values."""
+    names: list[str] = []
+    seen: set[str] = set()
+
+    for value in config.get("groups", []):
+        name = clean_group_name(value)
+        key = name.casefold()
+        if name != DEFAULT_GROUP and key not in seen:
+            names.append(name)
+            seen.add(key)
+
+    for entry in config.get("applications", []):
+        name = application_group(entry)
+        key = name.casefold()
+        if name != DEFAULT_GROUP and key not in seen:
+            names.append(name)
+            seen.add(key)
+    return names
+
+
+def group_summary(applications: Iterable[dict[str, Any]], groups: Sequence[str] | None = None,
+                  include_empty: bool = False) -> list[dict[str, Any]]:
+    """Return group counts, respecting managed group order when supplied."""
+    applications = list(applications)
     counts = Counter(application_group(app) for app in applications)
-    names = sorted(counts, key=lambda name: (name == DEFAULT_GROUP, name.casefold()))
-    return [{"name": name, "count": counts[name]} for name in names]
+
+    if groups is None:
+        names = sorted((name for name in counts if name != DEFAULT_GROUP), key=str.casefold)
+    else:
+        names = []
+        seen: set[str] = set()
+        for name in groups:
+            key = name.casefold()
+            if name != DEFAULT_GROUP and key not in seen:
+                if include_empty or counts.get(name, 0):
+                    names.append(name)
+                seen.add(key)
+        extras = sorted((name for name in counts if name != DEFAULT_GROUP and name.casefold() not in seen),
+                        key=str.casefold)
+        names.extend(extras)
+
+    rows = [{"name": name, "count": counts.get(name, 0)} for name in names]
+    if counts.get(DEFAULT_GROUP, 0):
+        rows.append({"name": DEFAULT_GROUP, "count": counts[DEFAULT_GROUP]})
+    return rows

@@ -19,7 +19,9 @@ from typing import Any
 from urllib.request import urlopen
 from urllib.parse import urlsplit
 
-VERSION = "1.5.0"
+from ui_groups import DEFAULT_GROUP, clean_group_name
+
+VERSION = "1.6.0"
 
 SERVICE_UNIT_PATTERN = re.compile(r"^[A-Za-z0-9_.@-]+\.service$")
 SAFE_NAME_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -124,6 +126,21 @@ def load_config(path: Path) -> dict[str, Any]:
         raise DeployError(f"Configuration is unreadable: {exc}") from exc
     if not isinstance(value.get("applications"), list):
         raise DeployError("Configuration must contain an applications list")
+    groups = value.get("groups", [])
+    if not isinstance(groups, list):
+        raise DeployError("groups must be a list")
+    seen_groups: set[str] = set()
+    for raw_group in groups:
+        try:
+            group = clean_group_name(raw_group)
+        except ValueError as exc:
+            raise DeployError(str(exc)) from exc
+        if group.casefold() == DEFAULT_GROUP.casefold():
+            raise DeployError(f"{DEFAULT_GROUP} is reserved for ungrouped applications")
+        key = group.casefold()
+        if key in seen_groups:
+            raise DeployError(f"Duplicate group name: {group}")
+        seen_groups.add(key)
     names = set()
     for app in value["applications"]:
         required = {"name", "repo_path", "branch"}
@@ -140,9 +157,10 @@ def load_config(path: Path) -> dict[str, Any]:
             raise DeployError(f"Duplicate application name: {app['name']}")
         names.add(app["name"])
         if "group" in app:
-            group = app["group"]
-            if not isinstance(group, str) or not group.strip() or any(character in group for character in "\x00\n\r"):
-                raise DeployError(f"{app['name']} group must be a non-empty string")
+            try:
+                clean_group_name(app["group"])
+            except ValueError as exc:
+                raise DeployError(f"{app['name']} {exc}") from exc
         if app.get("kind", "service") == "service" and (not isinstance(app["restart_command"], list) or not app["restart_command"]):
             raise DeployError(f"{app['name']} restart_command must be a non-empty argument list")
         service_unit = app.get("service_unit")
