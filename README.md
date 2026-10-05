@@ -75,6 +75,30 @@ Each destination retains its own authentication. The management dashboard on
 - [Scheduled application jobs](docs/scheduled-jobs.md)
 - [Ollama Chat reference deployment](docs/ollama-chat.md)
 
+## Explicit GitHub Actions trigger
+
+UDA includes a generic local command for dispatching an existing GitHub Actions
+workflow and returning a machine-readable result. It requires an authenticated
+GitHub CLI with permission to run Actions in the target repository.
+
+```bash
+uda-trigger-ci \
+  --repo OWNER/REPOSITORY \
+  --workflow ci.yml \
+  --ref main \
+  --wait
+```
+
+The JSON result always reports whether GitHub accepted the dispatch. When the
+new run becomes visible it also contains its run ID, URL, status, conclusion and
+commit SHA. Without `--wait`, the command returns as soon as the new queued or
+in-progress run is identified. With `--wait`, it polls until completion and
+returns a non-zero exit status for failed, cancelled or timed-out runs.
+
+This is a local outbound capability, not an unauthenticated HTTP endpoint. It
+does not store a token in the UDA registry; authentication remains managed by
+GitHub CLI in the invoking user's protected configuration.
+
 ## Safety model
 
 - Applications are disabled unless explicitly enabled.

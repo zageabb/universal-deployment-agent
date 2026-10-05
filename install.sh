@@ -5,9 +5,12 @@ SOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DATA_DIR=${XDG_DATA_HOME:-"$HOME/.local/share"}/deployment-agent
 CONFIG_DIR=${XDG_CONFIG_HOME:-"$HOME/.config"}/deployment-agent
 UNIT_DIR=${XDG_CONFIG_HOME:-"$HOME/.config"}/systemd/user
+BIN_DIR=${HOME}/.local/bin
 
-mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR"
+mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR" "$BIN_DIR"
 install -m 0755 "$SOURCE_DIR/deploy_agent.py" "$DATA_DIR/deploy_agent.py"
+install -m 0755 "$SOURCE_DIR/github_ci.py" "$DATA_DIR/github_ci.py"
+install -m 0755 "$SOURCE_DIR/github_ci.py" "$BIN_DIR/uda-trigger-ci"
 install -m 0755 "$SOURCE_DIR/dashboard.py" "$DATA_DIR/dashboard.py"
 install -m 0755 "$SOURCE_DIR/home.py" "$DATA_DIR/home.py"
 install -m 0644 "$SOURCE_DIR/ui_groups.py" "$DATA_DIR/ui_groups.py"

@@ -30,6 +30,45 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-001 — Generic GitHub Actions workflow trigger
+Status: 🔨 IN PROGRESS
+Priority: High
+Owner/Agent: ChatGPT Desktop
+Branch: `main`
+Depends on: Authenticated GitHub CLI with Actions write permission
+Can run in parallel with: Application-specific development
+Integration status: implementation and validation in progress
+
+Requirement:
+- Provide a generic UDA-accessible command that explicitly dispatches a named
+  GitHub Actions workflow for a repository/ref, discovers the resulting run,
+  reports structured status, and can wait for completion.
+
+Implementation:
+- `github_ci.py` exposes `trigger_ci(repo, workflow, ref)` and the installed
+  `uda-trigger-ci` command.
+- Authentication remains with GitHub CLI; UDA does not store GitHub tokens.
+
+Evidence:
+- Commit: pending
+- PR: direct main integration requested for the live UDA installation
+- Files: `github_ci.py`, `tests/test_github_ci.py`, `install.sh`, `README.md`,
+  `docs/operations.md`, `DEVELOPMENT.md`
+- Tests: pending
+- CI: pending real workflow-dispatch evidence against `zageabb/wallpaper`
+- Merged to intended branch: pending
+- User/business acceptance: pending
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Tests added/updated.
+- [ ] Relevant tests pass.
+- [ ] Real workflow dispatch demonstrated.
+- [ ] Commit evidence recorded.
+- [ ] Merged to `main`.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-000 — Establish evidence-based development ledger
 Status: ✅ COMPLETE
 

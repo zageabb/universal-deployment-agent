@@ -2,6 +2,17 @@
 
 ## Common commands
 
+Trigger an existing GitHub Actions workflow and wait for its result:
+
+```bash
+uda-trigger-ci --repo OWNER/REPOSITORY --workflow ci.yml --ref main --wait
+```
+
+The command emits one JSON object suitable for another agent or program to
+consume. Omit `--wait` to return after discovery of the newly dispatched run.
+Use `gh auth status` to diagnose authentication failures. The authenticated
+GitHub account must have Actions write permission for the repository.
+
 Run immediately:
 
 ```bash
