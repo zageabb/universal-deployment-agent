@@ -31,13 +31,13 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 ## Development ledger
 
 ### DEV-001 — Generic GitHub Actions workflow trigger
-Status: 🔨 IN PROGRESS
+Status: ✅ COMPLETE
 Priority: High
 Owner/Agent: ChatGPT Desktop
 Branch: `main`
 Depends on: Authenticated GitHub CLI with Actions write permission
 Can run in parallel with: Application-specific development
-Integration status: implementation and validation in progress
+Integration status: integrated and installed
 
 Requirement:
 - Provide a generic UDA-accessible command that explicitly dispatches a named
@@ -50,24 +50,25 @@ Implementation:
 - Authentication remains with GitHub CLI; UDA does not store GitHub tokens.
 
 Evidence:
-- Commit: pending
+- Commit: `8e20e00` (implementation); this ledger update records live evidence
 - PR: direct main integration requested for the live UDA installation
 - Files: `github_ci.py`, `tests/test_github_ci.py`, `install.sh`, `README.md`,
   `docs/operations.md`, `DEVELOPMENT.md`
-- Tests: pending
-- CI: pending real workflow-dispatch evidence against `zageabb/wallpaper`
-- Merged to intended branch: pending
+- Tests: `python3 -m pytest -q` — 80 passed
+- CI: `zageabb/wallpaper` workflow `ci.yml`, run `37310292793`, completed
+  successfully at commit `1adb42180f08517e3079937518f20c0ecf27aa2d`.
+- Merged to intended branch: yes, UDA `main` at `8e20e00`
 - User/business acceptance: pending
 
 Completion criteria:
 - [x] Implementation exists.
 - [x] Relevant files changed.
 - [x] Tests added/updated.
-- [ ] Relevant tests pass.
-- [ ] Real workflow dispatch demonstrated.
-- [ ] Commit evidence recorded.
-- [ ] Merged to `main`.
-- [ ] External/user acceptance separated from development completion.
+- [x] Relevant tests pass.
+- [x] Real workflow dispatch demonstrated.
+- [x] Commit evidence recorded.
+- [x] Merged to `main`.
+- [x] External/user acceptance separated from development completion.
 
 ### DEV-000 — Establish evidence-based development ledger
 Status: ✅ COMPLETE
