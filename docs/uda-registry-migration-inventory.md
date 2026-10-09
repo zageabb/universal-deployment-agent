@@ -28,8 +28,8 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | Lucky Lab | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/lucky-lab-slot-statistics/pull/1), SHA `21e0990`; UDA Compatibility CI passed; user test pending |
 | Personal | Motorbike Cost Tracker | Visible | Not published | Deployed Flask repo `zageabb/flask_Motorbike-Cost-Tracker1` (port 5067), not inactive Reflex variants; [PR #6](https://github.com/zageabb/flask_Motorbike-Cost-Tracker1/pull/6) merged to main, SHA `a7b791a`; CI rerun passed; user app test pending |
 | Personal | Sidecar | Visible | Not published | UDA mounted chat/file/WebSocket compatibility [PR #1](https://github.com/zageabb/SideCar/pull/1) merged to main SHA `eb3b478`; all three CI jobs passed; user runtime validation pending |
-| Personal | Tender Designer | Visible | Not published | UDA prefix and CSRF-aware API changes [PR #20](https://github.com/zageabb/tender_designer/pull/20); full CI and main merge pending |
-| Personal | Wallpaper Animation Studio | Visible | Not published | Needs assessment |
+| Personal | Tender Designer | Visible | Not published | UDA prefix and CSRF-aware API [PR #20](https://github.com/zageabb/tender_designer/pull/20) merged to main SHA `02a1810`; full CI passed; browser acceptance pending |
+| Personal | Wallpaper Animation Studio | Visible | Not published | Static HTML/JS/CSS reviewed: asset URLs relative, no root API/WS URLs; no code migration required, Caddy mount and browser acceptance pending |
 | Development | Flask Chat | Visible | Not published | Needs assessment |
 | Development | Flask Form App | Visible | Not published | Needs assessment; verify repo mapping |
 | Development | Flask Question | Visible | Not published | Needs assessment |
