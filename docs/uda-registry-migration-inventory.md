@@ -18,7 +18,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | TAIJU – Development | Mermaid Dashboard | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/mermaid_dashboard/pull/1), SHA `feb0b85`; CI Tests #1 passed; user test pending |
 | TAIJU – Development | Mermaid Display App | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/mermaid-display-app/pull/1), SHA `9338698`; CI Tests #1 passed; alias/service and user runtime validation pending |
 | TAIJU – Development | Notes | Visible | Not published | Merged to main via [PR #7](https://github.com/zageabb/Notes/pull/7), SHA `230370f`; Notes tests #37 and UDA Compatibility #1 passed; user runtime acceptance pending |
-| TAIJU – Development | QueryBridge | Visible | Not published | Needs assessment |
+| TAIJU – Development | QueryBridge | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/querybridge/pull/1), SHA `0188dd6`; Python Check #80 and UDA Compatibility #1 passed; user runtime validation pending |
 | TAIJU – Development | System Knowledge Designer | Visible | Not published | Needs assessment |
 | TAIJU – Development | WhisperDesk | Visible | Not published | Needs assessment |
 | Personal | Bank of Mum | Visible | Not published | Needs assessment; separate web/API |
