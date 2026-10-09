@@ -6,7 +6,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 |---|---|---|---|---|
 | Infrastructure | Application Home | Hidden | Not stated | Review UDA portal internals; avoid self-proxy recursion |
 | Infrastructure | Universal Deployment Agent | Hidden | Not stated | Review management surface; avoid exposing dashboard without explicit policy |
-| TAIJU | General Search | Visible | Not published | Needs assessment |
+| TAIJU | General Search | Visible | Not published | UDA subpath implementation on draft PR [#3](https://github.com/zageabb/general-search/pull/3); test/CI/live verification pending |
 | TAIJU | Internet Pricing | Visible | Not published | Needs assessment |
 | TAIJU | PackBridge | Visible | Not published | Needs assessment |
 | TAIJU | Price Estimator | Visible | Not published | Needs assessment |
