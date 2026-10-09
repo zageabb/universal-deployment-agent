@@ -59,6 +59,7 @@ def test_login_redirect_accepted_without_following_public_url(tmp_path, monkeypa
     value = app(tmp_path, app_url="http://127.0.0.1:5067/")
     monkeypatch.setattr(agent, "python_for", lambda *_: Path("/usr/bin/python3"))
     monkeypatch.setattr(agent, "run", lambda *a, **kw: __import__("subprocess").CompletedProcess([], 0, "", ""))
+    monkeypatch.setattr(agent, "CONFIG_PATH", tmp_path / "config.json", raising=False)
     monkeypatch.setattr(agent, "load_config", lambda _: {"public_base_url": "https://tanyaanne.ddns.net"})
     visited = []
     def fake_opener(handler):
