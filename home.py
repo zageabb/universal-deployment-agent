@@ -71,7 +71,7 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     try: initial = load_config(config_path)
     except DeployError: initial = {}
     app.secret_key = os.environ.get('UDA_PORTAL_SECRET') or initial.get('portal_secret_key') or secrets.token_hex(32)
-    app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
+    app.config.update(SESSION_COOKIE_NAME='uda_session', SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
                       SESSION_COOKIE_SECURE=str(initial.get('public_base_url','')).startswith('https://'))
     app.jinja_env.filters['from_json'] = json.loads
 
