@@ -11,7 +11,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | TAIJU | PackBridge | Visible | Not published | Merged to main via [PR #10](https://github.com/zageabb/PackBridge/pull/10), SHA `99bfb0a`; CI Tests passed; live proxy pending |
 | TAIJU | Price Estimator | Visible | Not published | Merged to main via [PR #6](https://github.com/zageabb/should-cost-price-estimator/pull/6), SHA `14099c1`; CI Tests #3 passed, live UDA verification pending |
 | TAIJU | Research Core | No launcher URL | Not published | Check for HTTP browser surface; may be not applicable |
-| TAIJU | Should Cost Intelligence | Visible | Not published | Needs assessment |
+| TAIJU | Should Cost Intelligence | Visible | Not published | Prefix compatibility [PR #39](https://github.com/zageabb/should-cost-intelligence/pull/39); CI and main merge pending |
 | TAIJU – Development | Context Lab | Visible | Not published | Needs assessment |
 | TAIJU – Development | Context Studio | Visible | Not published | Needs assessment; separate web/API |
 | TAIJU – Development | Markdown Migration Studio | Visible | Not published | Needs assessment |
