@@ -40,6 +40,18 @@ def test_published_app_card_uses_protected_proxy_route():
     assert card['address'] == 'tanyaanne.ddns.net'
 
 
+def test_authenticated_basic_user_only_sees_published_entitled_apps():
+    config = {'public_base_url': 'https://example.test', 'applications': [
+        entry(name='legacy-lan-app', group='Personal'),
+        entry(name='published-without-policy', proxy_enabled=True),
+        entry(name='catmanager', group='WEB Access', proxy_enabled=True,
+              allowed_groups=['WEB Access']),
+    ]}
+    assert [card['name'] for card in home.application_cards(config, 'server', {'WEB Access'})] == ['catmanager']
+    assert sorted(card['name'] for card in home.application_cards(config, 'server', {'*'})) == [
+        'catmanager', 'published-without-policy']
+
+
 def test_ipv6_loopback_is_rewritten():
     assert home.application_url(entry(app_url='http://[::1]:5075/'), '2001:db8::1') == 'http://[2001:db8::1]:5075/'
 

@@ -48,8 +48,11 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
         if not entry.get('enabled') or entry.get('kind') == 'library' or entry.get('show_on_home') is False:
             continue
         allowed = set(entry.get('allowed_groups') or [])
-        if user_groups is not None and allowed and '*' not in user_groups and user_groups.isdisjoint(allowed):
-            continue
+        if user_groups is not None:
+            if not entry.get('proxy_enabled'):
+                continue
+            if '*' not in user_groups and (not allowed or user_groups.isdisjoint(allowed)):
+                continue
         if entry.get('proxy_enabled') and config.get('public_base_url'):
             slug = entry.get('proxy_slug') or entry['name']
             url = config['public_base_url'].rstrip('/') + f'/apps/{slug}/'
