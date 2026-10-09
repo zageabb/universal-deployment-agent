@@ -37,7 +37,7 @@ Owner/Agent: Codex
 Branch: `main`
 Depends on: DEV-002
 Can run in parallel with: application subpath migrations
-Integration status: implementation and automated validation complete; live validation pending
+Integration status: integrated, installed and live-validated
 
 Requirement:
 - Permit the same Application Home service to authenticate through its explicit
@@ -51,6 +51,9 @@ Implementation:
 Evidence:
 - Files: `home.py`, `tests/test_home.py`, `README.md`, `DEVELOPMENT.md`
 - Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/pytest -q` — 85 passed.
+- Commit: `a098d7a` (implementation), merged to and pushed on `main`.
+- Live validation: LAN HTTP sets a non-`Secure` host cookie; public HTTPS sets a
+  `Secure` host cookie. Both retained CSRF state and handled a test login POST.
 - User/business acceptance: pending.
 
 Completion criteria:
@@ -58,9 +61,9 @@ Completion criteria:
 - [x] Relevant files changed.
 - [x] Tests added.
 - [x] Relevant tests pass.
-- [ ] Commit evidence recorded.
-- [ ] Merged to `main`.
-- [ ] Live LAN and public HTTPS login flows validated.
+- [x] Commit evidence recorded.
+- [x] Merged to `main`.
+- [x] Live LAN and public HTTPS login flows validated.
 - [ ] External/user acceptance separated from development completion.
 
 ### DEV-003 — UDA-listed application subpath migration
