@@ -30,7 +30,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | Sidecar | Visible | Not published | UDA mounted chat/file/WebSocket compatibility [PR #1](https://github.com/zageabb/SideCar/pull/1) merged to main SHA `eb3b478`; all three CI jobs passed; user runtime validation pending |
 | Personal | Tender Designer | Visible | Not published | UDA prefix and CSRF-aware API [PR #20](https://github.com/zageabb/tender_designer/pull/20) merged to main SHA `02a1810`; full CI passed; browser acceptance pending |
 | Personal | Wallpaper Animation Studio | Visible | Not published | Static HTML/JS/CSS reviewed: asset URLs relative, no root API/WS URLs; no code migration required, Caddy mount and browser acceptance pending |
-| Development | Flask Chat | Visible | Not published | Needs assessment |
+| Development | Flask Chat | Visible | Not published | [PR #1](https://github.com/zageabb/flask_chat/pull/1) merged to main SHA `1ed4b5c`; UDA CI passed; prior host audit found no live listener; runtime acceptance pending |
 | Development | Flask Form App | Visible | Not published | Needs assessment; verify repo mapping |
 | Development | Flask Question | Visible | Not published | Needs assessment |
 | Development | Flask Spreadsheet | Visible | Not published | Needs assessment |
