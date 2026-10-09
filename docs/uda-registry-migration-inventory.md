@@ -35,9 +35,9 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Development | Flask Question | Visible | Not published | [PR #24](https://github.com/zageabb/Flask_Question/pull/24) merged to main SHA `bafa67c`; UDA compatibility CI passed, runtime acceptance pending |
 | Development | Flask Spreadsheet | Visible | Not published | [PR #23](https://github.com/zageabb/flask_SpreadSheet/pull/23) merged to main SHA `deaaf34`; UDA CI passed; user functional verification pending |
 | Development | Reflex Agent Demo | Visible | Not published | [PR #36](https://github.com/zageabb/reflex_AgentDemo/pull/36) merged to main SHA `b2a6836`; UDA CI green; user runtime acceptance pending |
-| Development | SCM Agent | Visible | Not published | Needs assessment |
-| Development | Screen Design | Visible | Not published | Needs assessment |
-| Development | Xmas List | Visible | Not published | Needs assessment |
+| Development | SCM Agent | Visible | Not published | Static HTML/JS app reviewed; relative assets and fetch data paths, no code migration required; verify Caddy mount and browser |
+| Development | Screen Design | Visible | Not published | [PR #19](https://github.com/zageabb/ScreenDesign/pull/19) merged to main SHA `327fcf1`; UDA CI green; user test pending |
+| Development | Xmas List | Visible | Not published | [PR #6](https://github.com/zageabb/XmasList/pull/6) opened; CI and main merge pending |
 | HE Development | Margin Trans | Visible | Not published | Needs assessment |
 | TAIJU WEB Access | CatManager | Visible | **Published** | Existing code claims prefix compatibility; regression + live test required |
 
