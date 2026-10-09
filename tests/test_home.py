@@ -30,6 +30,16 @@ def test_external_links_remain_external():
     assert home.application_url(entry(app_url='https://apps.example.org/tool/'), 'server.local') == 'https://apps.example.org/tool/'
 
 
+def test_published_app_card_uses_protected_proxy_route():
+    config = {'public_base_url': 'https://tanyaanne.ddns.net', 'applications': [
+        entry(name='catmanager', proxy_enabled=True, proxy_slug='catmanager',
+              app_url='http://127.0.0.1:5088/')
+    ]}
+    card = home.application_cards(config, 'server.local')[0]
+    assert card['url'] == 'https://tanyaanne.ddns.net/apps/catmanager/'
+    assert card['address'] == 'tanyaanne.ddns.net'
+
+
 def test_ipv6_loopback_is_rewritten():
     assert home.application_url(entry(app_url='http://[::1]:5075/'), '2001:db8::1') == 'http://[2001:db8::1]:5075/'
 

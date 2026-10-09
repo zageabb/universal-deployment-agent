@@ -50,7 +50,11 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
         allowed = set(entry.get('allowed_groups') or [])
         if user_groups is not None and allowed and '*' not in user_groups and user_groups.isdisjoint(allowed):
             continue
-        url = application_url(entry, public_host)
+        if entry.get('proxy_enabled') and config.get('public_base_url'):
+            slug = entry.get('proxy_slug') or entry['name']
+            url = config['public_base_url'].rstrip('/') + f'/apps/{slug}/'
+        else:
+            url = application_url(entry, public_host)
         if not url:
             continue
         title = entry.get('display_name') or re.sub(r'[-_]+', ' ', entry['name']).title()
