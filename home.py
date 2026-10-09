@@ -12,11 +12,20 @@ import sqlite3
 from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
 from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email
 from ui_groups import application_group, configured_groups, group_summary
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1', '::'}
+
+
+class RequestSchemeSessionInterface(SecureCookieSessionInterface):
+    """Keep public HTTPS cookies secure while permitting the explicit LAN HTTP portal."""
+
+    def get_cookie_secure(self, app: Flask) -> bool:
+        return request.is_secure
 
 
 def application_url(entry: dict, public_host: str) -> str | None:
@@ -71,11 +80,12 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
 
 def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+    app.session_interface = RequestSchemeSessionInterface()
     try: initial = load_config(config_path)
     except DeployError: initial = {}
     app.secret_key = os.environ.get('UDA_PORTAL_SECRET') or initial.get('portal_secret_key') or secrets.token_hex(32)
-    app.config.update(SESSION_COOKIE_NAME='uda_session', SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
-                      SESSION_COOKIE_SECURE=str(initial.get('public_base_url','')).startswith('https://'))
+    app.config.update(SESSION_COOKIE_NAME='uda_session', SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
     app.jinja_env.filters['from_json'] = json.loads
 
     def identity_config():

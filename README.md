@@ -46,6 +46,9 @@ systemctl --user enable --now deployment-agent-home.service
 
 Open `http://SERVER:5048/`. The page refreshes its directory every minute without
 reloading the page. Libraries and entries with `show_on_home: false` are omitted.
+When the authenticated portal is exposed through both the public HTTPS proxy and
+an explicit LAN HTTP address, session cookies follow the effective request scheme:
+they remain `Secure` through HTTPS and can complete login on the trusted LAN URL.
 Use `app_url` when the application's front end differs from its health endpoint
 (for example, Context Studio uses 5075 while its health endpoint uses 8074).
 Without `app_url`, the health URL's origin is used with `/` as the path. Loopback

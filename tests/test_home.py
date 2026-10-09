@@ -99,3 +99,17 @@ def test_empty_registry_and_escaped_titles(tmp_path):
     assert b'No applications are listed yet.' in client.get('/').data
     path.write_text(json.dumps({'applications': [entry(display_name='<script>bad()</script>')]}))
     assert b'<script>bad()</script>' not in client.get('/').data
+
+
+def test_session_cookie_security_follows_the_effective_request_scheme(tmp_path):
+    path = tmp_path / 'config.json'
+    path.write_text(json.dumps({'portal_auth_enabled': True, 'applications': []}))
+
+    local_response = home.create_app(path).test_client().get('/login')
+    public_response = home.create_app(path).test_client().get(
+        '/login', headers={'X-Forwarded-Proto': 'https'})
+
+    assert 'Secure' not in local_response.headers['Set-Cookie']
+    assert 'HttpOnly' in local_response.headers['Set-Cookie']
+    assert 'Secure' in public_response.headers['Set-Cookie']
+    assert 'HttpOnly' in public_response.headers['Set-Cookie']

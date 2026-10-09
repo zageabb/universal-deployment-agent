@@ -30,6 +30,39 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-004 — Support authenticated LAN and public portal login
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: High
+Owner/Agent: Codex
+Branch: `main`
+Depends on: DEV-002
+Can run in parallel with: application subpath migrations
+Integration status: implementation and automated validation complete; live validation pending
+
+Requirement:
+- Permit the same Application Home service to authenticate through its explicit
+  trusted-LAN HTTP address while retaining secure cookies through public HTTPS.
+
+Implementation:
+- Trust the reverse proxy's forwarded scheme and select the session cookie's
+  `Secure` attribute from the effective request scheme.
+- Preserve `HttpOnly` and `SameSite=Lax` for both access paths.
+
+Evidence:
+- Files: `home.py`, `tests/test_home.py`, `README.md`, `DEVELOPMENT.md`
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/pytest -q` — 85 passed.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Tests added.
+- [x] Relevant tests pass.
+- [ ] Commit evidence recorded.
+- [ ] Merged to `main`.
+- [ ] Live LAN and public HTTPS login flows validated.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-003 — UDA-listed application subpath migration
 Status: 🔵 PLANNED
 Priority: High
