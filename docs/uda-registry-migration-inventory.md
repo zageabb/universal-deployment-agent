@@ -6,10 +6,10 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 |---|---|---|---|---|
 | Infrastructure | Application Home | Hidden | Not stated | Review UDA portal internals; avoid self-proxy recursion |
 | Infrastructure | Universal Deployment Agent | Hidden | Not stated | Review management surface; avoid exposing dashboard without explicit policy |
-| TAIJU | General Search | Visible | Not published | Merged to main via [PR #3](https://github.com/zageabb/general-search/pull/3), SHA `80d8d73`; no CI reported, runtime validation pending |
+| TAIJU | General Search | Visible | Not published | Merged to main via [PR #3](https://github.com/zageabb/general-search/pull/3), SHA `80d8d73`; **user-confirmed General Search app test passed via UDA**; standalone CI not reported |
 | TAIJU | Internet Pricing | Visible | Not published | Merged to main via [PR #4](https://github.com/zageabb/Internet_pricing/pull/4), SHA `a68287a`; Tests CI passed, runtime validation pending |
 | TAIJU | PackBridge | Visible | Not published | Merged to main via [PR #10](https://github.com/zageabb/PackBridge/pull/10), SHA `99bfb0a`; CI Tests passed; live proxy pending |
-| TAIJU | Price Estimator | Visible | Not published | UDA compatibility [PR #6](https://github.com/zageabb/should-cost-price-estimator/pull/6); CI workflow introduced, awaiting CI validation and main merge |
+| TAIJU | Price Estimator | Visible | Not published | Merged to main via [PR #6](https://github.com/zageabb/should-cost-price-estimator/pull/6), SHA `14099c1`; CI Tests #3 passed, live UDA verification pending |
 | TAIJU | Research Core | No launcher URL | Not published | Check for HTTP browser surface; may be not applicable |
 | TAIJU | Should Cost Intelligence | Visible | Not published | Needs assessment |
 | TAIJU – Development | Context Lab | Visible | Not published | Needs assessment |
