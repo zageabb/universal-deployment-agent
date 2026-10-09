@@ -45,6 +45,7 @@ Implementation:
 - SQLite identity store and portal routes in `portal_auth.py` and `home.py`.
 - Administrator user/group assignment page.
 - Caddy configuration generator publishes only `proxy_enabled` applications.
+- UPnP registration utility maintains only the fixed 80/443 ingress mappings.
 
 Evidence:
 - Files: `portal_auth.py`, `proxy_config.py`, `home.py`, templates, tests and docs.
