@@ -30,6 +30,27 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-002 — Authenticated application portal and controlled ingress
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: High
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implementation verified locally; live deployment pending final external prerequisites
+
+Requirement:
+- Email-based registration, verification and password reset; per-user UDA group
+  entitlements; proxy-side enforcement; and explicit registry-controlled publication.
+
+Implementation:
+- SQLite identity store and portal routes in `portal_auth.py` and `home.py`.
+- Administrator user/group assignment page.
+- Caddy configuration generator publishes only `proxy_enabled` applications.
+
+Evidence:
+- Files: `portal_auth.py`, `proxy_config.py`, `home.py`, templates, tests and docs.
+- Tests: `python -m pytest -q`.
+- User/business acceptance: pending.
+
 ### DEV-001 — Generic GitHub Actions workflow trigger
 Status: ✅ COMPLETE
 Priority: High

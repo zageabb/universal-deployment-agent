@@ -53,7 +53,18 @@ hosts are replaced by the hostname used to open the home page. An explicit
 `--public-host` can override that hostname. `display_name` optionally supplies a
 friendly card title.
 
-This is a trusted-network launcher without authentication or service controls.
+The launcher can operate as an authenticated application portal by setting
+`portal_auth_enabled`. Accounts are stored in a dedicated SQLite identity
+database; verification and password reset messages use SMTP credentials supplied
+through `UDA_SMTP_PASSWORD`. UDA groups double as application entitlements when
+an application declares `allowed_groups`.
+
+Public ingress is opt-in per application. `proxy_config.py` generates a Caddy
+configuration only for enabled entries with `proxy_enabled: true`; unpublished
+registry entries never become routes. The generated path is
+`/apps/<proxy_slug>/` and the application must support `X-Forwarded-Prefix`.
+The proxy delegates every application request to `/auth/check`, so hiding a card
+is not the access-control boundary.
 Its JSON endpoint exposes only names, titles, links, initials, and addresses;
 registry secrets, filesystem paths, and deployment commands are never included.
 Groups can be managed from **5030 → Manage groups** without editing JSON. The
