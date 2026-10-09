@@ -16,7 +16,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | TAIJU – Development | Context Studio | Visible | Not published | Architecture review: separate web (5075) and API (8074) requires coordinated proxy path/origin work; no changes made yet |
 | TAIJU – Development | Markdown Migration Studio | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/markdown-migration-studio/pull/1), SHA `d390e99`; CI Tests #1 passed; application acceptance pending |
 | TAIJU – Development | Mermaid Dashboard | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/mermaid_dashboard/pull/1), SHA `feb0b85`; CI Tests #1 passed; user test pending |
-| TAIJU – Development | Mermaid Display App | Visible | Not published | Needs assessment; alias/service mapping |
+| TAIJU – Development | Mermaid Display App | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/mermaid-display-app/pull/1), SHA `9338698`; CI Tests #1 passed; alias/service and user runtime validation pending |
 | TAIJU – Development | Notes | Visible | Not published | Needs assessment |
 | TAIJU – Development | QueryBridge | Visible | Not published | Needs assessment |
 | TAIJU – Development | System Knowledge Designer | Visible | Not published | Needs assessment |
