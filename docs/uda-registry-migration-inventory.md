@@ -31,8 +31,8 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | Tender Designer | Visible | Not published | UDA prefix and CSRF-aware API [PR #20](https://github.com/zageabb/tender_designer/pull/20) merged to main SHA `02a1810`; full CI passed; browser acceptance pending |
 | Personal | Wallpaper Animation Studio | Visible | Not published | Static HTML/JS/CSS reviewed: asset URLs relative, no root API/WS URLs; no code migration required, Caddy mount and browser acceptance pending |
 | Development | Flask Chat | Visible | Not published | [PR #1](https://github.com/zageabb/flask_chat/pull/1) merged to main SHA `1ed4b5c`; UDA CI passed; prior host audit found no live listener; runtime acceptance pending |
-| Development | Flask Form App | Visible | Not published | Needs assessment; verify repo mapping |
-| Development | Flask Question | Visible | Not published | Needs assessment |
+| Development | Flask Form App | Visible | Not published | BLOCKED: no matching GitHub repo found under zageabb; verify actual UDA source mapping before code changes |
+| Development | Flask Question | Visible | Not published | [PR #24](https://github.com/zageabb/Flask_Question/pull/24) merged to main SHA `bafa67c`; UDA compatibility CI passed, runtime acceptance pending |
 | Development | Flask Spreadsheet | Visible | Not published | Needs assessment |
 | Development | Reflex Agent Demo | Visible | Not published | Needs assessment |
 | Development | SCM Agent | Visible | Not published | Needs assessment |
