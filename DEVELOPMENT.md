@@ -114,7 +114,7 @@ Status: 🔨 IN PROGRESS
 
 The live Motorbike Cost Tracker redirects from `/` to its login route. The proxy migration agent was following that redirect to an as-yet-unpublished external UDA route and blocking publication. Validate the first backend response without following redirects, accept only redirects remaining inside the candidate's authenticated application mount, and reject external hosts/unsafe paths. Tests: `tests/test_proxy_migration_agent.py`. Public proxy remains disabled until live checks succeed; no app settings changed.
 
-- [ ] GitHub CI green and merged to main
+- [x] GitHub CI green and merged to main: PR #6, commit d4af1b0
 - [ ] UDA installed/updated and run against live Motorbike Cost Tracker
 - [ ] UDA agent status + Caddy authorization checked
 
