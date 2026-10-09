@@ -202,7 +202,13 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
             db.execute('UPDATE users SET groups_json=?,verified=? WHERE email=?',(json.dumps(selected),int(request.form.get('verified')=='1'),email)); db.commit()
             flash(f'Updated {email}.','success'); return redirect(url_for('admin_users'))
         users=db.execute('SELECT email,verified,groups_json,is_admin,created_at FROM users ORDER BY email').fetchall()
-        return render_template('portal_users.html',users=users,groups=configured_groups(cfg),csrf=csrf())
+        access=[]
+        for group in configured_groups(cfg):
+            apps=[entry.get('display_name') or re.sub(r'[-_]+',' ',entry['name']).title()
+                  for entry in cfg['applications'] if entry.get('enabled') and entry.get('proxy_enabled')
+                  and group in (entry.get('allowed_groups') or [])]
+            access.append({'name':group,'applications':apps})
+        return render_template('portal_users.html',users=users,groups=access,csrf=csrf())
 
     return app
 
