@@ -41,3 +41,47 @@ def test_write_config_is_valid_and_preserves_mode(tmp_path):
     agent.write_config(path, {"applications": []})
     assert json.loads(path.read_text()) == {"applications": []}
     assert path.stat().st_mode & 0o777 == 0o600
+
+class FakeResponse:
+    def __init__(self, code, body=b"", location=""):
+        self.code = code
+        self.headers = {"Location": location}
+        self.body = body
+    def read(self, limit):
+        return self.body[:limit]
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        return False
+
+
+def test_login_redirect_accepted_without_following_public_url(tmp_path, monkeypatch):
+    value = app(tmp_path, app_url="http://127.0.0.1:5067/")
+    monkeypatch.setattr(agent, "python_for", lambda *_: Path("/usr/bin/python3"))
+    monkeypatch.setattr(agent, "run", lambda *a, **kw: __import__("subprocess").CompletedProcess([], 0, "", ""))
+    monkeypatch.setattr(agent, "load_config", lambda _: {"public_base_url": "https://tanyaanne.ddns.net"})
+    visited = []
+    def fake_opener(handler):
+        class Opener:
+            def open(self, request, timeout):
+                visited.append(request.full_url)
+                return FakeResponse(302, location="/apps/example/auth/login")
+        return Opener()
+    monkeypatch.setattr(agent, "build_opener", fake_opener)
+    result = agent.validate_candidate(value)
+    assert result["prefix"] == "/apps/example"
+    assert visited == ["http://127.0.0.1:5067/"]
+
+
+def test_redirect_outside_mount_is_rejected(tmp_path, monkeypatch):
+    import pytest
+    value = app(tmp_path)
+    monkeypatch.setattr(agent, "python_for", lambda *_: Path("/usr/bin/python3"))
+    monkeypatch.setattr(agent, "run", lambda *a, **kw: __import__("subprocess").CompletedProcess([], 0, "", ""))
+    monkeypatch.setattr(agent, "load_config", lambda _: {"public_base_url": "https://tanyaanne.ddns.net"})
+    class Opener:
+        def open(self, request, timeout):
+            return FakeResponse(302, location="/auth/login")
+    monkeypatch.setattr(agent, "build_opener", lambda handler: Opener())
+    with pytest.raises(RuntimeError, match="outside its application mount"):
+        agent.validate_candidate(value)
