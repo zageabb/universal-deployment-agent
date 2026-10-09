@@ -13,8 +13,8 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | TAIJU | Research Core | No launcher URL | Not published | Check for HTTP browser surface; may be not applicable |
 | TAIJU | Should Cost Intelligence | Visible | Not published | Merged to main via [PR #39](https://github.com/zageabb/should-cost-intelligence/pull/39), SHA `62e9d1c`; CI Tests #332 passed; user reports application test OK |
 | TAIJU – Development | Context Lab | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/context-lab/pull/1), SHA `e21f5a8`; CI Tests #1 passed; user reports application test OK |
-| TAIJU – Development | Context Studio | Visible | Not published | Needs assessment; separate web/API |
-| TAIJU – Development | Markdown Migration Studio | Visible | Not published | Needs assessment |
+| TAIJU – Development | Context Studio | Visible | Not published | Architecture review: separate web (5075) and API (8074) requires coordinated proxy path/origin work; no changes made yet |
+| TAIJU – Development | Markdown Migration Studio | Visible | Not published | Migration [PR #1](https://github.com/zageabb/markdown-migration-studio/pull/1), CI running; main merge pending |
 | TAIJU – Development | Mermaid Dashboard | Visible | Not published | Needs assessment |
 | TAIJU – Development | Mermaid Display App | Visible | Not published | Needs assessment; alias/service mapping |
 | TAIJU – Development | Notes | Visible | Not published | Needs assessment |
