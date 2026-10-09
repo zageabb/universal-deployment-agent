@@ -31,13 +31,13 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 ## Development ledger
 
 ### DEV-005 — Automatic safe proxy migration monitor
-Status: 🔨 IN PROGRESS
+Status: ⏳ AWAITING ACCEPTANCE
 Priority: High
 Owner/Agent: Codex
 Branch: `main`
 Depends on: DEV-003 migration contract
 Can run in parallel with: individual application migrations
-Integration status: implementation awaiting automated and live validation
+Integration status: integrated, installed, enabled and live-validated
 
 Requirement:
 - Detect newly deployed UDA subpath-compatible applications and safely publish
@@ -52,17 +52,24 @@ Implementation:
 Evidence:
 - Files: `proxy_migration_agent.py`, `tests/test_proxy_migration_agent.py`,
   systemd service/timer, installer, README and this ledger.
-- Tests and live validation: pending.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/pytest -q` — 88 passed.
+- Dry run: detected the newly deployed Should Cost Intelligence migration and
+  passed its complete repository suite and forwarded-prefix backend probe.
+- Live run: automatically published Should Cost Intelligence, reloaded Caddy,
+  retained the unauthenticated 401/403 boundary and passed authenticated root,
+  static asset, knowledge and settings checks.
+- Timer: `uda-proxy-migration.timer` enabled and active on a ten-minute interval.
+- Commit: `cc2d7e8`, pushed to `main`.
 - User/business acceptance: pending.
 
 Completion criteria:
 - [x] Implementation exists.
 - [x] Relevant files changed.
 - [x] Tests added.
-- [ ] Relevant tests pass.
-- [ ] Dry-run correctly identifies current registry state.
-- [ ] Timer installed and live execution validated.
-- [ ] Commit evidence recorded and pushed to `main`.
+- [x] Relevant tests pass.
+- [x] Dry-run correctly identifies current registry state.
+- [x] Timer installed and live execution validated.
+- [x] Commit evidence recorded and pushed to `main`.
 - [ ] External/user acceptance separated from development completion.
 
 ### DEV-004 — Support authenticated LAN and public portal login
