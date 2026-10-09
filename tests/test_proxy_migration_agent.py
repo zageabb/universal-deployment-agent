@@ -79,6 +79,7 @@ def test_redirect_outside_mount_is_rejected(tmp_path, monkeypatch):
     value = app(tmp_path)
     monkeypatch.setattr(agent, "python_for", lambda *_: Path("/usr/bin/python3"))
     monkeypatch.setattr(agent, "run", lambda *a, **kw: __import__("subprocess").CompletedProcess([], 0, "", ""))
+    monkeypatch.setattr(agent, "CONFIG_PATH", tmp_path / "config.json", raising=False)
     monkeypatch.setattr(agent, "load_config", lambda _: {"public_base_url": "https://tanyaanne.ddns.net"})
     class Opener:
         def open(self, request, timeout):
