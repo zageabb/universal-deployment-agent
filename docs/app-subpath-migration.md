@@ -4,7 +4,7 @@ Status: migration standard established 2026-10-09; individual application implem
 
 ## Scope and discovery
 
-Apply this checklist to every **browser-served application actually registered for UDA publication**. Do not mechanically change CLI utilities, extensions, libraries, prototypes, or inactive repositories. Audit live UDA registry first to establish deployed service, URL, slug, port, framework, existing auth, health route, and owner. GitHub repositories and UDA application entries are not necessarily 1:1.
+**Hard scope restriction (user decision 2026-10-09): change ONLY applications currently listed in the live UDA application registry.** Do not modify any unlisted GitHub repository, even if it is a web application, deployed independently, or mentioned in historical notes. An entry need not yet have `proxy_enabled=true` to be in scope, but changes should only be made when the entry is confirmed in the live registry. Obtain the live registry/inventory first; the source-controlled `config.example.json` is illustrative and `UBUNTU_PORTS.md` is a historical snapshot, **not authoritative membership evidence**. Do not mechanically change CLI utilities, extensions, libraries, prototypes or inactive services unless specifically listed as a UDA application and its hosted runtime needs adjustment. Capture deployed service, URL, slug, port, framework, existing auth, health route, and owner. GitHub repositories and UDA entries are not necessarily 1:1.
 
 Public origin: `https://tanyaanne.ddns.net`; canonical app URL: `/apps/<slug>/`. Treat origin and slug as deployment configuration, not hardcoded application constants. Preserve ordinary root-hosted local access.
 
@@ -54,8 +54,8 @@ Public origin: `https://tanyaanne.ddns.net`; canonical app URL: `/apps/<slug>/`.
 
 ## Deployment recipe
 
-1. Inventory UDA live registry; mark `compatible`, `requires work`, `not applicable`, or `not assessed`.
-2. Prioritize CatManager regression baseline, then active browser apps (Sidecar, LedgerOne, CardDay, Should-Cost Intelligence, Internet Pricing, Olladex, Taiju-related services, etc.), only if confirmed registered/deployed.
+1. Inventory UDA live registry, treating it as the exclusive allowlist; mark `compatible`, `requires work`, `not applicable`, or `not assessed`.
+2. Prioritize CatManager regression baseline **only if it is listed in the live UDA registry**, then other listed browser apps in risk order. Do not infer membership from GitHub or the historical port inventory.
 3. For each app: read AGENTS.md and DEVELOPMENT.md, add an app-specific `OPS-UDA-SUBPATH` task, implement matching framework changes, tests and CI, then canary enable its UDA route. Do not enable all public routes simultaneously.
 4. Update UDA registry `proxy_enabled`, `proxy_slug`, `allowed_groups`, `app_url` **after** compatibility and authorization testing. Keep local `app_url` host/port specific to the real service. Never commit production server config, secrets, or credentials.
 5. Record migration status, changes, commit, CI run and human acceptance in the registry/onboarding log.
