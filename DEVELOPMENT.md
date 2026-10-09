@@ -30,6 +30,33 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-003 — UDA-listed application subpath migration
+Status: 🔵 PLANNED
+Priority: High
+Owner/Agent: per-app assignment pending
+Depends on: live UDA application registry inventory and DEV-002 proxy acceptance
+Integration status: migration standard documented; no application migrations implied
+
+Requirement:
+- Modify **only applications listed in the live UDA registry** so their browser front ends work beneath `/apps/<slug>/`. An unlisted GitHub project is excluded even if it is a web application.
+- Record exact repo-to-UDA-entry mapping, runtime/framework, port, route slug, URL behaviour and permission groups before edits.
+- Preserve current LAN/root-mode usability, authentication boundary, cookies, API/streaming routes and storage.
+- Apply `docs/app-subpath-migration.md` framework-specific acceptance checks; migrate and validate one listed app at a time.
+
+Evidence:
+- Specification: `docs/app-subpath-migration.md`
+- Live registry membership: not available from source-controlled `config.example.json`; pending read of actual deployed UDA registry.
+- Application changes, CI and live Caddy checks: not started.
+- User acceptance: pending.
+
+Completion criteria:
+- [ ] Live UDA registry inventoried and fixed list recorded.
+- [ ] Each listed hosted app audited and changes made where necessary.
+- [ ] Framework-specific automated regression coverage passes.
+- [ ] UDA/Caddy auth and prefix end-to-end checks pass.
+- [ ] Per-app commits/CI and acceptance recorded.
+
+
 ### DEV-002 — Authenticated application portal and controlled ingress
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: High
