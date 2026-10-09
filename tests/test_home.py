@@ -49,7 +49,7 @@ def test_authenticated_basic_user_only_sees_published_entitled_apps():
     ]}
     assert [card['name'] for card in home.application_cards(config, 'server', {'WEB Access'})] == ['catmanager']
     assert sorted(card['name'] for card in home.application_cards(config, 'server', {'*'})) == [
-        'catmanager', 'published-without-policy']
+        'catmanager', 'legacy-lan-app', 'published-without-policy']
 
 
 def test_ipv6_loopback_is_rewritten():
