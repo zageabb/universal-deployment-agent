@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from deploy_agent import DeployError, load_config
 
@@ -106,13 +106,34 @@ def validate_candidate(app: dict) -> dict:
         "X-Forwarded-Proto": "https",
         "X-Forwarded-Prefix": prefix,
     })
-    with urlopen(request, timeout=15) as response:
+    # Do not follow a login redirect to the (not-yet-published) public URL.
+    # A redirect is valid evidence only when its Location stays in this mount.
+    class NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    try:
+        response = build_opener(NoRedirect).open(request, timeout=15)
+    except HTTPError as exc:
+        response = exc
+    with response:
+        status = response.code
         body = response.read(1_000_000).decode("utf-8", "replace")
         location = response.headers.get("Location", "")
-        if response.status >= 400:
-            raise RuntimeError(f"prefixed backend probe returned HTTP {response.status}")
-    if prefix not in body and prefix not in location:
-        raise RuntimeError("live backend response does not contain the forwarded prefix")
+    if status in {301, 302, 303, 307, 308}:
+        target = urlsplit(location)
+        public_host = urlsplit(load_config(CONFIG_PATH)["public_base_url"]).hostname
+        if target.scheme and target.scheme not in {"https", "http"}:
+            raise RuntimeError("prefixed backend redirects to an unsafe scheme")
+        if target.netloc and target.hostname != public_host:
+            raise RuntimeError("prefixed backend redirects outside public UDA host")
+        if not (target.path == prefix or target.path.startswith(prefix + "/")):
+            raise RuntimeError("prefixed backend redirects outside its application mount")
+    elif status == 200:
+        if prefix not in body:
+            raise RuntimeError("live backend response does not contain the forwarded prefix")
+    else:
+        raise RuntimeError(f"prefixed backend probe returned HTTP {status}")
     return {"tests": command, "origin": origin_for(app), "prefix": prefix}
 
 
