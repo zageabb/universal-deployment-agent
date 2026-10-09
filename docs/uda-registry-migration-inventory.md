@@ -37,7 +37,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Development | Reflex Agent Demo | Visible | Not published | [PR #36](https://github.com/zageabb/reflex_AgentDemo/pull/36) merged to main SHA `b2a6836`; UDA CI green; user runtime acceptance pending |
 | Development | SCM Agent | Visible | Not published | Static HTML/JS app reviewed; relative assets and fetch data paths, no code migration required; verify Caddy mount and browser |
 | Development | Screen Design | Visible | Not published | [PR #19](https://github.com/zageabb/ScreenDesign/pull/19) merged to main SHA `327fcf1`; UDA CI green; user test pending |
-| Development | Xmas List | Visible | Not published | [PR #6](https://github.com/zageabb/XmasList/pull/6) opened; CI and main merge pending |
+| Development | Xmas List | Visible | Not published | [PR #6](https://github.com/zageabb/XmasList/pull/6) merged to main SHA `9c886ba`; UDA CI green after legacy pytest plugin fix; user runtime acceptance pending |
 | HE Development | Margin Trans | Visible | Not published | Needs assessment |
 | TAIJU WEB Access | CatManager | Visible | **Published** | Existing code claims prefix compatibility; regression + live test required |
 
