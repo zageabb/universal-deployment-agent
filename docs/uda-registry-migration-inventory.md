@@ -27,7 +27,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | LedgerOne | Visible | Not published | Merged to main via [PR #19](https://github.com/zageabb/LedgerOne/pull/19), SHA `70bb536`; CI retest passed; user runtime verification pending |
 | Personal | Lucky Lab | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/lucky-lab-slot-statistics/pull/1), SHA `21e0990`; UDA Compatibility CI passed; user test pending |
 | Personal | Motorbike Cost Tracker | Visible | Not published | Deployed Flask repo `zageabb/flask_Motorbike-Cost-Tracker1` (port 5067), not inactive Reflex variants; [PR #6](https://github.com/zageabb/flask_Motorbike-Cost-Tracker1/pull/6) merged to main, SHA `a7b791a`; CI rerun passed; user app test pending |
-| Personal | Sidecar | Visible | Not published | Needs assessment; FastAPI + React, WebSocket/files |
+| Personal | Sidecar | Visible | Not published | UDA mounted chat/file/WebSocket compatibility [PR #1](https://github.com/zageabb/SideCar/pull/1); CI and main merge pending |
 | Personal | Tender Designer | Visible | Not published | Needs assessment |
 | Personal | Wallpaper Animation Studio | Visible | Not published | Needs assessment |
 | Development | Flask Chat | Visible | Not published | Needs assessment |
