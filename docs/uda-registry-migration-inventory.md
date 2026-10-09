@@ -25,7 +25,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | Camper Power Studio | Visible | Not published | Reviewed: Next.js frontend calls separate backend API on port 8001 directly. Requires coordinated proxy/API and build changes; migration pending |
 | Personal | Heart | Visible | Not published | Merged to main [PR #3](https://github.com/zageabb/Heart/pull/3), SHA `e1e8518`; UDA Compatibility CI passed; user acceptance pending |
 | Personal | LedgerOne | Visible | Not published | UDA compatibility [PR #19](https://github.com/zageabb/LedgerOne/pull/19); full CI running; main merge pending |
-| Personal | Lucky Lab | Visible | Not published | Needs assessment |
+| Personal | Lucky Lab | Visible | Not published | Merged to main via [PR #1](https://github.com/zageabb/lucky-lab-slot-statistics/pull/1), SHA `21e0990`; UDA Compatibility CI passed; user test pending |
 | Personal | Motorbike Cost Tracker | Visible | Not published | Needs assessment; verify active repo alias |
 | Personal | Sidecar | Visible | Not published | Needs assessment; FastAPI + React, WebSocket/files |
 | Personal | Tender Designer | Visible | Not published | Needs assessment |
