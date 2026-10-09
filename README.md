@@ -70,6 +70,16 @@ The proxy delegates every application request to `/auth/check`, so hiding a card
 is not the access-control boundary.
 Its JSON endpoint exposes only names, titles, links, initials, and addresses;
 registry secrets, filesystem paths, and deployment commands are never included.
+
+`proxy_migration_agent.py` can monitor the live registry for newly deployed
+applications that carry `tests/test_uda_subpath.py`. Every ten minutes it considers
+only enabled, launcher-visible, unproxied services whose checkout is clean and
+exactly matches its configured remote branch. It runs the repository's full test
+suite, probes the live backend with `X-Forwarded-Prefix`, backs up and atomically
+updates the registry, reloads Caddy, and verifies that unauthenticated public
+ingress remains blocked. A failed publish restores the previous registry and
+routes. It never merges branches or edits application source. Results are recorded
+in `~/.local/state/deployment-agent/proxy-migration.json` and the systemd journal.
 Groups can be managed from **5030 → Manage groups** without editing JSON. The
 interface can create, rename, reorder and delete groups, and assign each
 registered application. The ordered group list is stored in the registry and is

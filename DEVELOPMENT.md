@@ -30,6 +30,41 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-005 — Automatic safe proxy migration monitor
+Status: 🔨 IN PROGRESS
+Priority: High
+Owner/Agent: Codex
+Branch: `main`
+Depends on: DEV-003 migration contract
+Can run in parallel with: individual application migrations
+Integration status: implementation awaiting automated and live validation
+
+Requirement:
+- Detect newly deployed UDA subpath-compatible applications and safely publish
+  them without merging branches or changing application code.
+
+Implementation:
+- A locked systemd timer validates the migration marker, clean/current checkout,
+  complete repository test suite, live forwarded-prefix response, atomic registry
+  update, Caddy reload and fail-closed public ingress.
+- Registry and routes roll back automatically when publication validation fails.
+
+Evidence:
+- Files: `proxy_migration_agent.py`, `tests/test_proxy_migration_agent.py`,
+  systemd service/timer, installer, README and this ledger.
+- Tests and live validation: pending.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Tests added.
+- [ ] Relevant tests pass.
+- [ ] Dry-run correctly identifies current registry state.
+- [ ] Timer installed and live execution validated.
+- [ ] Commit evidence recorded and pushed to `main`.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-004 — Support authenticated LAN and public portal login
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: High

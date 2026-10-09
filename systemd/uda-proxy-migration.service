@@ -1,0 +1,7 @@
+[Unit]
+Description=Validate and publish completed UDA reverse-proxy migrations
+After=network-online.target deployment-agent.service uda-proxy-refresh.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/deployment-agent/proxy_migration_agent.py --config %h/.config/deployment-agent/config.json --state %h/.local/state/deployment-agent/proxy-migration.json
