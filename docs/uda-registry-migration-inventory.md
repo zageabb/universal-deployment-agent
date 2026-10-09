@@ -34,7 +34,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Development | Flask Form App | Visible | Not published | BLOCKED: no matching GitHub repo found under zageabb; verify actual UDA source mapping before code changes |
 | Development | Flask Question | Visible | Not published | [PR #24](https://github.com/zageabb/Flask_Question/pull/24) merged to main SHA `bafa67c`; UDA compatibility CI passed, runtime acceptance pending |
 | Development | Flask Spreadsheet | Visible | Not published | [PR #23](https://github.com/zageabb/flask_SpreadSheet/pull/23) merged to main SHA `deaaf34`; UDA CI passed; user functional verification pending |
-| Development | Reflex Agent Demo | Visible | Not published | Needs assessment |
+| Development | Reflex Agent Demo | Visible | Not published | [PR #36](https://github.com/zageabb/reflex_AgentDemo/pull/36) merged to main SHA `b2a6836`; UDA CI green; user runtime acceptance pending |
 | Development | SCM Agent | Visible | Not published | Needs assessment |
 | Development | Screen Design | Visible | Not published | Needs assessment |
 | Development | Xmas List | Visible | Not published | Needs assessment |
