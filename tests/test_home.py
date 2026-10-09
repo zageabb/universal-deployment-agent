@@ -40,7 +40,7 @@ def test_published_app_card_uses_protected_proxy_route():
     assert card['address'] == 'tanyaanne.ddns.net'
 
 
-def test_authenticated_basic_user_only_sees_published_entitled_apps():
+def test_authenticated_basic_user_sees_assigned_groups_and_proxy_entitlements():
     config = {'public_base_url': 'https://example.test', 'applications': [
         entry(name='legacy-lan-app', group='Personal'),
         entry(name='published-without-policy', proxy_enabled=True),
@@ -50,6 +50,8 @@ def test_authenticated_basic_user_only_sees_published_entitled_apps():
     assert [card['name'] for card in home.application_cards(config, 'server', {'WEB Access'})] == ['catmanager']
     assert sorted(card['name'] for card in home.application_cards(config, 'server', {'*'})) == [
         'catmanager', 'legacy-lan-app', 'published-without-policy']
+    assert [card['name'] for card in home.application_cards(config, 'server', {'Personal'})] == [
+        'legacy-lan-app']
 
 
 def test_ipv6_loopback_is_rewritten():

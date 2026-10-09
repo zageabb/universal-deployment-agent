@@ -49,9 +49,9 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
             continue
         allowed = set(entry.get('allowed_groups') or [])
         if user_groups is not None and '*' not in user_groups:
-            if not entry.get('proxy_enabled'):
+            if application_group(entry) not in user_groups:
                 continue
-            if not allowed or user_groups.isdisjoint(allowed):
+            if entry.get('proxy_enabled') and (not allowed or user_groups.isdisjoint(allowed)):
                 continue
         if entry.get('proxy_enabled') and config.get('public_base_url'):
             slug = entry.get('proxy_slug') or entry['name']
