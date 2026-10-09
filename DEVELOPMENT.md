@@ -34,8 +34,8 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 Status: 🔵 PLANNED
 Priority: High
 Owner/Agent: per-app assignment pending
-Depends on: live UDA application registry inventory and DEV-002 proxy acceptance
-Integration status: migration standard documented; no application migrations implied
+Depends on: service/repository mappings, framework audit and DEV-002 proxy acceptance
+Integration status: 36-entry live UDA allowlist captured; individual application migrations not started
 
 Requirement:
 - Modify **only applications listed in the live UDA registry** so their browser front ends work beneath `/apps/<slug>/`. An unlisted GitHub project is excluded even if it is a web application.
@@ -45,12 +45,12 @@ Requirement:
 
 Evidence:
 - Specification: `docs/app-subpath-migration.md`
-- Live registry membership: not available from source-controlled `config.example.json`; pending read of actual deployed UDA registry.
+- Registry membership: owner supplied live UDA list of 36 enabled entries, recorded in `docs/uda-registry-migration-inventory.md` (33 launcher-visible, 2 hidden infrastructure, 1 without launcher URL; only CatManager published). Exact slug/repo mapping still pending per-app verification.
 - Application changes, CI and live Caddy checks: not started.
 - User acceptance: pending.
 
 Completion criteria:
-- [ ] Live UDA registry inventoried and fixed list recorded.
+- [x] Owner-supplied live UDA registry inventory recorded as a fixed 36-entry allowlist.
 - [ ] Each listed hosted app audited and changes made where necessary.
 - [ ] Framework-specific automated regression coverage passes.
 - [ ] UDA/Caddy auth and prefix end-to-end checks pass.
