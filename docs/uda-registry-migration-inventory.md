@@ -24,7 +24,7 @@ Source: live-registry inventory supplied by application owner. **Exactly 36 enab
 | Personal | Bank of Mum | Visible | Not published | Web prefix merged to main via [PR #21](https://github.com/zageabb/Bank_of_mum/pull/21), SHA `e3098f3`; UDA Compatibility and v2 CI passed; separate API service and user runtime validation pending |
 | Personal | Camper Power Studio | Visible | Not published | Reviewed: Next.js frontend calls separate backend API on port 8001 directly. Requires coordinated proxy/API and build changes; migration pending |
 | Personal | Heart | Visible | Not published | Merged to main [PR #3](https://github.com/zageabb/Heart/pull/3), SHA `e1e8518`; UDA Compatibility CI passed; user acceptance pending |
-| Personal | LedgerOne | Visible | Not published | Needs assessment |
+| Personal | LedgerOne | Visible | Not published | UDA compatibility [PR #19](https://github.com/zageabb/LedgerOne/pull/19); full CI running; main merge pending |
 | Personal | Lucky Lab | Visible | Not published | Needs assessment |
 | Personal | Motorbike Cost Tracker | Visible | Not published | Needs assessment; verify active repo alias |
 | Personal | Sidecar | Visible | Not published | Needs assessment; FastAPI + React, WebSocket/files |
