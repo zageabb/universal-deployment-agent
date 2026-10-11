@@ -21,10 +21,11 @@ def test_selected_asset_paths_can_strip_an_app_prefix():
       {'name':'next-app','enabled':True,'proxy_enabled':True,'proxy_preserve_prefix':True,
        'proxy_strip_prefix_paths':['assets'],'proxy_slug':'next-app','app_url':'http://127.0.0.1:5077/'}]}
     output=render(config)
-    asset_handler='  handle_path /apps/next-app/assets/* {'
+    asset_handler='  handle /apps/next-app/assets/* {'
     app_handler='  handle /apps/next-app/* {'
     assert asset_handler in output
     assert output.index(asset_handler) < output.index(app_handler)
+    assert '    uri strip_prefix /apps/next-app' in output
 
 def test_strip_prefix_paths_reject_caddy_syntax():
     config={'public_base_url':'https://tanyaanne.ddns.net','applications':[

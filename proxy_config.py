@@ -22,9 +22,9 @@ def render(config: dict) -> str:
         for path in app.get('proxy_strip_prefix_paths') or []:
             if not isinstance(path, str) or not re.fullmatch(r'[A-Za-z0-9._~-]+', path):
                 raise ValueError(f"{app['name']} has an invalid proxy_strip_prefix_paths entry")
-            lines += [f'  handle_path /apps/{slug}/{path}/* {{',
+            lines += [f'  handle /apps/{slug}/{path}/* {{',
               '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
-              '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    reverse_proxy {origin} {{',
+              '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    uri strip_prefix /apps/{slug}',f'    reverse_proxy {origin} {{',
               f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
         lines += [f'  {handler} /apps/{slug}/* {{',
           '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
