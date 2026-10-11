@@ -66,6 +66,9 @@ Public ingress is opt-in per application. `proxy_config.py` generates a Caddy
 configuration only for enabled entries with `proxy_enabled: true`; unpublished
 registry entries never become routes. The generated path is
 `/apps/<proxy_slug>/` and the application must support `X-Forwarded-Prefix`.
+Applications that natively support a configured URL base path can set
+`proxy_preserve_prefix: true`; Caddy then forwards the full `/apps/<slug>/`
+path instead of stripping it.
 The proxy delegates every application request to `/auth/check`, so hiding a card
 is not the access-control boundary.
 Its JSON endpoint exposes only names, titles, links, initials, and addresses;

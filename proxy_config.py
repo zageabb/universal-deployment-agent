@@ -16,7 +16,8 @@ def render(config: dict) -> str:
         parts=urlsplit(target or '')
         if parts.scheme not in ('http','https') or not parts.hostname: raise ValueError(f"{app['name']} needs a valid app_url")
         origin=f'{parts.scheme}://{parts.hostname}' + (f':{parts.port}' if parts.port else '')
-        lines += [f'  redir /apps/{slug} /apps/{slug}/ 308',f'  handle_path /apps/{slug}/* {{',
+        handler='handle' if app.get('proxy_preserve_prefix') else 'handle_path'
+        lines += [f'  redir /apps/{slug} /apps/{slug}/ 308',f'  {handler} /apps/{slug}/* {{',
           '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
           '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    reverse_proxy {origin} {{',
           f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
