@@ -30,6 +30,14 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-006 — Selective asset-prefix stripping
+Status: ⏳ AWAITING ACCEPTANCE
+
+Base-path-aware applications may generate prefixed asset URLs while their
+runtime asset server only accepts root-relative `/assets/*` requests. The proxy
+generator now supports validated `proxy_strip_prefix_paths` handlers before the
+preserved application route. Tests cover ordering and configuration injection.
+
 ### DEV-005 — Automatic safe proxy migration monitor
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: High

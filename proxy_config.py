@@ -2,6 +2,7 @@
 """Generate a Caddy ingress configuration from explicitly published UDA apps."""
 from __future__ import annotations
 import argparse
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 from deploy_agent import load_config
@@ -17,7 +18,15 @@ def render(config: dict) -> str:
         if parts.scheme not in ('http','https') or not parts.hostname: raise ValueError(f"{app['name']} needs a valid app_url")
         origin=f'{parts.scheme}://{parts.hostname}' + (f':{parts.port}' if parts.port else '')
         handler='handle' if app.get('proxy_preserve_prefix') else 'handle_path'
-        lines += [f'  redir /apps/{slug} /apps/{slug}/ 308',f'  {handler} /apps/{slug}/* {{',
+        lines += [f'  redir /apps/{slug} /apps/{slug}/ 308']
+        for path in app.get('proxy_strip_prefix_paths') or []:
+            if not isinstance(path, str) or not re.fullmatch(r'[A-Za-z0-9._~-]+', path):
+                raise ValueError(f"{app['name']} has an invalid proxy_strip_prefix_paths entry")
+            lines += [f'  handle_path /apps/{slug}/{path}/* {{',
+              '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
+              '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    reverse_proxy {origin} {{',
+              f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
+        lines += [f'  {handler} /apps/{slug}/* {{',
           '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
           '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    reverse_proxy {origin} {{',
           f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
