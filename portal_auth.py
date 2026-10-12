@@ -12,6 +12,8 @@ def connect(path: Path):
       password_hash TEXT NOT NULL, verified INTEGER NOT NULL DEFAULT 0,
       groups_json TEXT NOT NULL DEFAULT '[]', is_admin INTEGER NOT NULL DEFAULT 0,
       token_digest TEXT, token_purpose TEXT, token_expires INTEGER, created_at INTEGER NOT NULL)""")
+    if 'apps_json' not in {row['name'] for row in db.execute('PRAGMA table_info(users)')}:
+        db.execute("ALTER TABLE users ADD COLUMN apps_json TEXT NOT NULL DEFAULT '[]'")
     db.commit(); return db
 
 def normalize_email(value):
@@ -22,10 +24,10 @@ def normalize_email(value):
     return email
 
 def user_for_email(db,email): return db.execute('SELECT * FROM users WHERE email=?',(normalize_email(email),)).fetchone()
-def create_user(db,email,password,groups=(),admin=False,verified=False):
+def create_user(db,email,password,groups=(),admin=False,verified=False,applications=()):
     email=normalize_email(email)
     if len(password)<12: raise ValueError('Password must be at least 12 characters')
-    db.execute('INSERT INTO users VALUES (?,?,?,?,?,NULL,NULL,NULL,?)',(email,generate_password_hash(password),int(verified),json.dumps(list(groups)),int(admin),int(time.time())))
+    db.execute('INSERT INTO users(email,password_hash,verified,groups_json,is_admin,token_digest,token_purpose,token_expires,created_at,apps_json) VALUES (?,?,?,?,?,NULL,NULL,NULL,?,?)',(email,generate_password_hash(password),int(verified),json.dumps(list(groups)),int(admin),int(time.time()),json.dumps(list(applications))))
     db.commit(); return email
 def authenticate(db,email,password):
     try: user=user_for_email(db,email)
@@ -42,6 +44,7 @@ def consume_token(db,token,purpose):
     if user: db.execute('UPDATE users SET token_digest=NULL,token_purpose=NULL,token_expires=NULL WHERE email=?',(user['email'],)); db.commit()
     return user
 def groups(user): return set(json.loads(user['groups_json']))
+def applications(user): return set(json.loads(user['apps_json']))
 def send_email(config,recipient,subject,body):
     password=config.get('smtp_password')
     if not password: raise RuntimeError('Email delivery is not configured')

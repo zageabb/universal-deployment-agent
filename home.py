@@ -14,7 +14,7 @@ from urllib.parse import urlsplit, urlunsplit
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
-from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
+from portal_auth import applications as application_memberships, authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
 from ui_groups import application_group, application_proxy_group, application_proxy_groups, configured_groups, group_summary
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -51,17 +51,19 @@ def application_url(entry: dict, public_host: str) -> str | None:
         return None
 
 
-def application_cards(config: dict, public_host: str, user_groups: set[str] | None = None) -> list[dict]:
+def application_cards(config: dict, public_host: str, user_groups: set[str] | None = None,
+                      user_applications: set[str] | None = None) -> list[dict]:
     cards = []
     for entry in config['applications']:
         if not entry.get('enabled') or entry.get('kind') == 'library' or entry.get('show_on_home') is False:
             continue
         allowed = application_proxy_groups(entry)
         if user_groups is not None and '*' not in user_groups:
+            directly_allowed = entry['name'] in (user_applications or set())
             if entry.get('proxy_enabled'):
-                if not allowed or user_groups.isdisjoint(allowed):
+                if not directly_allowed and (not allowed or user_groups.isdisjoint(allowed)):
                     continue
-            elif application_group(entry) not in user_groups:
+            elif not directly_allowed and application_group(entry) not in user_groups:
                 continue
         if entry.get('proxy_enabled') and config.get('public_base_url'):
             slug = entry.get('proxy_slug') or entry['name']
@@ -105,7 +107,8 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         cfg = load_config(config_path)
         user=current_user()
         allowed=None if not auth_enabled() else ({'*'} if user and user['is_admin'] else (memberships(user) if user else set()))
-        return application_cards(cfg, host, allowed), configured_groups(cfg)
+        direct=None if not auth_enabled() or not user or user['is_admin'] else application_memberships(user)
+        return application_cards(cfg, host, allowed, direct), configured_groups(cfg)
 
     @app.after_request
     def headers(response):
@@ -223,7 +226,9 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         if not user: return '',401
         name=request.headers.get('X-UDA-App',''); cfg=identity_config(); entry=next((x for x in cfg['applications'] if x['name']==name),None)
         allowed=application_proxy_groups(entry) if entry else set(); user_groups={'*'} if user['is_admin'] else memberships(user)
-        if not entry or (allowed and '*' not in user_groups and user_groups.isdisjoint(allowed)): return '',403
+        direct=set() if user['is_admin'] else application_memberships(user)
+        if not entry or (name not in direct and allowed and '*' not in user_groups and user_groups.isdisjoint(allowed)): return '',403
+        if not user['is_admin'] and name not in direct and not allowed: return '',403
         response=app.response_class('',204); response.headers['X-UDA-User']=user['email']; response.headers['X-UDA-Groups']=','.join(sorted(user_groups)); return response
 
     def administration_context(cfg):
@@ -234,6 +239,13 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
                   and group in application_proxy_groups(entry)]
             access.append({'name':group,'applications':apps})
         return access
+
+    def published_applications(cfg):
+        return sorted([
+            {'name': entry['name'], 'title': entry.get('display_name') or re.sub(r'[-_]+',' ',entry['name']).title(),
+             'group': application_proxy_group(entry)}
+            for entry in cfg['applications'] if entry.get('enabled') and entry.get('proxy_enabled')
+        ], key=lambda item: item['title'].casefold())
 
     @app.get('/admin/users')
     def admin_users():
@@ -250,11 +262,12 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         if not actor or not actor['is_admin']: abort(403)
         db=database(); cfg=identity_config(); access=administration_context(cfg)
         if request.method=='POST':
-            require_csrf(); selected=request.form.getlist('groups')
+            require_csrf(); selected=request.form.getlist('groups'); selected_apps=request.form.getlist('applications')
             if not set(selected).issubset(set(configured_groups(cfg))): abort(400)
+            if not set(selected_apps).issubset({item['name'] for item in published_applications(cfg)}): abort(400)
             email=request.form.get('email',''); created=None
             try:
-                created=create_user(db,email,secrets.token_urlsafe(48),groups=selected)
+                created=create_user(db,email,secrets.token_urlsafe(48),groups=selected,applications=selected_apps)
                 token=issue_token(db,created,'invite',86400)
                 link=cfg['public_base_url'].rstrip('/')+url_for('activate_invite',token=token)
                 send_email(cfg,created,'Activate your UDA account',
@@ -267,7 +280,8 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
                 if created:
                     db.execute("DELETE FROM users WHERE email=? AND verified=0 AND token_purpose='invite'",(created,)); db.commit()
                 flash(str(exc),'error')
-        return render_template('portal_user_invite.html',groups=access,csrf=csrf())
+        return render_template('portal_user_invite.html',groups=access,
+                               applications=published_applications(cfg),csrf=csrf())
 
     @app.route('/admin/users/<path:email>',methods=['GET','POST'])
     def admin_user_detail(email):
@@ -275,17 +289,18 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         if not actor or not actor['is_admin']: abort(403)
         db=database(); cfg=identity_config()
         user=db.execute(
-            'SELECT email,verified,groups_json,is_admin,created_at FROM users WHERE email=?',
+            'SELECT email,verified,groups_json,is_admin,created_at,apps_json FROM users WHERE email=?',
             (email,),
         ).fetchone()
         if user is None: abort(404)
         if request.method=='POST':
-            require_csrf(); selected=request.form.getlist('groups')
+            require_csrf(); selected=request.form.getlist('groups'); selected_apps=request.form.getlist('applications')
             if not set(selected).issubset(set(configured_groups(cfg))): abort(400)
-            db.execute('UPDATE users SET groups_json=?,verified=? WHERE email=?',(json.dumps(selected),int(request.form.get('verified')=='1'),email)); db.commit()
+            if not set(selected_apps).issubset({item['name'] for item in published_applications(cfg)}): abort(400)
+            db.execute('UPDATE users SET groups_json=?,apps_json=?,verified=? WHERE email=?',(json.dumps(selected),json.dumps(selected_apps),int(request.form.get('verified')=='1'),email)); db.commit()
             flash(f'Updated {email}.','success'); return redirect(url_for('admin_user_detail',email=email))
         return render_template('portal_user_detail.html',user=user,
-                               groups=administration_context(cfg),csrf=csrf())
+                               groups=administration_context(cfg),applications=published_applications(cfg),csrf=csrf())
 
     return app
 

@@ -161,6 +161,7 @@ def test_admin_user_list_links_to_separate_detail_pages(tmp_path):
     assert b'admin@example.com' not in detail.data
     assert b'Allowed UDA groups' in detail.data
     assert b'Allocraft' in detail.data
+    assert b'Individual application access' in detail.data
 
 
 def test_admin_user_detail_updates_only_selected_user(tmp_path):
@@ -172,15 +173,17 @@ def test_admin_user_detail_updates_only_selected_user(tmp_path):
         'csrf': csrf,
         'verified': '1',
         'groups': ['Personal'],
+        'applications': ['allocraft'],
     })
 
     assert response.status_code == 302
     assert response.headers['Location'].endswith('/admin/users/member@example.com')
     user = home.connect(identity).execute(
-        'SELECT verified,groups_json FROM users WHERE email=?', ('member@example.com',)
+        'SELECT verified,groups_json,apps_json FROM users WHERE email=?', ('member@example.com',)
     ).fetchone()
     assert user['verified'] == 1
     assert json.loads(user['groups_json']) == ['Personal']
+    assert json.loads(user['apps_json']) == ['allocraft']
 
 
 def test_admin_user_pages_require_an_administrator(tmp_path):
@@ -205,6 +208,7 @@ def test_administrator_invites_user_with_preassigned_groups(tmp_path, monkeypatc
         'csrf': csrf,
         'email': 'Invited@Example.com',
         'groups': ['Personal'],
+        'applications': ['allocraft'],
     })
 
     assert response.status_code == 302
@@ -215,6 +219,7 @@ def test_administrator_invites_user_with_preassigned_groups(tmp_path, monkeypatc
     assert invited['verified'] == 0
     assert json.loads(invited['groups_json']) == ['Personal']
     assert invited['token_purpose'] == 'invite'
+    assert json.loads(invited['apps_json']) == ['allocraft']
     assert sent['recipient'] == 'invited@example.com'
     assert sent['subject'] == 'Activate your UDA account'
     assert '/activate/' in sent['body']
@@ -280,3 +285,32 @@ def test_auth_check_uses_explicit_proxy_group_over_legacy_allowed_groups(tmp_pat
                ('["TAIJU"]', 'user@example.com'))
     db.commit()
     assert client.get('/auth/check', headers={'X-UDA-App': 'pricing'}).status_code == 403
+
+
+def test_same_application_can_be_assigned_directly_to_multiple_people(tmp_path):
+    identity = tmp_path / 'identity.db'
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({
+        'portal_auth_enabled': True,
+        'portal_secret_key': 'test-secret',
+        'identity_db': str(identity),
+        'applications': [entry(name='allocraft', proxy_enabled=True,
+                               group='Personal', allowed_groups=['Personal'])],
+    }))
+    db = home.connect(identity)
+    db.executemany(
+        'INSERT INTO users(email,password_hash,verified,groups_json,is_admin,created_at,apps_json) VALUES (?,?,?,?,?,?,?)',
+        [
+            ('one@example.com', 'unused', 1, '[]', 0, 1, '["allocraft"]'),
+            ('two@example.com', 'unused', 1, '[]', 0, 2, '["allocraft"]'),
+        ],
+    )
+    db.commit()
+    client = home.create_app(config).test_client()
+
+    for email in ('one@example.com', 'two@example.com'):
+        with client.session_transaction() as session:
+            session['user'] = email
+        response = client.get('/api/applications')
+        assert [app['name'] for app in response.json['applications']] == ['allocraft']
+        assert client.get('/auth/check', headers={'X-UDA-App': 'allocraft'}).status_code == 204

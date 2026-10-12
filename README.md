@@ -65,6 +65,9 @@ An application may set `proxy_group` to choose its authenticated portal grouping
 and entitlement without changing the operational `group` used by development and
 server UDA screens. Entries without `proxy_group` continue to use the legacy
 `allowed_groups` authorization policy.
+Administrators may also grant applications directly on a user's detail page.
+Direct assignments are additive to group access, and the same application can
+be assigned independently to any number of users.
 
 Public ingress is opt-in per application. `proxy_config.py` generates a Caddy
 configuration only for enabled entries with `proxy_enabled: true`; unpublished

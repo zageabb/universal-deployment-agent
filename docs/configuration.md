@@ -57,6 +57,13 @@ UDA group while appearing in and being accessible to `Personal` users:
 }
 ```
 
+Administrators can grant individual applications from the portal user detail or
+invitation page. These assignments are stored in the identity database rather
+than the deployment registry. Effective access is the union of group-derived and
+directly assigned applications; assigning an application to one user does not
+remove or limit assignments to other users. Caddy's `/auth/check` uses the same
+combined decision as Application Home.
+
 The top-level `groups` array stores display order. Existing application-level `group` values are imported automatically when the management page is first used, so older registries remain compatible. `Other` is reserved as the fallback for unassigned applications. Deleting a managed group removes that assignment from its applications, which moves them to `Other`.
 
 Commands are arrays rather than shell strings. Shell expansion, pipes, redirects, command substitution, and implicit environment interpolation are not performed.

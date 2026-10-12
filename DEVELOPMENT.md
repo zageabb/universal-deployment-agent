@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-010 — Direct per-user application assignments
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: Medium
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implemented and test-verified; live acceptance pending
+
+Requirement:
+- Allow the same application to be assigned directly to multiple individual
+  people without changing its UDA or portal group.
+
+Implementation:
+- The identity database gains a backward-compatible `apps_json` entitlement
+  column. User detail and invitation forms expose published applications.
+- Effective access is the union of group and direct assignments, and both the
+  portal directory and Caddy authorization endpoint use the same decision.
+
+Evidence:
+- Files: `portal_auth.py`, `home.py`, user detail/invitation templates,
+  documentation and regression tests.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 103 passed.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Regression tests added.
+- [x] Relevant tests pass.
+- [ ] Commit evidence recorded and pushed to `main`.
+- [ ] Live schema migration and access forms verified.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-009 — Separate proxy portal groups from operational UDA groups
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: Medium
