@@ -113,3 +113,78 @@ def test_session_cookie_security_follows_the_effective_request_scheme(tmp_path):
     assert 'HttpOnly' in local_response.headers['Set-Cookie']
     assert 'Secure' in public_response.headers['Set-Cookie']
     assert 'HttpOnly' in public_response.headers['Set-Cookie']
+
+
+def admin_client(tmp_path):
+    identity = tmp_path / 'identity.db'
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({
+        'portal_auth_enabled': True,
+        'portal_secret_key': 'test-secret',
+        'identity_db': str(identity),
+        'groups': ['Personal', 'Development'],
+        'applications': [entry(name='allocraft', display_name='Allocraft',
+                               group='Personal', proxy_enabled=True,
+                               allowed_groups=['Personal'])],
+    }))
+    db = home.connect(identity)
+    db.executemany(
+        'INSERT INTO users(email,password_hash,verified,groups_json,is_admin,created_at) VALUES (?,?,?,?,?,?)',
+        [
+            ('admin@example.com', 'unused', 1, '["Personal"]', 1, 1),
+            ('member@example.com', 'unused', 1, '[]', 0, 2),
+        ],
+    )
+    db.commit()
+    app = home.create_app(config)
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session['user'] = 'admin@example.com'
+    return client, identity
+
+
+def test_admin_user_list_links_to_separate_detail_pages(tmp_path):
+    client, _ = admin_client(tmp_path)
+    listing = client.get('/admin/users')
+
+    assert listing.status_code == 200
+    assert b'admin@example.com' in listing.data
+    assert b'member@example.com' in listing.data
+    assert b'href="/admin/users/member@example.com"' in listing.data
+    assert b'Allowed UDA groups' not in listing.data
+
+    detail = client.get('/admin/users/member@example.com')
+    assert detail.status_code == 200
+    assert b'Back to users' in detail.data
+    assert b'member@example.com' in detail.data
+    assert b'admin@example.com' not in detail.data
+    assert b'Allowed UDA groups' in detail.data
+    assert b'Allocraft' in detail.data
+
+
+def test_admin_user_detail_updates_only_selected_user(tmp_path):
+    client, identity = admin_client(tmp_path)
+    client.get('/admin/users/member@example.com')
+    with client.session_transaction() as session:
+        csrf = session['csrf']
+    response = client.post('/admin/users/member@example.com', data={
+        'csrf': csrf,
+        'verified': '1',
+        'groups': ['Personal'],
+    })
+
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/admin/users/member@example.com')
+    user = home.connect(identity).execute(
+        'SELECT verified,groups_json FROM users WHERE email=?', ('member@example.com',)
+    ).fetchone()
+    assert user['verified'] == 1
+    assert json.loads(user['groups_json']) == ['Personal']
+
+
+def test_admin_user_pages_require_an_administrator(tmp_path):
+    client, _ = admin_client(tmp_path)
+    with client.session_transaction() as session:
+        session['user'] = 'member@example.com'
+    assert client.get('/admin/users').status_code == 403
+    assert client.get('/admin/users/admin@example.com').status_code == 403

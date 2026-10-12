@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-007 — Separate user directory and access detail pages
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: Medium
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implemented and test-verified; live acceptance pending
+
+Requirement:
+- Replace the long combined user-access form with a scannable user directory
+  and a dedicated account/access page for each user.
+
+Implementation:
+- `/admin/users` lists account identity, administrator status and verification
+  state; `/admin/users/<email>` displays and updates only the selected account.
+- Existing administrator authorization, CSRF checks, group validation and user
+  update semantics are retained.
+
+Evidence:
+- Files: `home.py`, `templates/portal_users.html`,
+  `templates/portal_user_detail.html`, `static/home.css`, `tests/test_home.py`.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 96 passed.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Regression tests added.
+- [x] Relevant tests pass.
+- [ ] Commit evidence recorded and pushed to `main`.
+- [ ] Live authenticated list/detail flow verified.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-006 — Selective asset-prefix stripping
 Status: ⏳ AWAITING ACCEPTANCE
 

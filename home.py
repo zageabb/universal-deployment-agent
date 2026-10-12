@@ -208,24 +208,41 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         if not entry or (allowed and '*' not in user_groups and user_groups.isdisjoint(allowed)): return '',403
         response=app.response_class('',204); response.headers['X-UDA-User']=user['email']; response.headers['X-UDA-Groups']=','.join(sorted(user_groups)); return response
 
-    @app.route('/admin/users',methods=['GET','POST'])
-    def admin_users():
-        actor=current_user()
-        if not actor or not actor['is_admin']: abort(403)
-        db=database(); cfg=identity_config()
-        if request.method=='POST':
-            require_csrf(); email=request.form.get('email',''); selected=request.form.getlist('groups')
-            if not set(selected).issubset(set(configured_groups(cfg))): abort(400)
-            db.execute('UPDATE users SET groups_json=?,verified=? WHERE email=?',(json.dumps(selected),int(request.form.get('verified')=='1'),email)); db.commit()
-            flash(f'Updated {email}.','success'); return redirect(url_for('admin_users'))
-        users=db.execute('SELECT email,verified,groups_json,is_admin,created_at FROM users ORDER BY email').fetchall()
+    def administration_context(cfg):
         access=[]
         for group in configured_groups(cfg):
             apps=[entry.get('display_name') or re.sub(r'[-_]+',' ',entry['name']).title()
                   for entry in cfg['applications'] if entry.get('enabled') and entry.get('proxy_enabled')
                   and group in (entry.get('allowed_groups') or [])]
             access.append({'name':group,'applications':apps})
-        return render_template('portal_users.html',users=users,groups=access,csrf=csrf())
+        return access
+
+    @app.get('/admin/users')
+    def admin_users():
+        actor=current_user()
+        if not actor or not actor['is_admin']: abort(403)
+        users=database().execute(
+            'SELECT email,verified,groups_json,is_admin,created_at FROM users ORDER BY email'
+        ).fetchall()
+        return render_template('portal_users.html',users=users)
+
+    @app.route('/admin/users/<path:email>',methods=['GET','POST'])
+    def admin_user_detail(email):
+        actor=current_user()
+        if not actor or not actor['is_admin']: abort(403)
+        db=database(); cfg=identity_config()
+        user=db.execute(
+            'SELECT email,verified,groups_json,is_admin,created_at FROM users WHERE email=?',
+            (email,),
+        ).fetchone()
+        if user is None: abort(404)
+        if request.method=='POST':
+            require_csrf(); selected=request.form.getlist('groups')
+            if not set(selected).issubset(set(configured_groups(cfg))): abort(400)
+            db.execute('UPDATE users SET groups_json=?,verified=? WHERE email=?',(json.dumps(selected),int(request.form.get('verified')=='1'),email)); db.commit()
+            flash(f'Updated {email}.','success'); return redirect(url_for('admin_user_detail',email=email))
+        return render_template('portal_user_detail.html',user=user,
+                               groups=administration_context(cfg),csrf=csrf())
 
     return app
 
