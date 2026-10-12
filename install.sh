@@ -23,6 +23,7 @@ install -m 0644 "$SOURCE_DIR/templates/dashboard.html" "$DATA_DIR/templates/dash
 install -m 0644 "$SOURCE_DIR/templates/home.html" "$DATA_DIR/templates/home.html"
 install -m 0644 "$SOURCE_DIR/templates/portal_form.html" "$DATA_DIR/templates/portal_form.html"
 install -m 0644 "$SOURCE_DIR/templates/portal_users.html" "$DATA_DIR/templates/portal_users.html"
+install -m 0644 "$SOURCE_DIR/templates/portal_user_detail.html" "$DATA_DIR/templates/portal_user_detail.html"
 install -m 0644 "$SOURCE_DIR/templates/groups.html" "$DATA_DIR/templates/groups.html"
 mkdir -p "$DATA_DIR/static"
 install -m 0644 "$SOURCE_DIR/static/home.css" "$SOURCE_DIR/static/home.js" "$SOURCE_DIR/static/group-filter.js" "$DATA_DIR/static/"

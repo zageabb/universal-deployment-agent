@@ -48,7 +48,7 @@ Implementation:
   update semantics are retained.
 
 Evidence:
-- Files: `home.py`, `templates/portal_users.html`,
+- Files: `home.py`, `install.sh`, `templates/portal_users.html`,
   `templates/portal_user_detail.html`, `static/home.css`, `tests/test_home.py`.
 - Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 96 passed.
 - User/business acceptance: pending.
