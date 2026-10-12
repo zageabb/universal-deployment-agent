@@ -156,11 +156,12 @@ def load_config(path: Path) -> dict[str, Any]:
         if app["name"] in names:
             raise DeployError(f"Duplicate application name: {app['name']}")
         names.add(app["name"])
-        if "group" in app:
-            try:
-                clean_group_name(app["group"])
-            except ValueError as exc:
-                raise DeployError(f"{app['name']} {exc}") from exc
+        for group_field in ("group", "proxy_group"):
+            if group_field in app:
+                try:
+                    clean_group_name(app[group_field])
+                except ValueError as exc:
+                    raise DeployError(f"{app['name']} {group_field} {exc}") from exc
         if app.get("kind", "service") == "service" and (not isinstance(app["restart_command"], list) or not app["restart_command"]):
             raise DeployError(f"{app['name']} restart_command must be a non-empty argument list")
         service_unit = app.get("service_unit")

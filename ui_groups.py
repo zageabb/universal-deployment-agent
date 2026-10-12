@@ -27,6 +27,14 @@ def application_group(entry: dict[str, Any]) -> str:
     return value.strip() or DEFAULT_GROUP
 
 
+def application_proxy_group(entry: dict[str, Any]) -> str:
+    """Return the portal-facing group without changing the operational group."""
+    value = entry.get("proxy_group")
+    if not isinstance(value, str):
+        return application_group(entry)
+    return value.strip() or application_group(entry)
+
+
 def configured_groups(config: dict[str, Any]) -> list[str]:
     """Return managed groups in display order, importing legacy app group values."""
     names: list[str] = []

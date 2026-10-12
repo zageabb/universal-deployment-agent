@@ -15,7 +15,7 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
 from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
-from ui_groups import application_group, configured_groups, group_summary
+from ui_groups import application_group, application_proxy_group, configured_groups, group_summary
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1', '::'}
@@ -58,9 +58,10 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
             continue
         allowed = set(entry.get('allowed_groups') or [])
         if user_groups is not None and '*' not in user_groups:
-            if application_group(entry) not in user_groups:
-                continue
-            if entry.get('proxy_enabled') and (not allowed or user_groups.isdisjoint(allowed)):
+            if entry.get('proxy_enabled'):
+                if not allowed or user_groups.isdisjoint(allowed):
+                    continue
+            elif application_group(entry) not in user_groups:
                 continue
         if entry.get('proxy_enabled') and config.get('public_base_url'):
             slug = entry.get('proxy_slug') or entry['name']
@@ -74,7 +75,7 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
         cards.append({'name': entry['name'], 'title': title, 'url': url,
                       'initials': ''.join(word[0] for word in words[:2]).upper(),
                       'address': urlsplit(url).netloc,
-                      'group': application_group(entry)})
+                      'group': application_proxy_group(entry)})
     return sorted(cards, key=lambda card: card['title'].casefold())
 
 

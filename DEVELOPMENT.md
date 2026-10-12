@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-009 — Separate proxy portal groups from operational UDA groups
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: Medium
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implemented and test-verified; live acceptance pending
+
+Requirement:
+- Let a published application appear in a user-facing portal group while
+  retaining its existing development/server group in UDA operational screens.
+
+Implementation:
+- Optional `proxy_group` controls only Application Home display placement and
+  falls back to `group`. Published-app authorization remains exclusively based
+  on `allowed_groups`. The group manager exposes separate UDA and portal group
+  assignments and keeps both consistent across rename/delete operations.
+
+Evidence:
+- Files: `ui_groups.py`, `home.py`, `dashboard.py`, `deploy_agent.py`, group
+  management template, registry example, configuration documentation and tests.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 100 passed.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Regression tests added.
+- [x] Relevant tests pass.
+- [ ] Commit evidence recorded and pushed to `main`.
+- [ ] Live UDA group management and portal rendering verified.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-008 — Administrator-provisioned user invitations
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: Medium

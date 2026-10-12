@@ -18,6 +18,7 @@
     {
       "name": "example-app",
       "group": "Utilities",
+      "proxy_group": "Utilities",
       "enabled": true,
       "auto_deploy": false,
       "repo_path": "/home/example/apps/example-app",

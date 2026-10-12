@@ -5,7 +5,7 @@ import pytest
 import dashboard
 import home
 from deploy_agent import DeployError, load_config
-from ui_groups import DEFAULT_GROUP, application_group, configured_groups, group_summary
+from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, configured_groups, group_summary
 
 
 def entry(**values):
@@ -53,6 +53,16 @@ def test_home_cards_expose_configured_group():
     assert cards[0]['group'] == 'Engineering'
 
 
+def test_proxy_group_changes_portal_only_and_entitlement_uses_allowed_groups():
+    application = entry(group='Development', proxy_group='Personal', proxy_enabled=True,
+                        allowed_groups=['Personal'])
+    cards = home.application_cards({'applications': [application]}, 'server.local', {'Personal'})
+    assert application_group(application) == 'Development'
+    assert application_proxy_group(application) == 'Personal'
+    assert cards[0]['group'] == 'Personal'
+    assert home.application_cards({'applications': [application]}, 'server.local', {'Development'}) == []
+
+
 def test_home_api_respects_managed_group_order(tmp_path):
     config = tmp_path / 'config.json'
     config.write_text(json.dumps({'groups': ['Zulu', 'Alpha'], 'applications': [
@@ -66,6 +76,13 @@ def test_invalid_group_is_rejected(tmp_path):
     config = tmp_path / 'config.json'
     config.write_text(json.dumps({'applications': [entry(group='   ')]}))
     with pytest.raises(DeployError, match='Group name must be a non-empty single-line value'):
+        load_config(config)
+
+
+def test_invalid_proxy_group_is_rejected(tmp_path):
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({'applications': [entry(proxy_group='   ')]}))
+    with pytest.raises(DeployError, match='proxy_group'):
         load_config(config)
 
 
@@ -138,6 +155,20 @@ def test_group_manager_lifecycle_and_app_assignment(tmp_path):
     saved = json.loads(config.read_text())
     assert saved['groups'] == ['Tools', 'AI & Automation', 'Engineering']
     assert next(app for app in saved['applications'] if app['name'] == 'two')['group'] == 'AI & Automation'
+
+    assert client.post('/applications/two/proxy-group', headers=headers,
+                       data=data | {'group': 'Engineering'}).status_code == 302
+    saved = json.loads(config.read_text())
+    two = next(app for app in saved['applications'] if app['name'] == 'two')
+    assert two['group'] == 'AI & Automation'
+    assert two['proxy_group'] == 'Engineering'
+
+    assert client.post('/applications/two/proxy-group', headers=headers,
+                       data=data | {'group': ''}).status_code == 302
+    saved = json.loads(config.read_text())
+    two = next(app for app in saved['applications'] if app['name'] == 'two')
+    assert two['group'] == 'AI & Automation'
+    assert 'proxy_group' not in two
 
     assert client.post('/groups/delete', headers=headers,
                        data=data | {'name': 'Tools'}).status_code == 302

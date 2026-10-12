@@ -25,7 +25,8 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `health_url` | Yes | HTTP endpoint that must return a successful response |
 | `app_url` | No | Front-end URL for the home-page card; takes precedence over the health URL |
 | `display_name` | No | Friendly application title on the home page |
-| `group` | No | Managed group assignment used by the 5048 launcher and 5030 status filters; omitted entries appear under `Other` |
+| `group` | No | Operational group used by the 5030 development/server status filters; omitted entries appear under `Other` |
+| `proxy_group` | No | Optional authenticated Application Home display group. Defaults to `group`, allowing portal placement to differ without changing operational screens |
 | `show_on_home` | No | Set false to omit a service from the home page; libraries are always omitted |
 | `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
@@ -39,7 +40,22 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 
 ### Managing groups
 
-Open the authenticated dashboard on port 5030 and choose **Manage groups**. The interface can create, rename, reorder, and delete groups, and assign every registered application from a dropdown. Group changes are written atomically to the same registry used by the deployment agent and the 5048 Application Home.
+Open the authenticated dashboard on port 5030 and choose **Manage groups**. The interface can create, rename, reorder, and delete groups, assign every registered application's operational UDA group, and optionally assign a separate portal group. Group changes are written atomically to the same registry used by the deployment agent and the 5048 Application Home.
+
+For published applications, `allowed_groups` remains the proxy authorization
+boundary. `proxy_group` only controls the group label and placement shown after
+authorization succeeds. It does not grant access. For example, an app can remain
+in the `Development` UDA group while appearing in `Personal` to users who have
+an allowed group:
+
+```json
+{
+  "group": "Development",
+  "proxy_group": "Personal",
+  "proxy_enabled": true,
+  "allowed_groups": ["Personal"]
+}
+```
 
 The top-level `groups` array stores display order. Existing application-level `group` values are imported automatically when the management page is first used, so older registries remain compatible. `Other` is reserved as the fallback for unassigned applications. Deleting a managed group removes that assignment from its applications, which moves them to `Other`.
 

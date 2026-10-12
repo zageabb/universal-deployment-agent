@@ -45,9 +45,9 @@
 </section>
 
 <section class="panel">
-  <div class="panel-head"><div><h2>Application assignments</h2><p class="muted">Choose where each registered application belongs. Changes appear on both the 5030 status page and the 5048 application home.</p></div></div>
+  <div class="panel-head"><div><h2>Application assignments</h2><p class="muted">The UDA group controls development and server status screens. The portal group can place the app elsewhere in authenticated Application Home without changing its UDA group.</p></div></div>
   <table class="apps-table">
-    <thead><tr><th>Application</th><th>Current group</th><th>Assign group</th></tr></thead>
+    <thead><tr><th>Application</th><th>UDA group</th><th>Assign UDA group</th><th>Portal group</th><th>Assign portal group</th></tr></thead>
     <tbody>
       {% for app in applications %}
       <tr>
@@ -59,6 +59,17 @@
             <select name="group" aria-label="Group for {{ app.title }}">
               <option value="{{ default_group }}" {% if app.group == default_group %}selected{% endif %}>{{ default_group }} (unassigned)</option>
               {% for group in groups %}<option value="{{ group.name }}" {% if app.group == group.name %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+            </select>
+            <button class="light">Apply</button>
+          </form>
+        </td>
+        <td>{{ app.proxy_group }}</td>
+        <td>
+          <form class="assign-form" method="post" action="{{ url_for('assign_proxy_group', name=app.name) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select name="group" aria-label="Portal group for {{ app.title }}">
+              <option value="" {% if app.proxy_group == app.group %}selected{% endif %}>Same as UDA group</option>
+              {% for group in groups %}<option value="{{ group.name }}" {% if app.proxy_group == group.name and app.proxy_group != app.group %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
             </select>
             <button class="light">Apply</button>
           </form>

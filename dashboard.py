@@ -16,7 +16,7 @@ from urllib.request import urlopen
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
 from deploy_agent import VERSION, DeployError, load_config, scheduled_job_status, unit_names
-from ui_groups import DEFAULT_GROUP, application_group, clean_group_name, configured_groups, group_summary
+from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
 
@@ -146,7 +146,8 @@ def create_app(config_path: Path) -> Flask:
         applications = sorted(
             [{"name": entry["name"],
               "title": entry.get("display_name") or entry["name"],
-              "group": application_group(entry)}
+              "group": application_group(entry),
+              "proxy_group": application_proxy_group(entry)}
              for entry in cfg["applications"]],
             key=lambda item: item["title"].casefold(),
         )
@@ -185,6 +186,8 @@ def create_app(config_path: Path) -> Flask:
             for entry in cfg["applications"]:
                 if application_group(entry) == old_name:
                     entry["group"] = new_name
+                if entry.get("proxy_group") == old_name:
+                    entry["proxy_group"] = new_name
 
         mutate_config(mutate)
         return redirect(url_for("manage_groups", message=f"Renamed {old_name} to {new_name}"))
@@ -201,6 +204,8 @@ def create_app(config_path: Path) -> Flask:
             for entry in cfg["applications"]:
                 if application_group(entry) == name:
                     entry.pop("group", None)
+                if entry.get("proxy_group") == name:
+                    entry.pop("proxy_group", None)
 
         mutate_config(mutate)
         return redirect(url_for("manage_groups", message=f"Deleted {name}; its applications moved to {DEFAULT_GROUP}"))
@@ -246,6 +251,28 @@ def create_app(config_path: Path) -> Flask:
         mutate_config(mutate)
         label = selected_group or DEFAULT_GROUP
         return redirect(url_for("manage_groups", message=f"{name} moved to {label}"))
+
+    @app.post("/applications/<name>/proxy-group")
+    def assign_proxy_group(name: str):
+        selected_group = request.form.get("group", "")
+
+        def mutate(cfg):
+            selected = next((item for item in cfg["applications"] if item["name"] == name), None)
+            if selected is None:
+                abort(404)
+            groups = configured_groups(cfg)
+            cfg["groups"] = groups
+            if not selected_group:
+                selected.pop("proxy_group", None)
+            else:
+                target = next((item for item in groups if item == selected_group), None)
+                if target is None:
+                    abort(400, "Unknown group")
+                selected["proxy_group"] = target
+
+        mutate_config(mutate)
+        label = selected_group or "same as UDA group"
+        return redirect(url_for("manage_groups", message=f"{name} portal group set to {label}"))
 
     @app.get("/health")
     def dashboard_health():
