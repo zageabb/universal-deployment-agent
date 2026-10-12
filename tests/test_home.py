@@ -121,6 +121,7 @@ def admin_client(tmp_path):
     config.write_text(json.dumps({
         'portal_auth_enabled': True,
         'portal_secret_key': 'test-secret',
+        'public_base_url': 'https://example.test',
         'identity_db': str(identity),
         'groups': ['Personal', 'Development'],
         'applications': [entry(name='allocraft', display_name='Allocraft',
@@ -188,3 +189,65 @@ def test_admin_user_pages_require_an_administrator(tmp_path):
         session['user'] = 'member@example.com'
     assert client.get('/admin/users').status_code == 403
     assert client.get('/admin/users/admin@example.com').status_code == 403
+    assert client.get('/admin/users/new').status_code == 403
+
+
+def test_administrator_invites_user_with_preassigned_groups(tmp_path, monkeypatch):
+    client, identity = admin_client(tmp_path)
+    sent = {}
+    monkeypatch.setattr(home, 'send_email', lambda config, recipient, subject, body: sent.update(
+        recipient=recipient, subject=subject, body=body))
+    client.get('/admin/users/new')
+    with client.session_transaction() as session:
+        csrf = session['csrf']
+
+    response = client.post('/admin/users/new', data={
+        'csrf': csrf,
+        'email': 'Invited@Example.com',
+        'groups': ['Personal'],
+    })
+
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/admin/users')
+    invited = home.connect(identity).execute(
+        'SELECT * FROM users WHERE email=?', ('invited@example.com',)
+    ).fetchone()
+    assert invited['verified'] == 0
+    assert json.loads(invited['groups_json']) == ['Personal']
+    assert invited['token_purpose'] == 'invite'
+    assert sent['recipient'] == 'invited@example.com'
+    assert sent['subject'] == 'Activate your UDA account'
+    assert '/activate/' in sent['body']
+
+    token = sent['body'].split('/activate/', 1)[1].splitlines()[0]
+    activation = client.get(f'/activate/{token}')
+    assert activation.status_code == 200
+    assert b'Activate account' in activation.data
+    with client.session_transaction() as session:
+        csrf = session['csrf']
+    completed = client.post(f'/activate/{token}', data={
+        'csrf': csrf,
+        'password': 'a secure invited password',
+    })
+    assert completed.status_code == 302
+    assert home.authenticate(home.connect(identity), 'invited@example.com',
+                             'a secure invited password')
+    assert client.get(f'/activate/{token}').status_code == 400
+
+
+def test_failed_invitation_delivery_does_not_leave_an_account(tmp_path, monkeypatch):
+    client, identity = admin_client(tmp_path)
+    monkeypatch.setattr(home, 'send_email', lambda *args: (_ for _ in ()).throw(
+        RuntimeError('Email delivery is not configured')))
+    client.get('/admin/users/new')
+    with client.session_transaction() as session:
+        csrf = session['csrf']
+    response = client.post('/admin/users/new', data={
+        'csrf': csrf,
+        'email': 'failed@example.com',
+        'groups': ['Personal'],
+    }, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Email delivery is not configured' in response.data
+    assert home.user_for_email(home.connect(identity), 'failed@example.com') is None

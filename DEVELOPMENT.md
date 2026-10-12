@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-008 — Administrator-provisioned user invitations
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: Medium
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implemented and test-verified; live acceptance pending
+
+Requirement:
+- Allow administrators to assign application groups before a person requests an
+  account, without choosing or handling that person's password.
+
+Implementation:
+- The user directory includes an administrator-only invitation form with group
+  selection. UDA creates an unverified account, sends a one-time 24-hour
+  activation link, and verifies the account only after the recipient chooses a
+  password. Failed email delivery removes the incomplete account.
+
+Evidence:
+- Files: `home.py`, `portal_auth.py`, `install.sh`, user and account templates,
+  `tests/test_home.py`, `tests/test_portal_auth.py`.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 98 passed.
+- User/business acceptance: pending.
+
+Completion criteria:
+- [x] Implementation exists.
+- [x] Relevant files changed.
+- [x] Regression tests added.
+- [x] Relevant tests pass.
+- [ ] Commit evidence recorded and pushed to `main`.
+- [ ] Live administrator form and activation-page rendering verified.
+- [ ] External/user acceptance separated from development completion.
+
 ### DEV-007 — Separate user directory and access detail pages
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: Medium

@@ -34,9 +34,11 @@ def authenticate(db,email,password):
 def issue_token(db,email,purpose,lifetime):
     token=secrets.token_urlsafe(32); digest=hashlib.sha256(token.encode()).hexdigest()
     db.execute('UPDATE users SET token_digest=?,token_purpose=?,token_expires=? WHERE email=?',(digest,purpose,int(time.time())+lifetime,normalize_email(email))); db.commit(); return token
-def consume_token(db,token,purpose):
+def user_for_token(db,token,purpose):
     digest=hashlib.sha256(token.encode()).hexdigest()
-    user=db.execute('SELECT * FROM users WHERE token_digest=? AND token_purpose=? AND token_expires>=?',(digest,purpose,int(time.time()))).fetchone()
+    return db.execute('SELECT * FROM users WHERE token_digest=? AND token_purpose=? AND token_expires>=?',(digest,purpose,int(time.time()))).fetchone()
+def consume_token(db,token,purpose):
+    user=user_for_token(db,token,purpose)
     if user: db.execute('UPDATE users SET token_digest=NULL,token_purpose=NULL,token_expires=NULL WHERE email=?',(user['email'],)); db.commit()
     return user
 def groups(user): return set(json.loads(user['groups_json']))

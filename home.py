@@ -14,7 +14,7 @@ from urllib.parse import urlsplit, urlunsplit
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
-from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email
+from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
 from ui_groups import application_group, configured_groups, group_summary
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -196,6 +196,23 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
                 db.execute('UPDATE users SET password_hash=? WHERE email=?',(generate_password_hash(password),user['email'])); db.commit(); flash('Password changed.','success'); return redirect(url_for('login'))
         return render_template('portal_form.html',mode='reset',csrf=csrf())
 
+    @app.route('/activate/<token>',methods=['GET','POST'])
+    def activate_invite(token):
+        db=database(); pending=user_for_token(db,token,'invite')
+        if not pending: abort(400)
+        if request.method=='POST':
+            require_csrf(); password=request.form.get('password','')
+            if len(password)<12: flash('Password must be at least 12 characters.','error')
+            else:
+                user=consume_token(db,token,'invite')
+                if not user: abort(400)
+                from werkzeug.security import generate_password_hash
+                db.execute('UPDATE users SET password_hash=?,verified=1 WHERE email=?',
+                           (generate_password_hash(password),user['email'])); db.commit()
+                flash('Account activated. You can now sign in.','success')
+                return redirect(url_for('login'))
+        return render_template('portal_form.html',mode='activate',csrf=csrf(),email=pending['email'])
+
     @app.post('/logout')
     def logout(): require_csrf(); session.clear(); return redirect(url_for('login'))
 
@@ -225,6 +242,31 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
             'SELECT email,verified,groups_json,is_admin,created_at FROM users ORDER BY email'
         ).fetchall()
         return render_template('portal_users.html',users=users)
+
+    @app.route('/admin/users/new',methods=['GET','POST'])
+    def admin_user_invite():
+        actor=current_user()
+        if not actor or not actor['is_admin']: abort(403)
+        db=database(); cfg=identity_config(); access=administration_context(cfg)
+        if request.method=='POST':
+            require_csrf(); selected=request.form.getlist('groups')
+            if not set(selected).issubset(set(configured_groups(cfg))): abort(400)
+            email=request.form.get('email',''); created=None
+            try:
+                created=create_user(db,email,secrets.token_urlsafe(48),groups=selected)
+                token=issue_token(db,created,'invite',86400)
+                link=cfg['public_base_url'].rstrip('/')+url_for('activate_invite',token=token)
+                send_email(cfg,created,'Activate your UDA account',
+                           f'An administrator has invited you to UDA. Set your password and activate your account:\n\n{link}\n\nThis link expires in 24 hours.\n')
+                flash(f'Invitation sent to {created}.','success')
+                return redirect(url_for('admin_users'))
+            except sqlite3.IntegrityError:
+                flash('That account already exists.','error')
+            except (ValueError,RuntimeError,KeyError) as exc:
+                if created:
+                    db.execute("DELETE FROM users WHERE email=? AND verified=0 AND token_purpose='invite'",(created,)); db.commit()
+                flash(str(exc),'error')
+        return render_template('portal_user_invite.html',groups=access,csrf=csrf())
 
     @app.route('/admin/users/<path:email>',methods=['GET','POST'])
     def admin_user_detail(email):
