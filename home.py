@@ -15,7 +15,7 @@ from flask import Flask, abort, flash, jsonify, redirect, render_template, reque
 from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
 from portal_auth import authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
-from ui_groups import application_group, application_proxy_group, configured_groups, group_summary
+from ui_groups import application_group, application_proxy_group, application_proxy_groups, configured_groups, group_summary
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1', '::'}
@@ -56,7 +56,7 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
     for entry in config['applications']:
         if not entry.get('enabled') or entry.get('kind') == 'library' or entry.get('show_on_home') is False:
             continue
-        allowed = set(entry.get('allowed_groups') or [])
+        allowed = application_proxy_groups(entry)
         if user_groups is not None and '*' not in user_groups:
             if entry.get('proxy_enabled'):
                 if not allowed or user_groups.isdisjoint(allowed):
@@ -222,7 +222,7 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         user=current_user()
         if not user: return '',401
         name=request.headers.get('X-UDA-App',''); cfg=identity_config(); entry=next((x for x in cfg['applications'] if x['name']==name),None)
-        allowed=set(entry.get('allowed_groups') or []) if entry else set(); user_groups={'*'} if user['is_admin'] else memberships(user)
+        allowed=application_proxy_groups(entry) if entry else set(); user_groups={'*'} if user['is_admin'] else memberships(user)
         if not entry or (allowed and '*' not in user_groups and user_groups.isdisjoint(allowed)): return '',403
         response=app.response_class('',204); response.headers['X-UDA-User']=user['email']; response.headers['X-UDA-Groups']=','.join(sorted(user_groups)); return response
 
@@ -231,7 +231,7 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
         for group in configured_groups(cfg):
             apps=[entry.get('display_name') or re.sub(r'[-_]+',' ',entry['name']).title()
                   for entry in cfg['applications'] if entry.get('enabled') and entry.get('proxy_enabled')
-                  and group in (entry.get('allowed_groups') or [])]
+                  and group in application_proxy_groups(entry)]
             access.append({'name':group,'applications':apps})
         return access
 

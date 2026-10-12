@@ -5,7 +5,7 @@ import pytest
 import dashboard
 import home
 from deploy_agent import DeployError, load_config
-from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, configured_groups, group_summary
+from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, application_proxy_groups, configured_groups, group_summary
 
 
 def entry(**values):
@@ -59,8 +59,18 @@ def test_proxy_group_changes_portal_only_and_entitlement_uses_allowed_groups():
     cards = home.application_cards({'applications': [application]}, 'server.local', {'Personal'})
     assert application_group(application) == 'Development'
     assert application_proxy_group(application) == 'Personal'
+    assert application_proxy_groups(application) == {'Personal'}
     assert cards[0]['group'] == 'Personal'
     assert home.application_cards({'applications': [application]}, 'server.local', {'Development'}) == []
+
+
+def test_proxy_group_overrides_legacy_allowed_groups_for_portal_authorization():
+    application = entry(group='TAIJU', proxy_group='Hitachi Energy', proxy_enabled=True,
+                        allowed_groups=['TAIJU'])
+    assert application_proxy_groups(application) == {'Hitachi Energy'}
+    assert len(home.application_cards({'applications': [application]}, 'server.local',
+                                      {'Hitachi Energy'})) == 1
+    assert home.application_cards({'applications': [application]}, 'server.local', {'TAIJU'}) == []
 
 
 def test_home_api_respects_managed_group_order(tmp_path):

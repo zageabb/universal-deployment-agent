@@ -35,6 +35,15 @@ def application_proxy_group(entry: dict[str, Any]) -> str:
     return value.strip() or application_group(entry)
 
 
+def application_proxy_groups(entry: dict[str, Any]) -> set[str]:
+    """Return effective portal entitlements with legacy-policy fallback."""
+    explicit = entry.get("proxy_group")
+    if isinstance(explicit, str) and explicit.strip():
+        return {explicit.strip()}
+    allowed = entry.get("allowed_groups") or []
+    return {value for value in allowed if isinstance(value, str) and value}
+
+
 def configured_groups(config: dict[str, Any]) -> list[str]:
     """Return managed groups in display order, importing legacy app group values."""
     names: list[str] = []

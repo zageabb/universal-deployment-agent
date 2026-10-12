@@ -62,8 +62,9 @@ database; verification and password reset messages use SMTP credentials supplied
 through `UDA_SMTP_PASSWORD`. UDA groups double as application entitlements when
 an application declares `allowed_groups`.
 An application may set `proxy_group` to choose its authenticated portal grouping
-without changing the operational `group` used by development and server UDA
-screens. `allowed_groups` continues to enforce access independently of display.
+and entitlement without changing the operational `group` used by development and
+server UDA screens. Entries without `proxy_group` continue to use the legacy
+`allowed_groups` authorization policy.
 
 Public ingress is opt-in per application. `proxy_config.py` generates a Caddy
 configuration only for enabled entries with `proxy_enabled: true`; unpublished

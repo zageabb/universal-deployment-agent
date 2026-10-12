@@ -26,7 +26,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `app_url` | No | Front-end URL for the home-page card; takes precedence over the health URL |
 | `display_name` | No | Friendly application title on the home page |
 | `group` | No | Operational group used by the 5030 development/server status filters; omitted entries appear under `Other` |
-| `proxy_group` | No | Optional authenticated Application Home display group. Defaults to `group`, allowing portal placement to differ without changing operational screens |
+| `proxy_group` | No | Optional authenticated Application Home group and entitlement. When set, it overrides `allowed_groups` for portal/Caddy access and defaults visually to `group` when absent |
 | `show_on_home` | No | Set false to omit a service from the home page; libraries are always omitted |
 | `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
@@ -42,18 +42,18 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 
 Open the authenticated dashboard on port 5030 and choose **Manage groups**. The interface can create, rename, reorder, and delete groups, assign every registered application's operational UDA group, and optionally assign a separate portal group. Group changes are written atomically to the same registry used by the deployment agent and the 5048 Application Home.
 
-For published applications, `allowed_groups` remains the proxy authorization
-boundary. `proxy_group` only controls the group label and placement shown after
-authorization succeeds. It does not grant access. For example, an app can remain
-in the `Development` UDA group while appearing in `Personal` to users who have
-an allowed group:
+For backward compatibility, published applications without `proxy_group` continue
+to authorize with `allowed_groups`. Once `proxy_group` is set, that group becomes
+both the portal placement and Caddy entitlement, ensuring the card and protected
+route use the same policy. For example, an app can remain in the `Development`
+UDA group while appearing in and being accessible to `Personal` users:
 
 ```json
 {
   "group": "Development",
   "proxy_group": "Personal",
   "proxy_enabled": true,
-  "allowed_groups": ["Personal"]
+  "allowed_groups": ["Legacy group ignored while proxy_group is set"]
 }
 ```
 

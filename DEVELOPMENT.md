@@ -43,14 +43,15 @@ Requirement:
 
 Implementation:
 - Optional `proxy_group` controls only Application Home display placement and
-  falls back to `group`. Published-app authorization remains exclusively based
-  on `allowed_groups`. The group manager exposes separate UDA and portal group
-  assignments and keeps both consistent across rename/delete operations.
+  falls back to `group` for display. When explicitly set it is also the effective
+  portal/Caddy entitlement; entries without it retain the legacy `allowed_groups`
+  policy. The group manager exposes separate UDA and portal group assignments and
+  keeps both consistent across rename/delete operations.
 
 Evidence:
 - Files: `ui_groups.py`, `home.py`, `dashboard.py`, `deploy_agent.py`, group
   management template, registry example, configuration documentation and tests.
-- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 100 passed.
+- Tests: `PYTHONPATH=. ~/.local/share/deployment-agent/venv/bin/python -m pytest -q` — 102 passed, including portal/Caddy authorization parity.
 - User/business acceptance: pending.
 
 Completion criteria:

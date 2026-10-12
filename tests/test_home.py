@@ -251,3 +251,32 @@ def test_failed_invitation_delivery_does_not_leave_an_account(tmp_path, monkeypa
     assert response.status_code == 200
     assert b'Email delivery is not configured' in response.data
     assert home.user_for_email(home.connect(identity), 'failed@example.com') is None
+
+
+def test_auth_check_uses_explicit_proxy_group_over_legacy_allowed_groups(tmp_path):
+    identity = tmp_path / 'identity.db'
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({
+        'portal_auth_enabled': True,
+        'portal_secret_key': 'test-secret',
+        'identity_db': str(identity),
+        'groups': ['TAIJU', 'Hitachi Energy'],
+        'applications': [entry(name='pricing', proxy_enabled=True,
+                               group='TAIJU', proxy_group='Hitachi Energy',
+                               allowed_groups=['TAIJU'])],
+    }))
+    db = home.connect(identity)
+    db.execute(
+        'INSERT INTO users(email,password_hash,verified,groups_json,is_admin,created_at) VALUES (?,?,?,?,?,?)',
+        ('user@example.com', 'unused', 1, '["Hitachi Energy"]', 0, 1),
+    )
+    db.commit()
+    client = home.create_app(config).test_client()
+    with client.session_transaction() as session:
+        session['user'] = 'user@example.com'
+
+    assert client.get('/auth/check', headers={'X-UDA-App': 'pricing'}).status_code == 204
+    db.execute('UPDATE users SET groups_json=? WHERE email=?',
+               ('["TAIJU"]', 'user@example.com'))
+    db.commit()
+    assert client.get('/auth/check', headers={'X-UDA-App': 'pricing'}).status_code == 403
