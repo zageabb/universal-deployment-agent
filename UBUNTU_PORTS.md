@@ -12,6 +12,7 @@ authenticated deployment dashboard, which returned HTTP 401 as expected.
 
 | GitHub repository | Host TCP ports | Source checkout | User systemd units / runtime |
 |---|---|---|---|
+| [should-cost-intelligence-next](https://github.com/zageabb/should-cost-intelligence-next) | Prototype UI: **5091** (verified 21 October 2026; not published through Caddy) | `/home/zageabb/ollama-chat/should-cost-intelligence-next` | `should-cost-intelligence-next.service`; Node 22 build, static files served by Python |
 | [Bank_of_mum](https://github.com/zageabb/Bank_of_mum) | Web: **5080**, API: **5082** | `/home/zageabb/flask/Bank_of_mum` | `bank-of-mum-api.service`, `bank-of-mum-web.service` |
 | [Flask_Question](https://github.com/zageabb/Flask_Question) | Application: **5081** | `/home/zageabb/flask/Flask_Question` | `migrated-flask@Flask_Question.service` |
 | [Heart](https://github.com/zageabb/Heart) | Application: **5062** | `/home/zageabb/flask/Heart` | `migrated-flask@Heart.service` |

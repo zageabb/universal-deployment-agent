@@ -55,6 +55,11 @@ Without `app_url`, the health URL's origin is used with `/` as the path. Loopbac
 hosts are replaced by the hostname used to open the home page. An explicit
 `--public-host` can override that hostname. `display_name` optionally supplies a
 friendly card title.
+Repository visibility is refreshed from GitHub when the launcher or dashboard
+builds its application list. Public repositories need no credential; private
+repositories need `UDA_GITHUB_TOKEN` in a protected service environment file.
+The optional registry `repo_visibility` field is used if the lookup is
+unavailable.
 
 The launcher can operate as an authenticated application portal by setting
 `portal_auth_enabled`. Accounts are stored in a dedicated SQLite identity

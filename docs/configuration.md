@@ -20,6 +20,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `auto_deploy` | No | Whether clean updates may be applied; defaults to false |
 | `deployment_enabled` | No | Set false for service-only legacy apps that should skip all Git inspection and deployment |
 | `repo_path` | Yes | Absolute or home-relative Git checkout path |
+| `repo_visibility` | No | Offline fallback for GitHub visibility lookup: `public` or `private` |
 | `branch` | Yes | Local and `origin` branch to follow |
 | `restart_command` | Yes | Argument array used after update or rollback |
 | `health_url` | Yes | HTTP endpoint that must return a successful response |
@@ -67,6 +68,19 @@ combined decision as Application Home.
 The top-level `groups` array stores display order. Existing application-level `group` values are imported automatically when the management page is first used, so older registries remain compatible. `Other` is reserved as the fallback for unassigned applications. Deleting a managed group removes that assignment from its applications, which moves them to `Other`.
 
 Commands are arrays rather than shell strings. Shell expansion, pipes, redirects, command substitution, and implicit environment interpolation are not performed.
+
+### Repository visibility lookup
+
+The dashboard and launcher read each GitHub checkout's `origin` and request its
+current visibility from the GitHub repository API each time they build the
+application list. Public repositories can be read without authentication.
+Private repositories require a GitHub API token available to the web services
+as `UDA_GITHUB_TOKEN` (or `GH_TOKEN`). Use a fine-grained token restricted to
+the required repositories with read-only repository metadata permission. Keep
+it in a protected service environment file outside the checkout, such as the
+existing `~/.config/deployment-agent/portal.env`, with mode `0600`; never put
+the token in the registry. If lookup is unavailable, UDA uses `repo_visibility`
+as a fallback and otherwise omits the indicator.
 
 See [Scheduled application jobs](scheduled-jobs.md) for the job schema,
 supported schedule types, lifecycle, and LedgerOne example.

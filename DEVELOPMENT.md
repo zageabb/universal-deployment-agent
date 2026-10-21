@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-014 — Repair live portal user-management template
+Status: ⏳ AWAITING ACCEPTANCE
+
+Restored the tracked `portal_users.html` on the Ubuntu host after the stale
+runtime copy linked to a nonexistent invitation endpoint. The authenticated
+`/admin/users` page rendered successfully after restart.
+
+### DEV-013 — Repair live groups page template
+Status: ⏳ AWAITING ACCEPTANCE
+
+Restored the tracked `groups.html` on the Ubuntu host after the stale runtime
+copy linked to a nonexistent assignment endpoint. Authenticated `/groups`
+returned HTTP 200 after restart.
+
+### DEV-012 — Register Should-Cost Intelligence Next prototype
+Status: ⏳ AWAITING ACCEPTANCE
+
+Registered the private React/Vite prototype for automatic updates, with
+`auto_deploy: true`, branch `main`, systemd service on port 5091, and the
+`TAIJU` home-page group. Live UDA advanced it from `ad4467e` to `536e202`; build,
+restart and health validation succeeded. The app is not published through Caddy.
+The broader UDA run can still report failure due to unrelated Allocraft tests.
+
+### DEV-011 — Read repository visibility from GitHub
+Status: ⏳ AWAITING ACCEPTANCE
+
+The 5030 dashboard and 5048 launcher resolve each checkout's GitHub `origin`
+and query current repository visibility when building application lists.
+Private lookups use `UDA_GITHUB_TOKEN` from the protected service environment;
+the registry value remains the offline fallback. On Ubuntu the live lookup for
+`should-cost-intelligence-next` returned `private`; the token file is mode 0600.
+
 ### DEV-010 — Direct per-user application assignments
 Status: ⏳ AWAITING ACCEPTANCE
 Priority: Medium

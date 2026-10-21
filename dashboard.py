@@ -16,6 +16,7 @@ from urllib.request import urlopen
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
 from deploy_agent import VERSION, DeployError, load_config, scheduled_job_status, unit_names
+from repo_visibility import resolved_repo_visibility
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -122,6 +123,7 @@ def create_app(config_path: Path) -> Flask:
         for item in cfg["applications"]:
             applications.append(item | {
                 "group": application_group(item),
+                "repo_visibility": resolved_repo_visibility(item),
                 "last_result": prior_by_name.get(item["name"]),
                 "health": health(str(item["health_url"])) if item.get("enabled") and item.get("health_url") else None,
                 "service": service_status(item.get("service_unit")),

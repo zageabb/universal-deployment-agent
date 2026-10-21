@@ -14,6 +14,7 @@ from urllib.parse import urlsplit, urlunsplit
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from deploy_agent import DeployError, load_config
+from repo_visibility import resolved_repo_visibility
 from portal_auth import applications as application_memberships, authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
 from ui_groups import application_group, application_proxy_group, application_proxy_groups, configured_groups, group_summary
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -77,7 +78,8 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
         cards.append({'name': entry['name'], 'title': title, 'url': url,
                       'initials': ''.join(word[0] for word in words[:2]).upper(),
                       'address': urlsplit(url).netloc,
-                      'group': application_proxy_group(entry)})
+                      'group': application_proxy_group(entry),
+                      'repo_visibility': resolved_repo_visibility(entry)})
     return sorted(cards, key=lambda card: card['title'].casefold())
 
 
