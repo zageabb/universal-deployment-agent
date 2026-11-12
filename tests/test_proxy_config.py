@@ -6,6 +6,7 @@ def test_only_explicitly_published_apps_are_routed():
       {'name':'tender-designer','enabled':True,'app_url':'http://127.0.0.1:5050/'}]}
     output=render(config)
     assert '/apps/catmanager/' in output and '127.0.0.1:5088' in output
+    assert 'header_up X-Forwarded-Uri /apps/catmanager{http.request.uri}' in output
     assert 'tender-designer' not in output
 
 def test_prefix_can_be_preserved_for_base_path_aware_apps():

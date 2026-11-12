@@ -48,7 +48,8 @@ Implementation:
   browsers to the login form with a local-only return path.
 - The login endpoint redirects authenticated duplicate submissions without
   rechecking their stale CSRF token.
-- Generated Caddy routes explicitly forward the original URI, and can add a
+- Generated Caddy routes explicitly reconstruct the published prefix after
+  `handle_path` processing and forward the original URI. Routes can also add a
   validated server-controlled proxy assertion from Caddy's environment.
 
 Evidence:
