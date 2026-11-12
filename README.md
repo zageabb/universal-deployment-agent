@@ -83,6 +83,9 @@ Applications that natively support a configured URL base path can set
 path instead of stripping it.
 The proxy delegates every application request to `/auth/check`, so hiding a card
 is not the access-control boundary.
+Anonymous application requests are redirected to the UDA login page and, after
+successful authentication, returned to the original application path. Return
+paths are restricted to local absolute paths to prevent external redirects.
 Its JSON endpoint exposes only names, titles, links, initials, and addresses;
 registry secrets, filesystem paths, and deployment commands are never included.
 

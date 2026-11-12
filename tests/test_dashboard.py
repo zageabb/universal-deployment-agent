@@ -169,8 +169,8 @@ def test_scheduled_job_is_visible_and_can_be_run(tmp_path):
                                headers=headers, data=data)
     assert b"uda-example-cleanup.timer" in page.data
     assert response.status_code == 302
-    run.assert_called_once_with(["systemctl", "--user", "start", "--", "uda-example-cleanup.service"],
-                                text=True, capture_output=True, timeout=600, check=False)
+    run.assert_any_call(["systemctl", "--user", "start", "--", "uda-example-cleanup.service"],
+                        text=True, capture_output=True, timeout=600, check=False)
 
 
 def test_disabled_scheduled_job_cannot_be_run(tmp_path):

@@ -28,6 +28,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | `display_name` | No | Friendly application title on the home page |
 | `group` | No | Operational group used by the 5030 development/server status filters; omitted entries appear under `Other` |
 | `proxy_group` | No | Optional authenticated Application Home group and entitlement. When set, it overrides `allowed_groups` for portal/Caddy access and defaults visually to `group` when absent |
+| `proxy_assertion` | No | Optional validated `header` and Caddy `environment` variable used to add a server-controlled assertion to the upstream request |
 | `show_on_home` | No | Set false to omit a service from the home page; libraries are always omitted |
 | `service_unit` | No | Valid systemd user `.service` unit exposed to authenticated dashboard start/stop/restart controls |
 | `update_commands` | No | Ordered argument arrays executed in the repository |
@@ -64,6 +65,20 @@ than the deployment registry. Effective access is the union of group-derived and
 directly assigned applications; assigning an application to one user does not
 remove or limit assignments to other users. Caddy's `/auth/check` uses the same
 combined decision as Application Home.
+
+Applications that independently verify the trusted proxy may declare a
+server-controlled assertion without placing its secret in the registry:
+
+```json
+"proxy_assertion": {
+  "header": "X-Example-Proxy-Secret",
+  "environment": "EXAMPLE_PROXY_SECRET"
+}
+```
+
+Supply the named variable to Caddy through a protected environment file. The
+generated route overwrites that request header, so clients cannot choose the
+asserted value.
 
 The top-level `groups` array stores display order. Existing application-level `group` values are imported automatically when the management page is first used, so older registries remain compatible. `Other` is reserved as the fallback for unassigned applications. Deleting a managed group removes that assignment from its applications, which moves them to `Other`.
 

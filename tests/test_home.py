@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -113,6 +114,68 @@ def test_session_cookie_security_follows_the_effective_request_scheme(tmp_path):
     assert 'HttpOnly' in local_response.headers['Set-Cookie']
     assert 'Secure' in public_response.headers['Set-Cookie']
     assert 'HttpOnly' in public_response.headers['Set-Cookie']
+
+
+def login_client(tmp_path):
+    identity = tmp_path / 'identity.db'
+    config = tmp_path / 'config.json'
+    config.write_text(json.dumps({
+        'portal_auth_enabled': True,
+        'portal_secret_key': 'test-secret',
+        'identity_db': str(identity),
+        'applications': [entry(name='screencraft', proxy_enabled=True)],
+    }))
+    home.create_user(home.connect(identity), 'user@example.com',
+                     'a sufficiently long password', verified=True)
+    return home.create_app(config).test_client()
+
+
+def test_auth_check_redirects_to_login_and_preserves_original_application_path(tmp_path):
+    client = login_client(tmp_path)
+    response = client.get('/auth/check', headers={
+        'X-UDA-App': 'screencraft',
+        'X-Forwarded-Uri': '/apps/screencraft/project?id=7',
+    })
+
+    assert response.status_code == 302
+    location = urlsplit(response.headers['Location'])
+    assert location.path == '/login'
+    assert parse_qs(location.query)['next'] == ['/apps/screencraft/project?id=7']
+
+
+@pytest.mark.parametrize('unsafe', [
+    'https://attacker.example/', '//attacker.example/', '/\\attacker.example/',
+])
+def test_auth_check_rejects_unsafe_return_locations(tmp_path, unsafe):
+    client = login_client(tmp_path)
+    response = client.get('/auth/check', headers={
+        'X-UDA-App': 'screencraft', 'X-Forwarded-Uri': unsafe})
+
+    assert response.status_code == 302
+    assert response.headers['Location'].endswith('/login')
+    assert 'attacker.example' not in response.headers['Location']
+
+
+def test_return_path_rejects_header_injection():
+    assert home.safe_return_path(
+        '/safe\r\nLocation: https://attacker.example/') is None
+
+
+def test_login_returns_to_application_and_duplicate_post_is_idempotent(tmp_path):
+    client = login_client(tmp_path)
+    client.get('/login?next=/apps/screencraft/')
+    with client.session_transaction() as session:
+        csrf = session['csrf']
+    credentials = {'csrf': csrf, 'email': 'user@example.com',
+                   'password': 'a sufficiently long password'}
+
+    first = client.post('/login?next=/apps/screencraft/', data=credentials)
+    duplicate = client.post('/login?next=/apps/screencraft/', data=credentials)
+
+    assert first.status_code == 302
+    assert first.headers['Location'].endswith('/apps/screencraft/')
+    assert duplicate.status_code == 302
+    assert duplicate.headers['Location'].endswith('/apps/screencraft/')
 
 
 def admin_client(tmp_path):

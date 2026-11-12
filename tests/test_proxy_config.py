@@ -15,6 +15,28 @@ def test_prefix_can_be_preserved_for_base_path_aware_apps():
     output=render(config)
     assert '  handle /apps/next-app/* {' in output
     assert '  handle_path /apps/next-app/* {' not in output
+    assert 'header_up X-Forwarded-Uri {http.request.uri}' in output
+
+def test_protected_proxy_assertion_is_read_from_caddy_environment():
+    config={'public_base_url':'https://tanyaanne.ddns.net','applications':[
+      {'name':'screencraft','enabled':True,'proxy_enabled':True,
+       'proxy_assertion':{'header':'X-ScreenCraft-Proxy-Secret',
+                          'environment':'SCREENCRAFT_UDA_PROXY_SECRET'},
+       'app_url':'http://127.0.0.1:8085/'}]}
+    output=render(config)
+    assert 'header_up X-ScreenCraft-Proxy-Secret {$SCREENCRAFT_UDA_PROXY_SECRET}' in output
+
+def test_proxy_assertion_rejects_caddy_syntax():
+    config={'public_base_url':'https://tanyaanne.ddns.net','applications':[
+      {'name':'unsafe','enabled':True,'proxy_enabled':True,
+       'proxy_assertion':{'header':'X-Test', 'environment':'BAD} injected'},
+       'app_url':'http://127.0.0.1:5077/'}]}
+    try:
+        render(config)
+    except ValueError as exc:
+        assert 'invalid proxy assertion environment variable' in str(exc)
+    else:
+        raise AssertionError('unsafe proxy assertion was accepted')
 
 def test_selected_asset_paths_can_strip_an_app_prefix():
     config={'public_base_url':'https://tanyaanne.ddns.net','applications':[

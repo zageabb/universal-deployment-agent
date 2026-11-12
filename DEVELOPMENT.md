@@ -30,6 +30,32 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-015 — Return authenticated users to protected applications
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: High
+Owner/Agent: Codex
+Branch: `main`
+Integration status: implemented and regression-tested; live acceptance pending
+
+Requirement:
+- Replace the initial proxy 401/error page with a safe login redirect and return
+  users to the originally requested application after authentication.
+- Treat duplicate login submissions as success once the first request has
+  already established the session.
+
+Implementation:
+- `/auth/check` validates the forwarded original URI and redirects anonymous
+  browsers to the login form with a local-only return path.
+- The login endpoint redirects authenticated duplicate submissions without
+  rechecking their stale CSRF token.
+- Generated Caddy routes explicitly forward the original URI, and can add a
+  validated server-controlled proxy assertion from Caddy's environment.
+
+Evidence:
+- Files: `home.py`, `proxy_config.py`, documentation and regression tests.
+- Tests: `PYTHONPATH=. python3 -m pytest -q` — 111 passed.
+- Live acceptance: pending.
+
 ### DEV-014 — Repair live portal user-management template
 Status: ⏳ AWAITING ACCEPTANCE
 

@@ -7,6 +7,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from deploy_agent import load_config
 
+def assertion_headers(app: dict) -> list[str]:
+    assertion=app.get('proxy_assertion')
+    if not assertion:return []
+    if not isinstance(assertion,dict):raise ValueError(f"{app['name']} proxy_assertion must be an object")
+    header=assertion.get('header',''); env=assertion.get('environment','')
+    if not re.fullmatch(r'[A-Za-z0-9-]+',header):raise ValueError(f"{app['name']} has an invalid proxy assertion header")
+    if not re.fullmatch(r'[A-Z][A-Z0-9_]*',env):raise ValueError(f"{app['name']} has an invalid proxy assertion environment variable")
+    return [f'      header_up {header} {{${env}}}']
+
 def render(config: dict) -> str:
     host=urlsplit(config['public_base_url']).hostname
     if not host: raise ValueError('public_base_url must contain a hostname')
@@ -18,18 +27,21 @@ def render(config: dict) -> str:
         if parts.scheme not in ('http','https') or not parts.hostname: raise ValueError(f"{app['name']} needs a valid app_url")
         origin=f'{parts.scheme}://{parts.hostname}' + (f':{parts.port}' if parts.port else '')
         handler='handle' if app.get('proxy_preserve_prefix') else 'handle_path'
+        extra_headers=assertion_headers(app)
         lines += [f'  redir /apps/{slug} /apps/{slug}/ 308']
         for path in app.get('proxy_strip_prefix_paths') or []:
             if not isinstance(path, str) or not re.fullmatch(r'[A-Za-z0-9._~-]+', path):
                 raise ValueError(f"{app['name']} has an invalid proxy_strip_prefix_paths entry")
             lines += [f'  handle /apps/{slug}/{path}/* {{',
               '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
+              '      header_up X-Forwarded-Uri {http.request.uri}',
               '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    uri strip_prefix /apps/{slug}',f'    reverse_proxy {origin} {{',
-              f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
+              f'      header_up X-Forwarded-Prefix /apps/{slug}',*extra_headers,'    }','  }']
         lines += [f'  {handler} /apps/{slug}/* {{',
           '    forward_auth 127.0.0.1:5048 {',f'      uri /auth/check',f'      header_up X-UDA-App {app["name"]}',
+          '      header_up X-Forwarded-Uri {http.request.uri}',
           '      copy_headers X-UDA-User X-UDA-Groups','    }',f'    reverse_proxy {origin} {{',
-          f'      header_up X-Forwarded-Prefix /apps/{slug}','    }','  }']
+          f'      header_up X-Forwarded-Prefix /apps/{slug}',*extra_headers,'    }','  }']
     lines += ['  handle {','    reverse_proxy 127.0.0.1:5048','  }','}']
     return '\n'.join(lines)+'\n'
 
