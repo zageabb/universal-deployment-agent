@@ -55,7 +55,11 @@ Implementation:
 Evidence:
 - Files: `home.py`, `proxy_config.py`, documentation and regression tests.
 - Tests: `PYTHONPATH=. python3 -m pytest -q` — 111 passed.
-- Live acceptance: pending.
+- Live anonymous probe: `/apps/screencraft/?from=login-test` returned HTTP 302
+  to `/login?next=/apps/screencraft/?from%3Dlogin-test` after Caddy reload.
+- Live authenticated browser: ScreenCraft refreshed without an error page and
+  retained the existing owner project. Duplicate-form user acceptance remains
+  pending.
 
 ### DEV-014 — Repair live portal user-management template
 Status: ⏳ AWAITING ACCEPTANCE
