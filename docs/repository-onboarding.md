@@ -31,6 +31,40 @@ Application-Standard provides `templates/uda.yaml` and schema contract
 tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
+## V2-002: version-aware read-only manifest inspection (development)
+
+The GitHub repository onboarding reader now dispatches a root `uda.yaml` by
+`schema_version` at the **exact selected commit SHA**:
+
+- `schema_version: 1` continues to use the existing 32 KiB limit, full v1
+  parser, stage-only preview, approval ticket and source staging workflow.
+  Existing v1 repositories do not need their manifests changed.
+- `schema_version: 2` is limited to 128 KiB and validated against the
+  proposed v2 JSON Schema and the semantic graph validator from
+  Application-Standard PR #6. The dashboard displays a **read-only graph**
+  of named services and containers, build toolchains, health classifications,
+  dependencies, data volumes, migrations count, proxy/SSO requirements,
+  environment variable **names**, and separately gated capabilities.
+- Unknown versions, unknown fields, incomplete graphs, unsupported proxy
+  paths and undeclared secret names are rejected. The v2 preview never returns
+  an approval ticket or uses the v1 installer/port allocator. It returns
+  `staging_allowed: false` and `execution_allowed: false`; there is no
+  v2 activation endpoint.
+- An application already registered in UDA is reported as requiring
+  reconciliation rather than silently replaced. Registered port conflicts are
+  shown without mutating the registry.
+- Source-authored entrypoints, build commands and literal environment values
+  are not sent in the browser review plan. The only displayed environment
+  information is required variable names. V2 manifests **must not** put
+  credentials or secret values in Git under any circumstances.
+
+This is a first reader/preview increment only: no systemd/Caddy changes,
+database migrations, Compose execution, image builds, static publication
+or service start/stop/restart. Real deployment remains blocked until
+capability-specific adapters and disposable Ubuntu integration acceptance
+are complete. The canonical v2 contract is currently a **draft**, not a
+released UDA installer standard.
+
 ## Manifest example
 
 ```yaml
