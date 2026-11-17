@@ -205,3 +205,14 @@ def test_deployment_api_requires_auth_and_does_not_publish(tmp_path):
     assert response.status_code == 200
     assert response.get_json()["applications"] == []
     publish.assert_not_called()
+
+
+def test_dirty_legacy_installation_is_flagged_without_marker(tmp_path):
+    repo, sha = init_repo(tmp_path)
+    (repo / "README.md").write_text("modified server deployment")
+    item = reporting.inventory_item({"name": "uda", "repo_path": str(repo),
+                                     "branch": "main"})
+    assert item["checkout_sha"] == sha
+    assert item["dirty"] is True
+    assert item["running_sha"] is None
+    assert item["state"] == "dirty"
