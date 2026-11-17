@@ -19,6 +19,7 @@ from onboarding import OnboardingError
 from onboarding_preflight import deployment_preflight
 from onboarding_registry import inactive_registry_entry
 from onboarding_release import verify_prepared_release, systemd_unit_preview
+from onboarding_recovery import save_snapshot
 from proxy_config import render as render_caddy
 
 
@@ -81,6 +82,7 @@ class LocalActivationAdapter:
         runtime_probe: Callable[[str], str],
         service_exists: Callable[[str], bool],
         port_available: Callable[[int], bool],
+        snapshot_root: Path | None = None,
     ):
         self.registry_path = registry_path
         self.unit_path = unit_path
@@ -96,6 +98,7 @@ class LocalActivationAdapter:
         self.runtime_probe = runtime_probe
         self.service_exists = service_exists
         self.port_available = port_available
+        self.snapshot_root = snapshot_root
         self._lock_file = None
 
     def acquire_lock(self) -> None:
@@ -117,13 +120,17 @@ class LocalActivationAdapter:
             self._lock_file = None
 
     def capture_snapshot(self, transaction_id: str) -> object:
-        return {
+        snapshot = {
             "transaction_id": transaction_id,
             "registry": _read_existing(self.registry_path),
             "unit": _read_existing(self.unit_path),
             "proxy": _read_existing(self.proxy_path),
             "attestation": _read_existing(self.attestation_path),
         }
+        # Explicitly configured durable store must commit before any mutation.
+        if self.snapshot_root is not None:
+            save_snapshot(self.snapshot_root, transaction_id, snapshot)
+        return snapshot
 
     def _registry(self) -> dict:
         try:
