@@ -53,6 +53,8 @@ Current implementation:
 - Adds authenticated, CSRF-protected dashboard preview and signed 15-minute approval tickets.
 - Administrator-approved staging revalidates the exact SHA/plan, then clones into an isolated directory without executing repository-defined commands.
 - Inactive release preparation packages staged files under a commit-specific path, records SHA-256 digests, detects tampering and renders a systemd service *preview only*.
+- Authenticated private repository staging retrieves pinned commits through the GitHub API with per-blob integrity checks and bounded snapshot size.
+- Optional rootless Podman build worker enforces offline, read-only source, restricted resources and separate approval; remains disconnected from production activation.
 - Fail-closed activation preflight checks release integrity, service/port collisions, approval flags and protected environment files; returns an auditable rollback checklist without enabling execution.
 - Does not install services, update the registry, execute builds or change Caddy.
 
@@ -61,9 +63,9 @@ Evidence:
   \`tests/test_onboarding.py\`.
 - Documentation: \`docs/repository-onboarding.md\`.
 - Tests pushed but full independent suite and CI are **NOT VERIFIED**.
-- Remaining: private repository staging, restricted build/install worker, immutable
-  release directory, final port reservation, safe UDA registration, systemd/Caddy
-  publication, rollback and live acceptance.
+- Remaining: integrate restricted build approval into trusted installer,
+  final port reservation, safe UDA registration, systemd/Caddy publication,
+  automatic rollback, large source/LFS support and live acceptance.
 
 ### DEV-017 — UDA deployment identity and GitHub reporting
 Status: 🔨 IN PROGRESS
