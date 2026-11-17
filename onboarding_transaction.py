@@ -87,10 +87,17 @@ def execute_transaction(plan: dict, release: dict, adapter: InstallAdapter, *,
     snapshot = None
     undo: list[str] = []
 
-    def write_journal() -> None:
+    def write_journal(*, during_rollback: bool = False) -> None:
         if journal is not None:
-            # This callback must persist synchronously before the next mutation.
-            journal(result.as_dict())
+            # Journal must durably commit before allowing each mutation.
+            try:
+                journal(result.as_dict())
+            except Exception as journal_exc:
+                if not during_rollback:
+                    raise
+                result.rollback_errors.append(
+                    f"journal: {type(journal_exc).__name__}: {journal_exc}"
+                )
 
     try:
         adapter.acquire_lock()
@@ -128,9 +135,9 @@ def execute_transaction(plan: dict, release: dict, adapter: InstallAdapter, *,
                 except Exception as rollback_exc:
                     result.rollback_errors.append(f"{step}: {type(rollback_exc).__name__}: {rollback_exc}")
                 finally:
-                    write_journal()
+                    write_journal(during_rollback=True)
         result.state = "rollback_failed" if result.rollback_errors else "rolled_back"
-        write_journal()
+        write_journal(during_rollback=True)
         return result
     finally:
         if lock_acquired:
