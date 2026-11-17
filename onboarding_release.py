@@ -100,6 +100,8 @@ def prepare_release(staged: dict, stage_root: Path, releases_root: Path) -> dict
         raise OnboardingError("Staged source has no deployable files")
     parent = root / name
     parent.mkdir(mode=0o700, exist_ok=True)
+    if parent.is_symlink() or not parent.is_dir():
+        raise OnboardingError("Release parent must be a real directory")
     scratch = Path(tempfile.mkdtemp(prefix=".prepare-", dir=parent))
     try:
         for relative in files:
