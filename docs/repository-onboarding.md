@@ -166,6 +166,28 @@ apply protected UDA/Caddy configuration, verify login and record the actual
 runtime SHA before enabling publication. Previous releases and configuration
 must remain recoverable.
 
+## Transaction controller (implemented, isolated from production)
+
+`onboarding_transaction.py` defines an activation coordinator and a narrow
+worker interface. It requires independent, trusted approval and enablement
+flags, holds a deployment lock, captures a recovery snapshot, checks preflight,
+then sequences systemd configuration, service start, health, disabled registry
+publication, proxy refresh, UDA authentication, runtime SHA verification and
+deployment attestation.
+
+**Compensation is registered before every mutation**, allowing rollback even
+when an operation partially completes before throwing an exception. The worker
+must implement transaction-scoped snapshots, atomic changes and idempotent
+compensating operations. Rollback failures are recorded and reported as
+`rollback_failed`; they must never be reported as success. GitHub publication
+is a separate post-commit step and its failure does not uninstall an otherwise
+healthy application.
+
+The controller has **no built-in privileged Ubuntu adapter**, is not called
+by dashboard routes, and cannot change a live server by itself. The next
+security-gated stage is implementing and independently accepting a restricted
+systemd/Caddy/registry adapter with crash-recovery journaling.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
