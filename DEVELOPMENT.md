@@ -59,6 +59,7 @@ Current implementation:
 - A separate transaction coordinator implements lock/snapshot/preflight, compensation-before-mutation, health/SSO/runtime attestation ordering and rollback failure reporting.
 - Append-only fsync journal captures state and pending compensation intent without persisting raw error/secret values; rollback continues even when journal persistence fails.
 - Durable private recovery snapshots preserve the exact pre-activation registry, unit, proxy and attestation files; incomplete transaction scanner and explicitly approved reverse replay added.
+- Fail-closed worker policy ensures no repository manifest, dashboard configuration or review-only recovery check can enable a privileged production adapter.
 - File-backed adapter uses atomic registry/unit/proxy/attestation replacement and injected systemd/health/SSO callbacks; production callbacks/dashboard activation remain disabled.
 - Fail-closed activation preflight checks release integrity, service/port collisions, approval flags and protected environment files; returns an auditable rollback checklist without enabling execution.
 - Does not install services, update the registry, execute builds or change Caddy.
