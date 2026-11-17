@@ -158,6 +158,46 @@ def test_failed_rollback_is_never_reported_as_success():
     assert "restore:mailbox" in result.compensated
 
 
+
+def test_journal_records_compensation_intent_before_every_effect():
+    records = []
+    fake = FakeUnits()
+    observed = []
+    original_configure = fake.configure
+    original_start = fake.start
+
+    def configure(name, snapshot):
+        observed.append(("configure", name, records[-1]["events"][-1]))
+        original_configure(name, snapshot)
+
+    def start(name):
+        observed.append(("start", name, records[-1]["events"][-1]))
+        original_start(name)
+
+    fake.configure = configure
+    fake.start = start
+    result, _ = run(fake, records)
+    assert result.state == "healthy"
+    assert observed == [
+        ("configure", "web", "intent:restore:web"),
+        ("configure", "mailbox", "intent:restore:mailbox"),
+        ("start", "web", "intent:stop:web"),
+        ("start", "mailbox", "intent:stop:mailbox"),
+    ]
+
+
+def test_journal_failure_during_start_restores_all_service_state():
+    fake = FakeUnits()
+    def append(record):
+        if record["events"][-1] == "intent:stop:mailbox":
+            raise OSError("journal write lost")
+    result = simulate_multiservice_release(document(), fake, journal=append,
+                                            simulation_only=True)
+    assert result.state == "rollback_failed"
+    assert fake.state == {"web": "old", "mailbox": "old"}
+    assert "start:mailbox" not in fake.events
+    assert fake.locked is False
+
 def test_no_approval_from_repository_manifest_is_accepted():
     fake = FakeUnits()
     with pytest.raises(OnboardingError, match="simulation-only"):
