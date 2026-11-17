@@ -180,3 +180,21 @@ def test_onboarding_preview_does_not_mutate_registry(tmp_path):
     assert b"preview" in response.data.lower()
     assert config.read_bytes() == before
     inspect.assert_called_once()
+
+
+def test_selected_branch_must_match_manifest_declared_branch():
+    from unittest.mock import Mock
+    import yaml
+    value = manifest()
+    value["source"] = {"branch": "develop"}
+    def fake_run(args, **kwargs):
+        if "clone" in args:
+            return Mock(returncode=0, stdout=b"", stderr=b"")
+        if args[-2:] == ["rev-parse", "HEAD"]:
+            return Mock(returncode=0, stdout=b"a" * 40, stderr=b"")
+        if args[-2:] == ["show", "HEAD:uda.yaml"]:
+            return Mock(returncode=0, stdout=yaml.safe_dump(value).encode(), stderr=b"")
+        return Mock(returncode=1, stdout=b"", stderr=b"")
+    with patch.object(onboarding.subprocess, "run", side_effect=fake_run):
+        with pytest.raises(onboarding.OnboardingError, match="source.branch"):
+            onboarding.inspect_repo("https://github.com/zageabb/demo", "main")
