@@ -1,0 +1,25 @@
+schema_version: 2
+application:
+  name: universal-deployment-agent
+  kind: platform
+source:
+  branch: main
+components:
+  - name: portal
+    repository: zageabb/Application-Home
+    revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    lifecycle_owner: universal-deployment-agent
+lifecycle:
+  owner: universal-deployment-agent
+  owned_units: [deployment-agent-dashboard.service, deployment-agent-home.service]
+bootstrap:
+  external_supervisor: true
+  signed_release: true
+  stage_strategy: atomic-tree-swap
+  rollback: all-owned-services
+  backup_targets: [uda-registry, uda-identity-db]
+deployment:
+  strategy: bootstrap-only
+  approval: explicit
+  bootstrap_protected: true
+  rollback: true
