@@ -90,7 +90,7 @@ def test_publisher_sends_verified_ref_to_github_only():
     second = Mock()
     second.__enter__ = Mock(return_value=second)
     second.__exit__ = Mock(return_value=None)
-    with patch.object(reporting, "urlopen", side_effect=[first, second]) as send, \\
+    with patch.object(reporting, "urlopen", side_effect=[first, second]) as send, \
          patch.object(reporting.json, "load", side_effect=[{"id": 123}, {"id": 456}]):
         result = reporting.publish_deployment(item, "fake-token", "https://example.com/app")
     assert result["deployment_id"] == 123
