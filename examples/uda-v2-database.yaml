@@ -43,6 +43,8 @@ proxy:
   upstream: api
   canonical_path: /apps/ledgerone/
   authentication: uda
+environment:
+  required: [DATABASE_URL]
 deployment:
   strategy: systemd
   approval: explicit
