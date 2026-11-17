@@ -35,7 +35,11 @@ commits or GitHub Actions execution are required.
 `deployed_sha_file` must be written atomically by the deployment procedure **only
 after** the release is started and passes its health verification. It must contain
 the full 40-character lowercase hexadecimal commit SHA for the running artifact.
-A file created by simply reading the current checkout is not valid evidence.
+UDA writes the marker atomically after a successful managed service restart and health check. It is a deployment receipt, **not cryptographic proof** that a specific process loaded that exact build. Strong runtime verification will require a build-ID endpoint or signed release manifest.
+
+## Dashboard and client API
+
+The authenticated UDA dashboard shows checkout SHA, attested runtime SHA, last locally fetched remote SHA, and verification state. `GET /api/deployments` returns the read-only inventory using the existing dashboard authentication; no ChatGPT MCP server is required.
 
 ## Publishing to GitHub
 Opt in using `github_reporting_enabled: true` and a protected service
@@ -50,10 +54,7 @@ This creates a GitHub deployment for a verified commit, then publishes a
 successful deployment status. A failed API request must be investigated;
 GitHub publication does not change the deployment itself.
 
-Do not schedule automatic publication yet. Before enabling that increment,
-implement durable idempotency, a publishing history and policy for runtime
-health transitions. Limit publishing to successful release events rather than
-every monitoring poll.
+The publisher requires the application to be enabled, checks its configured service health URL and uses a locked, private publication-state file to suppress repeated events for the same repository/environment/SHA. The default state path is `~/.local/state/deployment-agent/github-publications.json`; override using the top-level `github_publication_state_file` registry setting. Do not schedule periodic publication until failure/retry and runtime health-transition policies have been accepted. Publishing should ultimately follow release events, not every health poll.
 
 ## Acceptance plan before Ubuntu synchronisation
 1. Unit tests for clean, dirty, mismatched and unverified checkouts.
