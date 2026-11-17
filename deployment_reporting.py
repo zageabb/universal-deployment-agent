@@ -61,6 +61,10 @@ def inventory_item(app: dict) -> dict:
         except ValueError:
             pass
         attestation = app.get("deployed_sha_file")
+        if item["dirty"] and not attestation:
+            item["state"] = "dirty"
+            item["reason"] = "Checkout has uncommitted modifications; running SHA unverified"
+            return item
         if not attestation:
             item["state"] = "unverified"
             item["reason"] = "No deployed_sha_file configured"
