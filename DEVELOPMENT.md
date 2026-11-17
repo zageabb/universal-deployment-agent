@@ -49,18 +49,19 @@ Current implementation:
 - Clones \`--no-checkout\` temporarily and reads only \`uda.yaml\`.
 - Limits manifest size, rejects unsafe YAML/invalid fields and validates
   branch choice, service entrypoint, group/proxy basics and port requests.
-- Generates an installation plan and checks UDA registry name/unit/port conflicts.
-- Adds authenticated, CSRF-protected dashboard preview.
-- Does not run repository commands or modify production configuration.
+- Generates an installation plan, allocates a candidate port, and checks UDA registry conflicts.
+- Adds authenticated, CSRF-protected dashboard preview and signed 15-minute approval tickets.
+- Administrator-approved staging revalidates the exact SHA/plan, then clones into an isolated directory without executing repository-defined commands.
+- Does not install services, update the registry, execute builds or change Caddy.
 
 Evidence:
 - Source: \`onboarding.py\`, \`templates/onboarding.html\` and
   \`tests/test_onboarding.py\`.
 - Documentation: \`docs/repository-onboarding.md\`.
 - Tests pushed but full independent suite and CI are **NOT VERIFIED**.
-- Remaining: signed installation plan, controlled clone/install into immutable
-  release directory, service/port allocation, validation, safe UDA registration,
-  Caddy/SSO publication, rollback and private repository access.
+- Remaining: private repository staging, restricted build/install worker, immutable
+  release directory, final port reservation, safe UDA registration, systemd/Caddy
+  publication, rollback and live acceptance.
 
 ### DEV-017 — UDA deployment identity and GitHub reporting
 Status: 🔨 IN PROGRESS
