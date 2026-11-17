@@ -8,6 +8,7 @@ by "--". No shell, sudo, registry writes or process management.
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import re
 import subprocess
 from typing import Callable, Sequence
@@ -29,14 +30,31 @@ def _unit(value: str) -> str:
 
 
 def _default_run(argv: Sequence[str]) -> str:
-    """Fixed read-only command, output bounded; no deployment operations."""
-    if (tuple(argv[:2]) != ("systemctl", "--user") or len(argv) > 12 or
-            argv[2] not in ("list-units", "show")):
+    """Only two precise systemctl argv forms; no dashboard or YAML commands."""
+    inventory = [
+        "systemctl", "--user", "list-units", "--all", "--type=service",
+        "--no-legend", "--plain", "--no-pager",
+    ]
+    inspect_prefix = [
+        "systemctl", "--user", "show", "--no-pager",
+        "--property=" + ",".join(DETAIL_KEYS), "--",
+    ]
+    if list(argv) != inventory and not (
+            len(argv) == len(inspect_prefix) + 1 and
+            list(argv[:-1]) == inspect_prefix and isinstance(argv[-1], str) and
+            UNIT.fullmatch(argv[-1]) and not argv[-1].startswith("-") and
+            ".." not in argv[-1]):
         raise OnboardingError("Only systemd read-only inspection is supported")
+    env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C"}
+    # User-systemd uses DBus / XDG session endpoints; preserve only these
+    # trusted process environment names, never manifest-defined variables.
+    for name in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"):
+        if os.environ.get(name):
+            env[name] = os.environ[name]
     try:
         completed = subprocess.run(
             list(argv), capture_output=True, text=True, timeout=8,
-            check=False, env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+            check=False, env=env,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise OnboardingError("systemd inspection unavailable") from exc
@@ -173,8 +191,9 @@ def inspect_live_graph(
     if owned and set(owned) != set(declared):
         conflicts.append("Lifecycle owned_units differs from declared services")
     for item in known:
-        if item["active_state"] == "unknown" or (
-                item["active_state"] != "inactive" and not item["source_workdir_matches"]):
+        if (item["load_state"] != "loaded" or
+                item["active_state"] == "unknown" or
+                not item["source_workdir_matches"]):
             conflicts.append("Unable to attest service checkout: " + item["unit"])
     return {
         "application": manifest["application"]["name"],
