@@ -72,3 +72,12 @@ def test_unapproved_schema_version_rejected():
     item = example()
     item["schema_version"] = 2
     assert list(VALIDATOR.iter_errors(item))
+
+
+@pytest.mark.parametrize("invalid", [
+    "https://evil.example/", "/admin/", "/apps/demo/../", "/apps/Bad/",
+])
+def test_proxy_path_disallows_external_urls_and_traversal(invalid):
+    item = example()
+    item["proxy"]["path"] = invalid
+    assert list(VALIDATOR.iter_errors(item))
