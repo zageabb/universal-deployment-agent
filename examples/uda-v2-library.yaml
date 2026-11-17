@@ -1,0 +1,19 @@
+schema_version: 2
+application:
+  name: research-core
+  kind: library
+source:
+  branch: main
+builds:
+  - name: packaging
+    toolchain: python
+    commands: [["python", "-m", "build"]]
+library:
+  isolation: dedicated-venv
+  install_target: .
+  verify_commands: [["python", "-m", "pytest", "-q"]]
+  consumers: []
+deployment:
+  strategy: library
+  approval: explicit
+  rollback: true

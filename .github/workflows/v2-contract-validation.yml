@@ -1,0 +1,35 @@
+name: UDA v2 Contract Validation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'standards/uda_manifest_v2_validate.py'
+      - 'standards/schemas/uda-manifest-v2.schema.json'
+      - 'tests/test_uda_manifest_v2.py'
+      - 'examples/uda-v2-*.yaml'
+      - '.github/workflows/v2-contract-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: V2 offline contract (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install schema validator
+        run: python -m pip install 'jsonschema>=4.20,<5' 'PyYAML>=6,<7'
+      - name: Run all v2 schema and graph security tests
+        run: python -m unittest discover -s tests -p test_uda_manifest_v2.py -v
+      - name: Check every representative application fixture
+        run: |
+          for file in examples/uda-v2-*.yaml; do
+            python standards/uda_manifest_v2_validate.py "$file" > /dev/null || exit 1
+          done

@@ -1,0 +1,51 @@
+# Design fixture only: image digest is synthetic, not a deployment artifact.
+schema_version: 2
+application:
+  name: screencraft
+  kind: web
+  group: TAIJU - Development
+source: {branch: main}
+containers:
+  - name: database
+    image: "postgres@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    health: {type: command, command: ["pg_isready"]}
+    volumes:
+      - {name: screencraft-postgres, kind: named, mount_path: /var/lib/postgresql/data, preserve_data: true, owner: screencraft, backup_policy: snapshot-required, restore_policy: preserve-in-place}
+    environment_refs: [SCREENCRAFT_DB_PASSWORD]
+    restart: unless-stopped
+  - name: app
+    build: {context: ".", dockerfile: "deploy/Dockerfile", provenance: pinned-source-commit}
+    depends_on: [database]
+    ports:
+      - {bind: "127.0.0.1", host_port: 8085, container_port: 8085}
+    health: {type: http, path: /api/health}
+    environment_refs: [DATABASE_URL, SCREENCRAFT_UDA_PROXY_SECRET]
+    restart: unless-stopped
+databases:
+  - name: primary
+    engine: postgresql
+    connection_secret: DATABASE_URL
+    managed_by: database
+    backup: required
+    backup_verification: required
+dependencies:
+  - {name: pg-ready, kind: database, target: primary, readiness: required, failure_policy: block}
+health:
+  aggregate: all-required
+  required_services: [database, app]
+  optional_services: []
+  on_optional_failure: degraded
+proxy:
+  enabled: true
+  authentication: uda
+  upstream: app
+  canonical_path: /apps/screencraft/
+  authorization_groups: ["TAIJU - Development"]
+  assertions:
+    - {header: X-ScreenCraft-Proxy-Secret, secret_ref: SCREENCRAFT_UDA_PROXY_SECRET}
+environment:
+  required: [DATABASE_URL, SCREENCRAFT_DB_PASSWORD, SCREENCRAFT_UDA_PROXY_SECRET]
+deployment:
+  strategy: containers
+  approval: explicit
+  rollback: true

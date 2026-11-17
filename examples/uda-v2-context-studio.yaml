@@ -1,0 +1,63 @@
+# Design fixture only: observed two runtimes, asset-strip proxy policy.
+schema_version: 2
+application:
+  name: context-studio
+  kind: web
+  group: TAIJU - Development
+source:
+  branch: main
+builds:
+  - name: frontend-build
+    toolchain: node
+    version: "22"
+    working_dir: .
+    commands: [["npm", "run", "install:ci"], ["npm", "run", "build"]]
+    environment_refs: [NEXT_PUBLIC_BASE_PATH, NEXT_PUBLIC_API_URL]
+  - name: backend-build
+    toolchain: python
+    version: "3.10"
+    working_dir: backend
+    commands: [["python", "-m", "pip", "install", "-r", "requirements.txt"]]
+services:
+  - name: frontend
+    role: web
+    runtime: node
+    runtime_version: "22.19.0"
+    entrypoint: ["npm", "run", "start"]
+    port: 5075
+    health: {type: process}
+    required_builds: [frontend-build]
+  - name: backend
+    role: web
+    runtime: python
+    runtime_version: "3.10.12"
+    working_dir: backend
+    entrypoint: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8074"]
+    port: 8074
+    health: {type: http, path: /api/health}
+    required_builds: [backend-build]
+health:
+  aggregate: all-required
+  on_optional_failure: degraded
+  required_services: [frontend, backend]
+  optional_services: []
+proxy:
+  enabled: true
+  authentication: uda
+  upstream: frontend
+  canonical_path: /apps/context-studio/
+  preserve_prefix: true
+  authorization_groups: ["TAIJU - Development"]
+  routes:
+    - {subpath: "assets/", upstream: frontend, prefix_mode: strip, authentication: uda}
+environment:
+  required: [NEXT_PUBLIC_BASE_PATH, NEXT_PUBLIC_API_URL]
+lifecycle:
+  owner: context-studio
+  owned_units: [context-studio-frontend.service, context-studio-backend.service]
+  registry_aliases:
+    - {name: context-studio-api, disposition: component-only, approval: explicit}
+deployment:
+  strategy: systemd
+  approval: explicit
+  rollback: true

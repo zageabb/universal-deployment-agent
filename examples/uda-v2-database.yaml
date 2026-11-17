@@ -1,0 +1,51 @@
+schema_version: 2
+application:
+  name: ledgerone
+  kind: web
+source:
+  branch: main
+builds:
+  - name: frontend
+    toolchain: node
+    version: "22"
+    working_dir: frontend
+    commands: [["npm", "ci"], ["npm", "run", "build"]]
+    output_dir: frontend/dist
+services:
+  - name: api
+    role: web
+    runtime: python
+    working_dir: backend
+    entrypoint: ["python", "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", "5200"]
+    port: auto
+    health: {type: http, path: /health}
+    environment_refs: [DATABASE_URL]
+databases:
+  - name: primary
+    engine: postgresql
+    connection_secret: DATABASE_URL
+    external: true
+    backup: required
+    migrations:
+      - name: schema-upgrade
+        command: ["alembic", "upgrade", "head"]
+        reversible: false
+        approval: explicit
+        backup_required: true
+dependencies:
+  - name: pg-primary
+    kind: database
+    target: primary
+    readiness: required
+    failure_policy: block
+proxy:
+  enabled: true
+  upstream: api
+  canonical_path: /apps/ledgerone/
+  authentication: uda
+environment:
+  required: [DATABASE_URL]
+deployment:
+  strategy: systemd
+  approval: explicit
+  rollback: true

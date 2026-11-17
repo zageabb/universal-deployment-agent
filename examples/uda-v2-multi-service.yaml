@@ -1,0 +1,43 @@
+schema_version: 2
+application:
+  name: tender-designer
+  kind: web
+  display_name: Tender Designer
+source:
+  branch: main
+builds:
+  - name: compile
+    toolchain: python
+    working_dir: .
+    commands:
+      - ["python", "-m", "compileall", "."]
+services:
+  - name: web
+    role: web
+    runtime: python
+    entrypoint: ["python", "app.py"]
+    port: auto
+    health: {type: http, path: /health}
+    restart: on-failure
+  - name: mailbox
+    role: worker
+    runtime: python
+    entrypoint: ["python", "mailbox_daemon.py"]
+    health: {type: process}
+    restart: on-failure
+    depends_on: [web]
+health:
+  aggregate: all-required
+  on_optional_failure: degraded
+  required_services: [web]
+  optional_services: [mailbox]
+proxy:
+  enabled: true
+  upstream: web
+  canonical_path: /apps/tender-designer/
+  authentication: uda
+deployment:
+  strategy: systemd
+  approval: explicit
+  rollback: true
+  restart_order: [web, mailbox]

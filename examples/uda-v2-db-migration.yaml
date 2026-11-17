@@ -1,0 +1,44 @@
+# Design fixture only: database writes remain disabled until separate approval.
+schema_version: 2
+application:
+  name: db-migration
+  kind: web
+  group: TAIJU - Development
+source: {branch: main}
+services:
+  - name: web
+    role: web
+    runtime: python
+    working_dir: prototype/dppp_live
+    entrypoint: ["gunicorn", "--bind", "127.0.0.1:5099", "app:app"]
+    port: 5099
+    health: {type: http, path: /api/health}
+    environment_refs: [PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGPORT]
+databases:
+  - name: external-db
+    engine: postgresql
+    connection_refs: [PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGPORT]
+    external: true
+    backup: external-managed
+    write_access: requires-capability
+dependencies:
+  - {name: db-ready, kind: database, target: external-db, readiness: required, failure_policy: block}
+capabilities:
+  - name: database-write
+    kind: database-write
+    target: external-db
+    approval: explicit
+    enabled_by_default: false
+    scope: {resource_refs: [PGDATABASE]}
+environment:
+  required: [PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGPORT]
+proxy:
+  enabled: true
+  authentication: uda
+  upstream: web
+  canonical_path: /apps/db-migration/
+  authorization_groups: ["TAIJU - Development"]
+deployment:
+  strategy: systemd
+  approval: explicit
+  rollback: true

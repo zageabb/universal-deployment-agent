@@ -1,0 +1,32 @@
+schema_version: 2
+application:
+  name: lucky-lab
+  kind: web
+source:
+  branch: main
+containers:
+  - name: web
+    image: "registry.example.invalid/lucky-lab@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    build: {context: ".", dockerfile: "Dockerfile"}
+    ports:
+      - {bind: "127.0.0.1", host_port: auto, container_port: 5020}
+    volumes:
+      - {name: data, kind: named, mount_path: /data, preserve_data: true, owner: lucky-lab, backup_policy: snapshot-required, restore_policy: preserve-in-place, retention_days: 30}
+    environment_refs: [SECRET_KEY, DATABASE_URL]
+    health: {type: http, path: /health}
+    restart: on-failure
+    security:
+      read_only_rootfs: true
+      no_new_privileges: true
+      cap_drop: [ALL]
+proxy:
+  enabled: true
+  upstream: web
+  canonical_path: /apps/lucky-lab/
+  authentication: uda
+environment:
+  required: [SECRET_KEY, DATABASE_URL]
+deployment:
+  strategy: containers
+  approval: explicit
+  rollback: true
