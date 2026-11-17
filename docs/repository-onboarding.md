@@ -59,9 +59,11 @@ Commands are argument vectors for review, not shell lines for immediate executio
 - The preview uses existing UDA dashboard authentication and CSRF protection.
 - No registry write, systemd mutation, Caddy configuration edit, package install
   or GitHub publication occurs during preview.
-- Public repositories are supported first. Private repository onboarding requires
-  a future restricted GitHub credential mechanism; do not insert access tokens
-  into repository URLs or manifests.
+- With a protected `UDA_GITHUB_TOKEN` present, UDA reads the branch head and
+  then reads `uda.yaml` at that exact SHA using the read-only GitHub API. This
+  also enables private repositories covered by the token's Contents: read access.
+  Without a token, UDA uses a temporary no-checkout Git clone for public repos.
+  Never insert tokens into repository URLs or manifests.
 - A manifest **never grants permission to execute code**. Execution requires a
   separate trusted installer, administrator approval and sandboxing.
 
@@ -83,7 +85,8 @@ Build as a separate, auditable transaction:
     configuration, recording the complete audit trail.
 
 No installer must run commands from an untrusted repo as the UDA admin/root
-service. Private repositories and node/static deployments need separate test
+service. Private-repository manifest discovery is supported through a protected token;
+private installation and node/static deployments still need separate acceptance
 fixtures before they can be enabled.
 
 ## Validation
