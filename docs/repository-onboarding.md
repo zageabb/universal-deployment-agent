@@ -117,6 +117,20 @@ ownership/permissions, dependency handling, artifact integrity and active
 service verification are required before production use. No new web endpoint
 can activate a release in this increment.
 
+## Activation preflight and rollback checklist (implemented, no execution)
+
+The `onboarding_preflight.py` module checks the prepared release receipt and
+SHA-256 file hashes, approved commit, reserved name/unit/port, service collisions,
+protected environment file permissions and systemd unit preview. It returns an
+audit checklist for staging, health checks, registry/Caddy publication and
+rollback. **The result explicitly sets `execution_allowed: false`.**
+
+No live systemd service, database, Caddy route or UDA application registration
+is changed by this preflight. It does not yet provide a production installer,
+perform network health checks, or establish runtime sandbox permissions.
+The future worker must use dedicated least-privilege credentials, support
+separate final approval and keep a previous known-good release for rollback.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
