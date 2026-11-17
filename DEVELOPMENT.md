@@ -57,7 +57,8 @@ Current implementation:
 - Optional rootless Podman build worker enforces offline, read-only source, restricted resources and separate approval; remains disconnected from production activation.
 - A disabled UDA registry entry and deterministic activation/rollback plan can be previewed without changing production.
 - A separate transaction coordinator implements lock/snapshot/preflight, compensation-before-mutation, health/SSO/runtime attestation ordering and rollback failure reporting.
-- Append-only fsync journal captures state without persisting raw error/secret values; rollback continues even when journal persistence fails.
+- Append-only fsync journal captures state and pending compensation intent without persisting raw error/secret values; rollback continues even when journal persistence fails.
+- Durable private recovery snapshots preserve the exact pre-activation registry, unit, proxy and attestation files; incomplete transaction scanner and explicitly approved reverse replay added.
 - File-backed adapter uses atomic registry/unit/proxy/attestation replacement and injected systemd/health/SSO callbacks; production callbacks/dashboard activation remain disabled.
 - Fail-closed activation preflight checks release integrity, service/port collisions, approval flags and protected environment files; returns an auditable rollback checklist without enabling execution.
 - Does not install services, update the registry, execute builds or change Caddy.
@@ -67,9 +68,9 @@ Evidence:
   \`tests/test_onboarding.py\`.
 - Documentation: \`docs/repository-onboarding.md\`.
 - Tests pushed but full independent suite and CI are **NOT VERIFIED**.
-- Remaining: privilege-separated production worker, durable snapshot storage and
-  crash-recovery replay, wiring build approvals and real systemd/Caddy callbacks,
-  final port reservation, large-source/LFS policy and live acceptance.
+- Remaining: privilege-separated production worker, audited recovery replay and
+  restart-time orchestration, wiring build approvals and real systemd/Caddy callbacks,
+  final port reservation, large-source/LFS policy and live Ubuntu acceptance.
 
 ### DEV-017 — UDA deployment identity and GitHub reporting
 Status: 🔨 IN PROGRESS
