@@ -1,0 +1,30 @@
+name: V2-002 Read-only Onboarding
+
+on:
+  push:
+    branches: [feature/uda-v2-readonly-preview]
+  pull_request:
+    branches: [feature/repository-onboarding]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v2-readonly:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install UDA and test dependencies
+        run: python -m pip install -r requirements.txt pytest
+      - name: V1 compatibility and V2 preview isolation
+        run: python -m pytest -q tests/test_onboarding.py tests/test_onboarding_v2.py tests/test_dashboard.py
+      - name: Compile v2 contract and parser
+        run: python -m py_compile onboarding.py onboarding_v2.py uda_manifest_v2_validate.py dashboard.py
