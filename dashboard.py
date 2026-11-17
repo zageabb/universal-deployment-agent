@@ -18,6 +18,7 @@ from flask import Flask, abort, redirect, render_template, request, url_for, Res
 from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
 from deployment_reporting import inventory, inventory_item
+from onboarding import inspect_repo, plan_registration, OnboardingError
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -277,6 +278,25 @@ def create_app(config_path: Path) -> Flask:
         mutate_config(mutate)
         label = selected_group or "same as UDA group"
         return redirect(url_for("manage_groups", message=f"{name} portal group set to {label}"))
+
+    @app.get("/onboarding")
+    def onboarding_form():
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url="", branch="main", plan=None, error=None)
+
+    @app.post("/onboarding/preview")
+    def onboarding_preview():
+        repository_url = request.form.get("repository_url", "").strip()
+        branch = request.form.get("branch", "main").strip()
+        try:
+            preview = inspect_repo(repository_url, branch)
+            plan = plan_registration(preview, config())
+            error = None
+        except OnboardingError as exc:
+            plan, error = None, str(exc)
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url=repository_url, branch=branch,
+                               plan=plan, error=error), (400 if error else 200)
 
     @app.get("/api/deployments")
     def deployment_inventory_api():
