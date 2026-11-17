@@ -53,12 +53,14 @@ class TransactionResult:
     rolled_back: list[str] = field(default_factory=list)
     error: str | None = None
     rollback_errors: list[str] = field(default_factory=list)
+    pending_undo: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
             "transaction_id": self.transaction_id, "state": self.state,
             "executed": self.executed[:], "rolled_back": self.rolled_back[:],
             "error": self.error, "rollback_errors": self.rollback_errors[:],
+            "pending_undo": self.pending_undo[:],
         }
 
 
@@ -112,6 +114,7 @@ def execute_transaction(plan: dict, release: dict, adapter: InstallAdapter, *,
             # Register compensation BEFORE side effects to cover partial success.
             if compensation is not None:
                 undo.append(compensation)
+                result.pending_undo = undo[:]
             write_journal()
             getattr(adapter, operation)(plan, release) if operation in {
                 "configure_service", "verify_health", "register_application",
@@ -120,6 +123,7 @@ def execute_transaction(plan: dict, release: dict, adapter: InstallAdapter, *,
             result.executed.append(operation)
             write_journal()
         result.state = "completed"
+        result.pending_undo = []
         write_journal()
         return result
     except Exception as exc:
@@ -132,6 +136,8 @@ def execute_transaction(plan: dict, release: dict, adapter: InstallAdapter, *,
                     # must enforce transaction-scoped snapshots.
                     adapter.compensate(step, snapshot, plan)
                     result.rolled_back.append(step)
+                    if step in result.pending_undo:
+                        result.pending_undo.remove(step)
                 except Exception as rollback_exc:
                     result.rollback_errors.append(f"{step}: {type(rollback_exc).__name__}: {rollback_exc}")
                 finally:
