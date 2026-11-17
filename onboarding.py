@@ -271,6 +271,10 @@ def plan_registration(preview: dict, existing: dict) -> dict:
             "port": manifest["port"], "proxy_path": manifest["proxy_path"]
             if manifest["proxy_enabled"] else None,
             "required_environment": manifest["required_environment"],
+            "runtime": manifest["runtime"], "health_path": manifest["health_path"],
+            "group": manifest.get("group"),
+            "auto_update_requested": manifest["auto_update_requested"],
+            "github_reporting_requested": manifest["github_reporting_requested"],
             "build_commands_pending_approval": manifest["requested_build_commands"],
             "entrypoint_pending_approval": manifest["requested_entrypoint"],
             "operation": "preview_only", "registry_modified": False,
