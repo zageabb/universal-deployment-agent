@@ -29,6 +29,18 @@ class RequestSchemeSessionInterface(SecureCookieSessionInterface):
         return request.is_secure
 
 
+def safe_return_path(value: str | None) -> str | None:
+    """Accept only local absolute paths for post-authentication redirects."""
+    if not isinstance(value, str) or not value.startswith('/') or value.startswith('//'):
+        return None
+    if any(character in value for character in ('\r', '\n', '\\')):
+        return None
+    parts = urlsplit(value)
+    if parts.scheme or parts.netloc:
+        return None
+    return urlunsplit(('', '', parts.path or '/', parts.query, ''))
+
+
 def application_url(entry: dict, public_host: str) -> str | None:
     explicit = entry.get('app_url')
     raw = explicit or entry.get('health_url')
@@ -150,10 +162,15 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
 
     @app.route('/login',methods=['GET','POST'])
     def login():
+        destination=safe_return_path(request.args.get('next')) or url_for('index')
+        # A repeated browser/password-manager submission can arrive after the
+        # first POST has already established the session. Treat it as success
+        # instead of rejecting its now-stale CSRF token with a 400 page.
+        if current_user(): return redirect(destination)
         if request.method=='POST':
             require_csrf(); user=authenticate(database(),request.form.get('email',''),request.form.get('password',''))
             if user:
-                session.clear(); session['user']=user['email']; csrf(); return redirect(url_for('index'))
+                session.clear(); session['user']=user['email']; csrf(); return redirect(destination)
             flash('Invalid email, password, or unverified account.','error')
         return render_template('portal_form.html',mode='login',csrf=csrf())
 
@@ -225,7 +242,9 @@ def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     @app.get('/auth/check')
     def auth_check():
         user=current_user()
-        if not user: return '',401
+        if not user:
+            destination=safe_return_path(request.headers.get('X-Forwarded-Uri'))
+            return redirect(url_for('login',next=destination) if destination else url_for('login'))
         name=request.headers.get('X-UDA-App',''); cfg=identity_config(); entry=next((x for x in cfg['applications'] if x['name']==name),None)
         allowed=application_proxy_groups(entry) if entry else set(); user_groups={'*'} if user['is_admin'] else memberships(user)
         direct=set() if user['is_admin'] else application_memberships(user)

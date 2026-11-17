@@ -421,6 +421,13 @@ Completion criteria:
 
 Notes:
 
+### Dashboard archive and restore control
+
+- Added an authenticated, CSRF-protected dashboard action for the existing application `enabled` flag. Archive/restore coordinates the configured user service, UDA-managed scheduled jobs, and proxy refresh while retaining the registry entry.
+- Service applications without `service_unit` cannot be archived from the dashboard because UDA cannot safely stop their runtime. Library entries only change registry state.
+- Validation: Python syntax compilation and `git diff --check`. Automated tests were not run per the active task instructions.
+- Tests: Not run (task instructions prohibit running or adding tests unless requested).
+
 ## Parallel development coordination
 
 Use the coordination fields on every active DEV item when parallel work is possible.

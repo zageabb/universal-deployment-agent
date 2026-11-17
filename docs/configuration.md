@@ -16,7 +16,7 @@ The registry is JSON. Its top level contains host-wide paths and an `application
 | Field | Required | Description |
 |---|---:|---|
 | `name` | Yes | Unique log and result identifier |
-| `enabled` | No | Whether to inspect the application; defaults to false |
+| `enabled` | No | Whether the application is active in UDA; defaults to false. The dashboard Archive action sets this false and stops/disables its configured service and scheduled jobs. Restore sets it true and starts/enables them. |
 | `auto_deploy` | No | Whether clean updates may be applied; defaults to false |
 | `deployment_enabled` | No | Set false for service-only legacy apps that should skip all Git inspection and deployment |
 | `repo_path` | Yes | Absolute or home-relative Git checkout path |
