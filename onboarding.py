@@ -19,6 +19,7 @@ from urllib.error import HTTPError, URLError
 from typing import Any
 
 import yaml
+from jsonschema import Draft202012Validator
 from ui_groups import clean_group_name
 
 APP_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
@@ -27,8 +28,10 @@ GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 MAX_MANIFEST_BYTES = 32 * 1024
 SUPPORTED_RUNTIME = {"python", "node", "static"}
 SUPPORTED_SERVICE = {"systemd", "static"}
-SAFE_KEYS = {"schema_version", "application", "source", "runtime", "build",
-             "service", "proxy", "deployment", "environment"}
+SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "uda-manifest-v1.schema.json"
+SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+Draft202012Validator.check_schema(SCHEMA)
+MANIFEST_VALIDATOR = Draft202012Validator(SCHEMA)
 
 
 class OnboardingError(ValueError):
@@ -69,9 +72,12 @@ def _text(value: Any, field: str, limit: int = 200) -> str:
 
 def validate_manifest(value: Any) -> dict:
     root = _mapping(value, "Manifest")
-    unknown = set(root) - SAFE_KEYS
-    if unknown:
-        raise OnboardingError(f"Unrecognised manifest sections: {', '.join(sorted(unknown))}")
+    problems = sorted(MANIFEST_VALIDATOR.iter_errors(root),
+                      key=lambda error: (list(str(p) for p in error.absolute_path), error.message))
+    if problems:
+        error = problems[0]
+        location = ".".join(str(part) for part in error.absolute_path) or "manifest"
+        raise OnboardingError(f"Invalid uda.yaml at {location}: {error.message}")
     if type(root.get("schema_version")) is not int or root["schema_version"] != 1:
         raise OnboardingError("schema_version must equal 1")
     source = _mapping(root.get("source", {}), "source")
@@ -82,6 +88,9 @@ def validate_manifest(value: Any) -> dict:
     if not APP_NAME.fullmatch(name):
         raise OnboardingError("application.name must be a safe lowercase slug")
     title = _text(application.get("display_name", name), "application.display_name")
+    description = application.get("description", "")
+    if description and any(c in description for c in "\x00\r"):
+        raise OnboardingError("application.description contains control characters")
     group = application.get("group")
     if group is not None:
         try:
@@ -90,6 +99,8 @@ def validate_manifest(value: Any) -> dict:
             raise OnboardingError(f"Invalid application.group: {exc}") from exc
     runtime = _mapping(root.get("runtime"), "runtime")
     kind = runtime.get("type")
+    runtime_version = runtime.get("version")
+    working_dir = runtime.get("working_dir", ".")
     if kind not in SUPPORTED_RUNTIME:
         raise OnboardingError("Unsupported runtime.type")
     service = _mapping(root.get("service"), "service")
@@ -125,6 +136,7 @@ def validate_manifest(value: Any) -> dict:
         raise OnboardingError("Duplicate environment variable names")
     build = _mapping(root.get("build", {}), "build")
     commands = build.get("commands", [])
+    build_working_dir = build.get("working_dir", working_dir)
     if not isinstance(commands, list) or len(commands) > 20:
         raise OnboardingError("build.commands must contain up to 20 argument arrays")
     for command in commands:
@@ -144,8 +156,10 @@ def validate_manifest(value: Any) -> dict:
     # They must go through a second, operator-approved execution policy.
     return {
         "schema_version": 1,
-        "name": name, "display_name": title,
-        "runtime": kind, "service_type": service_type,
+        "name": name, "display_name": title, "description": description,
+        "runtime": kind, "runtime_version": runtime_version,
+        "runtime_working_dir": working_dir, "build_working_dir": build_working_dir,
+        "service_type": service_type,
         "port": port, "health_path": path,
         "proxy_enabled": proxy.get("enabled", False),
         "proxy_path": f"/apps/{name}/",
@@ -279,6 +293,9 @@ def plan_registration(preview: dict, existing: dict) -> dict:
             if manifest["proxy_enabled"] else None,
             "required_environment": manifest["required_environment"],
             "runtime": manifest["runtime"], "health_path": manifest["health_path"],
+            "runtime_version": manifest["runtime_version"],
+            "runtime_working_dir": manifest["runtime_working_dir"],
+            "build_working_dir": manifest["build_working_dir"],
             "group": manifest.get("group"),
             "auto_update_requested": manifest["auto_update_requested"],
             "github_reporting_requested": manifest["github_reporting_requested"],
