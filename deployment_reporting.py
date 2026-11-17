@@ -101,6 +101,10 @@ def publish_deployment(item: dict, token: str, environment_url: str | None = Non
         raise ValueError("Missing valid GitHub repository or deployed commit SHA")
     if not token:
         raise ValueError("GitHub deployment token is required")
+    if environment_url:
+        parsed = urlparse(environment_url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("Environment URL must be absolute HTTPS without embedded credentials")
     if api_base != "https://api.github.com":
         raise ValueError("Only the official GitHub API is allowed")
     url = f"{api_base}/repos/{repository}/deployments"
@@ -115,9 +119,6 @@ def publish_deployment(item: dict, token: str, environment_url: str | None = Non
     status = {"state": "success", "description": "Runtime SHA verified by UDA",
               "auto_inactive": False}
     if environment_url:
-        parsed = urlparse(environment_url)
-        if parsed.scheme != "https" or not parsed.hostname:
-            raise ValueError("Environment URL must be absolute HTTPS")
         status["environment_url"] = environment_url
     request = Request(f"{url}/{deployment_id}/statuses",
                       data=json.dumps(status).encode(), headers=headers, method="POST")
