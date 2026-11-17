@@ -14,7 +14,7 @@ dl{display:grid;grid-template-columns:200px 1fr;gap:10px}code{font-size:13px}.wa
 </style></head><body><main class="wrap">
 <a href="{{ url_for('index') }}" class="back">Back to UDA</a>
 <h1>Install from GitHub</h1>
-<p>This first stage reads <code>uda.yaml</code> and creates an installation plan. It does not run build scripts, change the UDA registry or install a service.</p>
+<p>This first stage reads <code>uda.yaml</code> and creates an installation plan. The approval step stages reviewed source code only. No build scripts, UDA registry changes, service installation or Caddy updates occur.</p>
 <section class="panel"><form method="post" action="{{ url_for('onboarding_preview') }}" class="form">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 <div class="field"><label for="repo">GitHub repository URL</label><input id="repo" name="repository_url" type="url" value="{{ repository_url or '' }}" placeholder="https://github.com/owner/repository" required maxlength="256"></div>
@@ -38,6 +38,23 @@ dl{display:grid;grid-template-columns:200px 1fr;gap:10px}code{font-size:13px}.wa
 <dt>Requested build steps</dt><dd><pre>{{ plan.build_commands_pending_approval|tojson(indent=2) }}</pre></dd>
 <dt>Requested entrypoint</dt><dd><pre>{{ plan.entrypoint_pending_approval|tojson(indent=2) }}</pre></dd>
 </dl>
+{% if ticket %}
+<form method="post" action="{{ url_for('onboarding_stage') }}" onsubmit="return confirm('Approve staging of this exact commit? No application will be installed or started.')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="approval_ticket" value="{{ ticket }}">
+<button type="submit">Approve source staging only</button>
+</form>
+{% endif %}
+</section>
+{% endif %}
+{% if staged %}
+<section class="panel" role="status">
+<h2>Source staging complete</h2>
+<p class="warn">The repository is staged but NOT installed. Build, systemd, Caddy and registry changes require a separately approved installation process.</p>
+<dl><dt>Application</dt><dd>{{ staged.application }}</dd>
+<dt>Commit</dt><dd><code>{{ staged.commit_sha }}</code></dd>
+<dt>Staged directory</dt><dd><code>{{ staged.staged_path }}</code></dd>
+<dt>Status</dt><dd>{{ staged.status }}</dd></dl>
 </section>
 {% endif %}
 </main></body></html>
