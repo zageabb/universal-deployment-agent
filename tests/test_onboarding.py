@@ -198,3 +198,55 @@ def test_selected_branch_must_match_manifest_declared_branch():
     with patch.object(onboarding.subprocess, "run", side_effect=fake_run):
         with pytest.raises(onboarding.OnboardingError, match="source.branch"):
             onboarding.inspect_repo("https://github.com/zageabb/demo", "main")
+
+
+def test_authenticated_private_repo_uses_pinned_sha_without_cloning(monkeypatch):
+    import base64
+    import json
+    import yaml
+    monkeypatch.setenv("UDA_GITHUB_TOKEN", "mock-token")
+    sha = "b" * 40
+    urls = []
+    class FakeResponse:
+        def __init__(self, body):
+            self.body = body
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            return None
+        def read(self, limit=-1):
+            return self.body
+    def fake_urlopen(request, timeout=15):
+        urls.append(request.full_url)
+        if "/commits/" in request.full_url:
+            return FakeResponse(json.dumps({"sha": sha}).encode())
+        assert request.full_url.endswith("contents/uda.yaml?ref=" + sha)
+        encoded = base64.b64encode(yaml.safe_dump(manifest()).encode()).decode()
+        return FakeResponse(json.dumps({"encoding": "base64", "content": encoded}).encode())
+    with patch.object(onboarding, "urlopen", side_effect=fake_urlopen), \
+         patch.object(onboarding.subprocess, "run") as git:
+        result = onboarding.inspect_repo("https://github.com/zageabb/private", "main")
+    assert result["commit_sha"] == sha
+    assert result["repository"] == "zageabb/private"
+    assert len(urls) == 2
+    git.assert_not_called()
+
+
+def test_private_repo_bad_manifest_is_rejected(monkeypatch):
+    import json
+    monkeypatch.setenv("UDA_GITHUB_TOKEN", "mock-token")
+    class FakeResponse:
+        def __init__(self, value):
+            self.value = value
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            return None
+        def read(self, *_):
+            return json.dumps(self.value).encode()
+    with patch.object(onboarding, "urlopen", side_effect=[
+        FakeResponse({"sha": "b" * 40}),
+        FakeResponse({"encoding": "base64", "content": "notbase64!!!"}),
+    ]):
+        with pytest.raises(onboarding.OnboardingError, match="invalid manifest"):
+            onboarding.inspect_repo("https://github.com/zageabb/private")
