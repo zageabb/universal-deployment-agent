@@ -18,7 +18,8 @@ from flask import Flask, abort, redirect, render_template, request, url_for, Res
 from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
 from deployment_reporting import inventory, inventory_item
-from onboarding import inspect_repo, plan_registration, OnboardingError
+from onboarding import inspect_repo, OnboardingError
+from onboarding_install import prepare_plan, issue_ticket, approved_stage
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -28,6 +29,7 @@ def create_app(config_path: Path) -> Flask:
     app = Flask(__name__)
     app.config["DEPLOY_CONFIG"] = config_path
     app.config["CSRF_TOKEN"] = secrets.token_urlsafe(32)
+    app.config["ONBOARDING_APPROVAL_KEY"] = secrets.token_bytes(32)
     config_write_lock = Lock()
 
     def config():
@@ -282,7 +284,8 @@ def create_app(config_path: Path) -> Flask:
     @app.get("/onboarding")
     def onboarding_form():
         return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
-                               repository_url="", branch="main", plan=None, error=None)
+                               repository_url="", branch="main", plan=None, ticket=None,
+                               staged=None, error=None)
 
     @app.post("/onboarding/preview")
     def onboarding_preview():
@@ -290,13 +293,40 @@ def create_app(config_path: Path) -> Flask:
         branch = request.form.get("branch", "main").strip()
         try:
             preview = inspect_repo(repository_url, branch)
-            plan = plan_registration(preview, config())
+            plan = prepare_plan(preview, config())
+            ticket = issue_ticket(plan, app.config["ONBOARDING_APPROVAL_KEY"])
             error = None
         except OnboardingError as exc:
-            plan, error = None, str(exc)
+            plan, ticket, error = None, None, str(exc)
         return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
                                repository_url=repository_url, branch=branch,
-                               plan=plan, error=error), (400 if error else 200)
+                               plan=plan, ticket=ticket, staged=None,
+                               error=error), (400 if error else 200)
+
+    @app.post("/onboarding/stage")
+    def onboarding_stage():
+        ticket = request.form.get("approval_ticket", "")
+        cfg = config()
+        lock_path = Path(cfg.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
+        staging_root = Path(cfg.get("onboarding_staging_root",
+                                      "~/.local/state/deployment-agent/onboarding-staging")).expanduser()
+        try:
+            # Prevent an approved operation racing a running deployment or a second stage.
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            with lock_path.open("a") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    abort(409, "A deployment or onboarding operation is already running")
+                staging_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                staged = approved_stage(ticket, app.config["ONBOARDING_APPROVAL_KEY"],
+                                        config(), staging_root)
+            error = None
+        except (OnboardingError, OSError) as exc:
+            staged, error = None, str(exc)
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url="", branch="main", plan=None, ticket=None,
+                               staged=staged, error=error), (400 if error else 200)
 
     @app.get("/api/deployments")
     def deployment_inventory_api():
