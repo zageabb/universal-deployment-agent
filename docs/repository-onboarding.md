@@ -32,6 +32,45 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: pinned-source systemd unit review bundles
+
+The `onboarding_v2_unit_renderer.py` increment generates deterministic
+**non-executable systemd unit review artifacts** from a source-verified,
+inactive release. It is not a privileged Ubuntu installer:
+
+- Validates the manifest against the v2 schema and semantic graph and
+  rejects protected UDA bootstrap, container/database operations, advanced
+  routes and capabilities.
+- Re-hashes the prepared release against its Git commit identity, rejects
+  application mismatch, and ensures working directories/scripts exist within
+  that verified release.
+- Requires each service's exact `systemd_unit`, a separately provided
+  independently reviewed argv tuple matching the manifest, and a unique,
+  private environment-file reference. Disallows shell entrypoints, relative
+  interpreter resolution and Python `-c`; this initial renderer supports
+  only a narrow, explicitly allowed set of absolute interpreter paths.
+- Renders bounded user-service unit text with `NoNewPrivileges`,
+  `ProtectSystem`, `PrivateTmp` and related hardening; systemd argument
+  quoting escapes newlines, special characters and percent specifiers.
+- Resolves dependency order into `After`/`Requires`, calculates individual
+  unit SHA-256 hashes and an overall bundle digest, and always returns
+  `deployment_allowed: false` and `status: review_only`.
+- Never writes unit files, issues a stage ticket, runs commands, changes a
+  service, provisions secrets or edits the UDA registry/Caddy.
+
+This deliberately narrow contract will not yet cover applications whose
+launchers require virtual environments, wrappers, custom binaries or other
+runtime layouts. They must remain blocked for review rather than bypass the
+command policy. A future worker must verify the signed/approved bundle and
+its source commit *again* inside an independently authenticated deployment
+boundary.
+
+**CI evidence:** [V2-003 Reviewed Unit Plans run
+44197431558](https://github.com/zageabb/universal-deployment-agent/actions/runs/44197431558):
+120 tests passed on each of Python 3.12 and 3.13, including prior sandbox,
+journal, preflight, graph, and v1/v2 transaction regression tests. All code
+is in unmerged development PR #16.
+
 ## V2-003: disposable unit-file adapter (development only)
 
 `onboarding_v2_unit_sandbox.py` implements the injected simulation-adapter
