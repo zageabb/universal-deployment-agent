@@ -150,6 +150,22 @@ perform network health checks, or establish runtime sandbox permissions.
 The future worker must use dedicated least-privilege credentials, support
 separate final approval and keep a previous known-good release for rollback.
 
+## Disabled registry preview (implemented)
+
+`onboarding_registry.py` produces a proposed registry record with
+`enabled: false`, `auto_deploy: false`, `deployment_enabled: false`,
+`proxy_enabled: false`, `show_on_home: false`, and
+`github_reporting_enabled: false`. It compares the proposal with the
+existing registry, rejects application/service/port collisions, and lists
+compensating rollback actions for every later activation step. **It does not
+write the registry**.
+
+A future trusted activation worker must verify the current backup, use the
+production lock, reserve a port, install the service, confirm loopback health,
+apply protected UDA/Caddy configuration, verify login and record the actual
+runtime SHA before enabling publication. Previous releases and configuration
+must remain recoverable.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
