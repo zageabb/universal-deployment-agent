@@ -181,6 +181,7 @@ def approved_stage(ticket: str, secret: bytes, registry: dict, staging_root: Pat
             "repository", "branch", "commit_sha", "application",
             "service_unit", "port", "proxy_path",
             "required_environment", "runtime", "health_path", "group",
+            "runtime_version", "runtime_working_dir", "build_working_dir",
             "auto_update_requested", "github_reporting_requested",
             "build_commands_pending_approval", "entrypoint_pending_approval")):
         raise OnboardingError("Installation plan changed after approval")
