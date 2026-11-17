@@ -180,8 +180,9 @@ def approved_stage(ticket: str, secret: bytes, registry: dict, staging_root: Pat
     if any(fresh[k] != plan[k] for k in (
             "repository", "branch", "commit_sha", "application",
             "service_unit", "port", "proxy_path",
-            "required_environment", "build_commands_pending_approval",
-            "entrypoint_pending_approval")):
+            "required_environment", "runtime", "health_path", "group",
+            "auto_update_requested", "github_reporting_requested",
+            "build_commands_pending_approval", "entrypoint_pending_approval")):
         raise OnboardingError("Installation plan changed after approval")
     if os.environ.get("UDA_GITHUB_TOKEN") and clone_run is None:
         from onboarding_private import stage_private_snapshot
