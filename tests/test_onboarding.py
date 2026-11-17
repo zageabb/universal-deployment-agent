@@ -254,3 +254,60 @@ def test_private_repo_bad_manifest_is_rejected(monkeypatch):
     ]):
         with pytest.raises(onboarding.OnboardingError, match="invalid manifest"):
             onboarding.inspect_repo("https://github.com/zageabb/private")
+
+
+def test_manifest_v1_schema_rejects_undeclared_nested_fields():
+    for section, key, value in (
+        ("application", "shell", "/bin/bash"),
+        ("runtime", "executable", "/usr/bin/env"),
+        ("build", "script", "curl example.invalid"),
+        ("service", "run_as_root", True),
+        ("proxy", "directives", ["basicauth"]),
+        ("deployment", "force", True),
+        ("environment", "SECRET_KEY", "literal"),
+    ):
+        item = manifest()
+        item[section][key] = value
+        with pytest.raises(onboarding.OnboardingError, match="Invalid uda.yaml"):
+            onboarding.validate_manifest(item)
+
+
+def test_manifest_v1_preserves_working_directories_and_runtime_version():
+    item = manifest()
+    item["runtime"].update(version="3.12", working_dir="backend")
+    item["build"]["working_dir"] = "backend/src"
+    result = onboarding.validate_manifest(item)
+    assert result["runtime_version"] == "3.12"
+    assert result["runtime_working_dir"] == "backend"
+    assert result["build_working_dir"] == "backend/src"
+    preview = {"repository": "zageabb/demo", "branch": "main",
+               "commit_sha": "a" * 40, "manifest": result}
+    plan = onboarding.plan_registration(preview, {"applications": []})
+    assert plan["runtime_version"] == "3.12"
+    assert plan["runtime_working_dir"] == "backend"
+    assert plan["build_working_dir"] == "backend/src"
+
+
+@pytest.mark.parametrize("bad", ["../secret", "/etc", ".hidden", "src/../../x", "src//x"])
+def test_manifest_v1_blocks_unsafe_relative_working_directories(bad):
+    item = manifest()
+    item["runtime"]["working_dir"] = bad
+    with pytest.raises(onboarding.OnboardingError):
+        onboarding.validate_manifest(item)
+
+
+def test_manifest_v1_static_and_node_contracts():
+    static = manifest()
+    static["runtime"] = {"type": "static"}
+    static["service"] = {"type": "static"}
+    assert onboarding.validate_manifest(static)["service_type"] == "static"
+    node = manifest()
+    node["runtime"] = {"type": "node", "version": "22"}
+    node["service"]["entrypoint"] = ["node", "server.js"]
+    assert onboarding.validate_manifest(node)["runtime"] == "node"
+
+
+def test_manifest_v1_schema_is_declared_and_strict():
+    assert onboarding.SCHEMA["$schema"].endswith("/2020-12/schema")
+    assert onboarding.SCHEMA["additionalProperties"] is False
+    assert onboarding.SCHEMA["properties"]["runtime"]["additionalProperties"] is False
