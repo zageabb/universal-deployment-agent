@@ -129,6 +129,8 @@ def test_authenticated_routing_stages_private_without_git(tmp_path, monkeypatch)
     preview = {"repository": "zageabb/private", "branch": "main",
                "commit_sha": SHA, "manifest": {
                    "name": "demo", "port": 5300, "service_type": "systemd",
+                   "runtime": "python", "health_path": "/health",
+                   "auto_update_requested": False, "github_reporting_requested": False,
                    "proxy_enabled": False, "proxy_path": "/apps/demo/",
                    "required_environment": [],
                    "requested_build_commands": [], "requested_entrypoint": ["python", "app.py"]}}
