@@ -31,7 +31,11 @@ def _read_existing(path: Path) -> bytes | None:
 def _write_atomic(path: Path, value: bytes) -> None:
     if path.is_symlink():
         raise OnboardingError("Managed configuration path is a symlink")
+    if path.parent.is_symlink():
+        raise OnboardingError("Managed configuration parent may not be a symlink")
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.parent.is_symlink():
+        raise OnboardingError("Managed configuration parent may not be a symlink")
     current_mode = (path.stat().st_mode & 0o777) if path.exists() else 0o600
     temp = path.with_name("." + path.name + "." + secrets.token_hex(8) + ".tmp")
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, current_mode)
