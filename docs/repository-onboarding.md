@@ -1,6 +1,6 @@
 # UDA-DEPLOY-002 — Repository-based onboarding
 
-Development stage: **read-only preview implemented; installation not yet enabled**.
+Development stage: **read-only preview plus explicit, signed, stage-only approval implemented; installation not yet enabled**.
 
 ## Purpose
 
@@ -67,14 +67,43 @@ Commands are argument vectors for review, not shell lines for immediate executio
 - A manifest **never grants permission to execute code**. Execution requires a
   separate trusted installer, administrator approval and sandboxing.
 
+## Stage-only approval (implemented, not an installation)
+
+The preview now allocates a candidate unprivileged port (default 5200–5999)
+and issues a short-lived HMAC-signed ticket containing the exact SHA, commands,
+service unit, environment variable names and proposed proxy path.
+
+The administrator may click **Approve source staging only**. This:
+- Requires existing dashboard Basic authentication and form CSRF validation.
+- Rejects tampered/expired tickets (15-minute lifetime); a dashboard process
+  restart invalidates outstanding tickets, safely requiring a new preview.
+- Re-reads the repository and rejects source or plan changes.
+- Rechecks application name, service-unit and port collisions.
+- Uses the existing UDA deployment lock to avoid concurrent service changes.
+- Clones a pinned commit to a separate staging directory and refuses symlinks.
+- Stops without installing dependencies, running build commands, creating
+  systemd units, changing the UDA registry or modifying Caddy.
+
+An example configuration is `onboarding_staging_root` in the top-level
+registry, defaulting to `~/.local/state/deployment-agent/onboarding-staging`.
+This root should be an administrator-owned, private directory on a Linux
+filesystem. Verify that the external USB filesystem is suitable before moving
+this directory there.
+
+**Current limitation:** Stage-only Git cloning uses public HTTPS access. Private
+repository manifest previews are supported through the read-only GitHub API,
+but private source checkout requires a separately secured transfer mechanism.
+A private repo may therefore preview successfully but cannot yet be staged.
+No generated plan is permission to execute repository-defined commands.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
 
-1. Persist a signed or expiring installation plan, pinned to the exact commit SHA.
-2. Require administrator approval and resolve required environment names.
-3. Allocate an available host port and service unit under a managed namespace.
-4. Clone the exact commit to a staging directory outside the production tree.
+1. Persist completed release approval/audit and separate *execution* permissions.
+2. Resolve required environment values without passing secrets into the repository.
+3. Reserve the proposed port under the deployment lock at final activation.
+4. Support secure private source transfers pinned to the approved commit.
 5. Execute approved build commands under a restricted service account/container.
 6. Write an immutable release directory and carefully generated systemd unit.
 7. Start the application on localhost and run a full health/permission check.
