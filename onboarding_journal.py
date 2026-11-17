@@ -13,7 +13,7 @@ import re
 from onboarding import OnboardingError
 
 ID = re.compile(r"^[a-f0-9-]{36}$")
-PERMITTED = {"transaction_id", "state", "executed", "rolled_back", "error", "rollback_errors"}
+PERMITTED = {"transaction_id", "state", "executed", "rolled_back", "pending_undo", "error", "rollback_errors"}
 MAX_LOG_BYTES = 5 * 1024 * 1024
 
 
