@@ -44,7 +44,9 @@ def test_builder_never_runs_shell_or_uses_network(tmp_path):
     assert "--read-only" in command
     assert "--cap-drop=ALL" in command
     assert "--pull=never" in command
-    assert "/workspace:ro" in command
+    assert "--volume" in command
+    source_mount = f"{Path(release['release_path']).resolve()}:/workspace:ro"
+    assert command[command.index("--volume") + 1] == source_mount
     assert command[-4:] == ["python", "-m", "compileall", "."]
 
 
