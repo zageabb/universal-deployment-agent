@@ -564,3 +564,15 @@ Parallel execution does not weaken the completion standard: each DEV item still 
 
 ## Maintenance rule
 Update this file during the same development pass that changes implementation. Repository evidence wins when prose disagrees.
+
+## V2-002 — version-aware read-only repository inspection (17 November 2026)
+
+- Added `onboarding_v2.py` version dispatcher: V1 retains existing 32 KiB validation and stage-only path; V2 has a bounded 128 KiB strict schema plus semantic graph validation.
+- GitHub manifest remains read at a pinned commit SHA by the existing secure discovery workflow; V2 previews validate declared source branch and repository.
+- Dashboard `/onboarding/preview` renders a redacted V2 deployment graph: workloads, health, toolchains, dependencies, database/volume policy, authenticated ingress, environment variable **names**, and protected capabilities.
+- V2 never issues a staging ticket, never calls V1 port allocator, and never presents a stage/activate button; its plan explicitly denies execution and staging.
+- Existing registered applications or port conflicts are flagged for reconciliation, not modified; no actual live-service unit discovery or OS probing occurs yet.
+- Canonical v2 design is still draft Application-Standard PR #6; schemas and validator copied to this branch for testing, not for a supported production v2 installer.
+- Test evidence: UDA [V2-002 CI run 44187103836](https://github.com/zageabb/universal-deployment-agent/actions/runs/44187103836) passed Python 3.12 and 3.13, **80 passed each** (`tests/test_onboarding.py`, `tests/test_onboarding_v2.py`, `tests/test_dashboard.py`). Compilation checks also passed.
+- Risk/next gate: read-only unit/Caddy/Compose/volume reconciliation and actual disposable Ubuntu V2-003 multi-service deployment acceptance remain pending. No production changes. V2 never authorises migration or UDA bootstrap.
+
