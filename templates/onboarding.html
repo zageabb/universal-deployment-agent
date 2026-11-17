@@ -14,7 +14,7 @@ dl{display:grid;grid-template-columns:200px 1fr;gap:10px}code{font-size:13px}.wa
 </style></head><body><main class="wrap">
 <a href="{{ url_for('index') }}" class="back">Back to UDA</a>
 <h1>Install from GitHub</h1>
-<p>This first stage reads <code>uda.yaml</code> and creates an installation plan. The approval step stages reviewed source code only. No build scripts, UDA registry changes, service installation or Caddy updates occur.</p>
+<p>This stage reads <code>uda.yaml</code> and inspects its deployment specification. V1 can request source staging only; v2 is strictly read-only. No build scripts, UDA registry changes, service installation or Caddy updates occur.</p>
 <section class="panel"><form method="post" action="{{ url_for('onboarding_preview') }}" class="form">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 <div class="field"><label for="repo">GitHub repository URL</label><input id="repo" name="repository_url" type="url" value="{{ repository_url or '' }}" placeholder="https://github.com/owner/repository" required maxlength="256"></div>
@@ -22,6 +22,41 @@ dl{display:grid;grid-template-columns:200px 1fr;gap:10px}code{font-size:13px}.wa
 <button type="submit">Inspect repository</button>
 </form></section>
 {% if error %}<section class="error" role="alert">{{ error }}</section>{% endif %}
+{% if v2_plan %}
+<section class="panel" aria-label="UDA version 2 read-only inspection">
+<h2>V2 deployment graph — review only</h2>
+<p class="warn"><strong>Installation unavailable:</strong> {{ v2_plan.blocked_reason }}. This page cannot stage, build, migrate, restart or change live services.</p>
+<dl>
+<dt>Manifest version</dt><dd>{{ v2_plan.schema_version }}</dd>
+<dt>Repository</dt><dd>{{ v2_plan.repository }}</dd>
+<dt>Branch and pinned SHA</dt><dd>{{ v2_plan.branch }} / <code>{{ v2_plan.commit_sha }}</code></dd>
+<dt>Application and kind</dt><dd>{{ v2_plan.application }} ({{ v2_plan.kind }})</dd>
+<dt>Deployment strategy</dt><dd>{{ v2_plan.strategy }}</dd>
+<dt>Health policy</dt><dd>{{ v2_plan.health.aggregate or 'Not declared' }}; required: {{ v2_plan.health.required|join(', ') or 'None' }}; optional: {{ v2_plan.health.optional|join(', ') or 'None' }}</dd>
+<dt>Ingress</dt><dd>{{ v2_plan.proxy.path or 'Not published' }}; upstream: {{ v2_plan.proxy.upstream or 'None' }}; UDA auth: {{ v2_plan.proxy.authentication or 'Not applicable' }}; subpath routes: {{ v2_plan.proxy.subpath_routes }}; secret-backed assertions: {{ v2_plan.proxy.assertions }}; legacy aliases: {{ v2_plan.proxy.aliases }}</dd>
+<dt>Environment names only</dt><dd>{{ v2_plan.required_environment_names|join(', ') or 'None' }}</dd>
+<dt>Activation</dt><dd>Disabled (schema v2)</dd>
+</dl>
+<h3>Services and containers</h3>
+{% if v2_plan.workloads %}
+{% for service in v2_plan.workloads %}
+<p><strong>{{ service.name }}</strong> — {{ service.kind }}, role {{ service.role }}, runtime {{ service.runtime or 'unknown' }}, port {{ service.port if service.port is not none else 'none' }}, health {{ service.health }}, dependencies {{ service.depends_on|join(', ') or 'none' }}</p>
+{% endfor %}
+{% else %}<p>No runtime services declared.</p>{% endif %}
+<h3>Build toolchains</h3>
+{% for build in v2_plan.builds %}<p>{{ build.name }} — {{ build.toolchain }} ({{ build.working_dir }})</p>{% else %}<p>None</p>{% endfor %}
+<h3>Dependencies and data</h3>
+{% for dep in v2_plan.dependencies %}<p>{{ dep.name }} — {{ dep.kind }}, readiness {{ dep.readiness }}, on failure {{ dep.failure_policy }}</p>{% endfor %}
+{% for db in v2_plan.databases %}<p>Database {{ db.name }} — {{ db.engine }}; backup {{ db.backup or 'not declared' }}; migrations {{ db.migrations }}</p>{% endfor %}
+{% for volume in v2_plan.volumes %}<p>Persistent volume {{ volume.name }} — owner {{ volume.owner or 'unknown' }}; backup {{ volume.backup or 'not declared' }}</p>{% endfor %}
+<h3>Capability approvals</h3>
+{% for capability in v2_plan.capabilities %}<p>{{ capability.name }} — {{ capability.kind }}; disabled by default; requires separate approval</p>{% else %}<p>None declared</p>{% endfor %}
+{% if v2_plan.conflicts %}
+<div class="warn"><strong>Reconciliation discrepancies:</strong><ul>{% for issue in v2_plan.conflicts %}<li>{{ issue }}</li>{% endfor %}</ul></div>
+{% endif %}
+<p><strong>No staging or installation action is available for v2 manifests.</strong></p>
+</section>
+{% endif %}
 {% if plan %}
 <section class="panel">
 <h2>Proposed installation</h2>
