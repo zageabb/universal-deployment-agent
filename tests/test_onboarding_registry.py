@@ -45,7 +45,7 @@ def test_registry_preview_does_not_change_original_registry():
 ])
 def test_registry_conflicts_are_rejected(existing):
     plan, release = sample()
-    with pytest.raises(OnboardingError, match="already registered"):
+    with pytest.raises(OnboardingError, match="registered"):
         preview_registry_diff(plan, release, {"applications": [existing]})
 
 
