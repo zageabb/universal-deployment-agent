@@ -17,7 +17,7 @@ from typing import Any
 import yaml
 
 APP_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
-BRANCH = re.compile(r"^(?![./])(?!.*(?:\\.\\.|//|@\\{|\\\\|[ ~^:?*\\[\\]]))[A-Za-z0-9_./-]{1,120}(?<![/.])$")
+BRANCH = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]{0,119}$")
 GITHUB_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 MAX_MANIFEST_BYTES = 32 * 1024
 SUPPORTED_RUNTIME = {"python", "node", "static"}
@@ -43,7 +43,7 @@ def repository_name(url: str) -> str:
 
 
 def validate_branch(branch: str) -> str:
-    if not isinstance(branch, str) or not BRANCH.fullmatch(branch) or branch.endswith(".lock"):
+    if not isinstance(branch, str) or not BRANCH.fullmatch(branch) or any(value in branch for value in ("..", "//", "@{", "/.", "./")) or branch.endswith((".lock", ".", "/")):
         raise OnboardingError("Invalid Git branch")
     return branch
 
@@ -57,7 +57,7 @@ def _mapping(value: Any, field: str) -> dict:
 def _text(value: Any, field: str, limit: int = 200) -> str:
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
         raise OnboardingError(f"{field} must be a non-empty string (max {limit})")
-    if any(ch in value for ch in "\\x00\\r\\n"):
+    if any(ch in value for ch in "\x00\r\n"):
         raise OnboardingError(f"{field} contains control characters")
     return value.strip()
 
@@ -85,7 +85,7 @@ def validate_manifest(value: Any) -> dict:
     if kind != "static" and service_type != "systemd":
         raise OnboardingError("Python/Node requires a managed systemd service")
     path = service.get("health_path", "/health")
-    if not isinstance(path, str) or not path.startswith("/") or path.startswith("//") or "?" in path or "#" in path or "\\r" in path or "\\n" in path:
+    if not isinstance(path, str) or not path.startswith("/") or path.startswith("//") or "?" in path or "#" in path or "\r" in path or "\n" in path:
         raise OnboardingError("health_path must be a local absolute path")
     port = service.get("port", "auto")
     if port != "auto" and (type(port) is not int or not 1024 <= port <= 65535):
