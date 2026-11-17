@@ -220,7 +220,9 @@ def inspect_repo(url: str, branch: str = "main") -> dict:
                "--", remote, str(checkout)]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True,
-                                    timeout=90, check=False)
+                                    timeout=90, check=False,
+                                    env={**os.environ, "GIT_TERMINAL_PROMPT": "0",
+                                         "GCM_INTERACTIVE": "never"})
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise OnboardingError("Repository inspection failed or timed out") from exc
         if result.returncode:
@@ -232,7 +234,12 @@ def inspect_repo(url: str, branch: str = "main") -> dict:
                 raise OnboardingError("Repository inspection failed")
             return result.stdout
         sha = git("rev-parse", "HEAD").decode().strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+            raise OnboardingError("Git returned an invalid commit SHA")
         try:
+            size = int(git("cat-file", "-s", "HEAD:uda.yaml").decode().strip())
+            if size > MAX_MANIFEST_BYTES:
+                raise OnboardingError("Manifest exceeds 32 KiB limit")
             data = git("show", "HEAD:uda.yaml")
         except OnboardingError:
             raise OnboardingError("Repository has no root uda.yaml; use discovery mode later")
