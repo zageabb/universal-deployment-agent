@@ -17,7 +17,7 @@ from flask import Flask, abort, redirect, render_template, request, url_for, Res
 
 from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
-from deployment_reporting import inventory_item
+from deployment_reporting import inventory, inventory_item
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -277,6 +277,11 @@ def create_app(config_path: Path) -> Flask:
         mutate_config(mutate)
         label = selected_group or "same as UDA group"
         return redirect(url_for("manage_groups", message=f"{name} portal group set to {label}"))
+
+    @app.get("/api/deployments")
+    def deployment_inventory_api():
+        """Authenticated read-only deployment inventory for future UDA clients."""
+        return inventory(config())
 
     @app.get("/health")
     def dashboard_health():
