@@ -225,6 +225,31 @@ Before deploying it, the implementation needs a dedicated service account,
 strict path permissions, a non-bypassable approval handshake, durable snapshots,
 restart-time reconciliation and real Caddy/systemd integration tests.
 
+## Restart/crash recovery foundation (implemented)
+
+`onboarding_recovery.py` now stores a durable transaction snapshot of the
+original UDA registry, systemd unit, Caddy file and deployment receipt before
+mutations. Snapshot storage is private (`0700` directory, `0600` files),
+created with exclusive file creation and fsync. The activation journal records
+`pending_undo` compensation intent **before** each side effect, allowing a
+restart-time scanner to identify incomplete work.
+
+`inspect_incomplete` performs **read-only** discovery of unfinished
+transactions. `replay_compensations` can reverse the pending steps in order,
+but only with a separate explicit approval and an adapter that holds the
+deployment lock. Failed compensation is reported as `rollback_failed`, not a
+successful recovery. The local adapter may optionally persist recovery
+snapshots when `snapshot_root` is configured; unavailable/insecure storage
+stops activation before changing the host.
+
+**Still required:** A restricted Ubuntu worker that validates transaction
+identity, operator approval, trusted path ownership and snapshot provenance,
+and persists each recovery replay event. Crash recovery is not currently
+auto-executed by UDA startup, and the dashboard has no activation route.
+Large registry backups require an independently assessed retention policy.
+These facilities must be validated in a disposable Ubuntu instance before
+production use.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
