@@ -55,6 +55,7 @@ Current implementation:
 - Inactive release preparation packages staged files under a commit-specific path, records SHA-256 digests, detects tampering and renders a systemd service *preview only*.
 - Authenticated private repository staging retrieves pinned commits through the GitHub API with per-blob integrity checks and bounded snapshot size.
 - Optional rootless Podman build worker enforces offline, read-only source, restricted resources and separate approval; remains disconnected from production activation.
+- A disabled UDA registry entry and deterministic activation/rollback plan can be previewed without changing production.
 - Fail-closed activation preflight checks release integrity, service/port collisions, approval flags and protected environment files; returns an auditable rollback checklist without enabling execution.
 - Does not install services, update the registry, execute builds or change Caddy.
 
