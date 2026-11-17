@@ -188,6 +188,21 @@ by dashboard routes, and cannot change a live server by itself. The next
 security-gated stage is implementing and independently accepting a restricted
 systemd/Caddy/registry adapter with crash-recovery journaling.
 
+## Durable activation audit (implemented, production integration pending)
+
+`onboarding_journal.py` provides an append-only JSONL journal stored in a
+private directory with file permissions `0600`. Each transition is flushed
+and fsynced before proceeding; error strings are redacted to avoid leaking
+application secrets into persistent audit files. Separate tests inject journal
+write failures during rollback and verify that remaining compensations still
+run.
+
+The coordinator intentionally has no privileged systemd/Caddy adapter or
+public activation route. The journal records the transaction state but does
+not yet perform boot-time crash recovery. A trusted Ubuntu worker must scan
+unresolved transactions on start-up, validate signed snapshots and resume or
+reverse outstanding operations safely before enabling production activation.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
