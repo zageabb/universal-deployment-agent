@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 from pathlib import Path
 
 import dashboard
@@ -144,6 +144,116 @@ def test_service_only_update_is_rejected(tmp_path):
     with patch('dashboard.subprocess.run') as run:
         assert client.post('/applications/example/update', headers=headers, data=data).status_code == 403
         run.assert_not_called()
+
+
+def test_archive_disables_service_jobs_and_proxy_before_updating_registry(tmp_path):
+    import json
+    client, headers, data = service_client(
+        tmp_path,
+        proxy_enabled=True,
+        scheduled_jobs=[{
+            "name": "cleanup", "schedule": "daily", "time": "06:00",
+            "command": ["./cleanup"],
+        }],
+    )
+    with patch("dashboard.reconcile_scheduled_jobs") as reconcile, \
+         patch("dashboard.subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")) as run:
+        response = client.post(
+            "/applications/example/enabled",
+            headers=headers,
+            data=data | {"enabled": "false"},
+        )
+
+    assert response.status_code == 302
+    assert json.loads(client.application.config["DEPLOY_CONFIG"].read_text())["applications"][0]["enabled"] is False
+    assert run.call_args_list == [
+        call(
+            ["systemctl", "--user", "disable", "--now", "--", "example.service"],
+            text=True, capture_output=True, timeout=30, check=False,
+        ),
+        call(
+            ["systemctl", "--user", "start", "uda-proxy-refresh.service"],
+            text=True, capture_output=True, timeout=120, check=False,
+        ),
+    ]
+    assert reconcile.call_args.args[0]["applications"][0]["enabled"] is False
+
+
+def test_restore_enables_service_and_updates_registry(tmp_path):
+    import json
+    client, headers, data = service_client(tmp_path, enabled=False)
+    with patch("dashboard.reconcile_scheduled_jobs") as reconcile, \
+         patch("dashboard.subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")) as run:
+        response = client.post(
+            "/applications/example/enabled",
+            headers=headers,
+            data=data | {"enabled": "true"},
+        )
+
+    assert response.status_code == 302
+    assert json.loads(client.application.config["DEPLOY_CONFIG"].read_text())["applications"][0]["enabled"] is True
+    run.assert_called_once_with(
+        ["systemctl", "--user", "enable", "--now", "--", "example.service"],
+        text=True, capture_output=True, timeout=30, check=False,
+    )
+    assert reconcile.call_args.args[0]["applications"][0]["enabled"] is True
+
+
+def test_archive_library_only_updates_registry(tmp_path):
+    import json
+    client, headers, data = service_client(
+        tmp_path, kind="library", service_unit=None, update_commands=[["true"]]
+    )
+    with patch("dashboard.reconcile_scheduled_jobs") as reconcile, \
+         patch("dashboard.subprocess.run") as run:
+        response = client.post(
+            "/applications/example/enabled",
+            headers=headers,
+            data=data | {"enabled": "false"},
+        )
+
+    assert response.status_code == 302
+    assert json.loads(client.application.config["DEPLOY_CONFIG"].read_text())["applications"][0]["enabled"] is False
+    reconcile.assert_called_once()
+    run.assert_not_called()
+
+
+def test_archive_rejects_service_without_unit_and_invalid_requests(tmp_path):
+    client, headers, data = service_client(tmp_path, service_unit=None)
+    with patch("dashboard.reconcile_scheduled_jobs") as reconcile, \
+         patch("dashboard.subprocess.run") as run:
+        assert client.post(
+            "/applications/example/enabled", headers=headers, data=data | {"enabled": "false"}
+        ).status_code == 409
+        assert client.post(
+            "/applications/example/enabled", headers=headers, data=data | {"enabled": "maybe"}
+        ).status_code == 400
+        assert client.post(
+            "/applications/missing/enabled", headers=headers, data=data | {"enabled": "false"}
+        ).status_code == 404
+        assert client.post(
+            "/applications/example/enabled", data=data | {"enabled": "false"}
+        ).status_code == 401
+    reconcile.assert_not_called()
+    run.assert_not_called()
+
+
+def test_archive_keeps_registry_enabled_when_service_command_fails(tmp_path):
+    import json
+    client, headers, data = service_client(tmp_path)
+    failed = Mock(returncode=1, stdout="", stderr="permission denied")
+    with patch("dashboard.reconcile_scheduled_jobs") as reconcile, \
+         patch("dashboard.subprocess.run", return_value=failed):
+        response = client.post(
+            "/applications/example/enabled",
+            headers=headers,
+            data=data | {"enabled": "false"},
+        )
+
+    assert response.status_code == 302
+    assert "archive+failed" in response.location
+    assert json.loads(client.application.config["DEPLOY_CONFIG"].read_text())["applications"][0]["enabled"] is True
+    reconcile.assert_not_called()
 
 
 def test_scheduled_job_is_visible_and_can_be_run(tmp_path):

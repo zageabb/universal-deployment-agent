@@ -15,7 +15,7 @@ from urllib.request import urlopen
 
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
-from deploy_agent import VERSION, DeployError, load_config, scheduled_job_status, unit_names
+from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
@@ -325,6 +325,73 @@ def create_app(config_path: Path) -> Flask:
             detail = (result.stderr or result.stdout).strip()[-300:]
             message = f"{name}: {action} failed: {detail}"
         return redirect(url_for("index", message=message))
+
+    @app.post("/applications/<name>/enabled")
+    def set_application_enabled(name: str):
+        requested = request.form.get("enabled")
+        if requested not in {"true", "false"}:
+            abort(400, "enabled must be true or false")
+        enabled = requested == "true"
+        cfg = config()
+        selected = next((item for item in cfg["applications"] if item["name"] == name), None)
+        if selected is None:
+            abort(404)
+        unit = selected.get("service_unit")
+        if selected.get("kind", "service") == "service" and not unit:
+            abort(409, "Configure service_unit before archiving or restoring this service")
+        lock_path = Path(cfg.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
+        try:
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            with lock_path.open("a") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    abort(409, "A deployment or service action is already running")
+                if unit:
+                    verb = "enable" if enabled else "disable"
+                    result = subprocess.run(
+                        ["systemctl", "--user", verb, "--now", "--", unit],
+                        text=True, capture_output=True, timeout=30, check=False,
+                    )
+                    if result.returncode:
+                        detail = (result.stderr or result.stdout).strip()[-300:]
+                        action = "restore" if enabled else "archive"
+                        return redirect(url_for("index", message=f"{name}: {action} failed: {detail}"))
+                with config_write_lock:
+                    current = config()
+                    current_app = next(
+                        (item for item in current["applications"] if item["name"] == name),
+                        None,
+                    )
+                    if current_app is None:
+                        abort(404)
+                    current_app["enabled"] = enabled
+                    save_config(current)
+                try:
+                    reconcile_scheduled_jobs(current, app.logger)
+                except (DeployError, OSError, subprocess.SubprocessError) as exc:
+                    app.logger.exception("Could not reconcile scheduled jobs after changing %s", name)
+                    action = "restored" if enabled else "archived"
+                    message = f"{name}: {action}, but scheduled jobs need attention: {exc}"
+                    return redirect(url_for("index", message=message))
+                suffix = ""
+                if selected.get("proxy_enabled"):
+                    refresh = subprocess.run(
+                        ["systemctl", "--user", "start", "uda-proxy-refresh.service"],
+                        text=True, capture_output=True, timeout=120, check=False,
+                    )
+                    if refresh.returncode:
+                        app.logger.warning(
+                            "Proxy refresh failed after changing %s: %s",
+                            name,
+                            (refresh.stderr or refresh.stdout).strip()[-300:],
+                        )
+                        suffix = "; proxy refresh needs attention"
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            action = "restore" if enabled else "archive"
+            return redirect(url_for("index", message=f"{name}: {action} failed: {exc}"))
+        action = "restored" if enabled else "archived"
+        return redirect(url_for("index", message=f"{name}: {action}{suffix}"))
 
     @app.post("/applications/<name>/scheduled-jobs/<job_name>/run")
     def run_scheduled_job(name: str, job_name: str):
