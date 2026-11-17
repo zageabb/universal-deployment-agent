@@ -130,3 +130,40 @@ def test_staging_rejects_symlinks(tmp_path, preview):
     with pytest.raises(OnboardingError, match="symlinks"):
         install.stage_checkout(plan, tmp_path, clone_run=runner)
     assert not list(tmp_path.iterdir())
+
+def test_stage_endpoint_requires_auth_and_csrf(tmp_path):
+    import json
+    import dashboard
+    cfg = tmp_path / "registry.json"
+    cfg.write_text(json.dumps({"applications": [], "dashboard_token": "secret",
+                               "onboarding_staging_root": str(tmp_path / "staging")}))
+    client = dashboard.create_app(cfg).test_client()
+    assert client.post("/onboarding/stage").status_code == 401
+    auth = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    assert client.post("/onboarding/stage", headers=auth).status_code == 403
+
+
+def test_invalid_ticket_fails_without_modifying_registry(tmp_path):
+    import json
+    import dashboard
+    cfg = tmp_path / "registry.json"
+    cfg.write_text(json.dumps({"applications": [], "dashboard_token": "secret",
+                               "onboarding_staging_root": str(tmp_path / "staging")}))
+    original = cfg.read_bytes()
+    client = dashboard.create_app(cfg).test_client()
+    auth = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    response = client.post("/onboarding/stage", headers=auth,
+                           data={"csrf_token": client.application.config["CSRF_TOKEN"],
+                                 "approval_ticket": "invalid"})
+    assert response.status_code == 400
+    assert cfg.read_bytes() == original
+
+
+def test_symlinked_staging_directory_rejected(tmp_path, preview):
+    plan = install.prepare_plan(preview, {"applications": []}, probe=lambda _: True)
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    with pytest.raises(OnboardingError, match="symlink"):
+        install.stage_checkout(plan, link)
