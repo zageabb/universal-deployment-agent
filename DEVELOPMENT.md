@@ -30,6 +30,30 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-017 — UDA deployment identity and GitHub reporting
+Status: 🔨 IN PROGRESS
+Priority: High
+Branch: `feature/deployment-reporting`
+Integration status: implementation pushed; independent regression validation pending
+
+Requirements:
+- Show local checkout, remotely tracked branch and attested deployed commit separately.
+- Identify modified/hybrid server installations and block misleading deployment reports.
+- Report releases to each application's own GitHub Deployments API, not UDA only.
+- Keep publication off by default, require health and no source commits.
+- No ChatGPT MCP dependency and no live server changes before controlled synchronisation.
+
+Evidence:
+- `deployment_reporting.py` implements read-only inventory, optional release receipt
+  and opt-in publisher.
+- Dashboard displays distinct running/checkout/remote SHA and dirty warnings.
+- `tests/test_deployment_reporting.py` covers key cases.
+- `docs/deployment-reporting.md` contains configuration and rollout guidance.
+- Full pytest, CI merge gate, runtime validation, GitHub publication acceptance:
+  **NOT YET COMPLETE**.
+- Known follow-up before enabling periodic reporting: publication idempotency
+  and durable audit/retry history.
+
 ### DEV-016 — Archive and restore registered applications
 Status: 🔨 IN PROGRESS
 Priority: High
