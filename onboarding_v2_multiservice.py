@@ -102,11 +102,17 @@ def simulate_multiservice_release(
     # Record independently undoable operations, including partially completed.
     undo: list[tuple[str, str]] = []
     acquired = False
+    journal_compromised = False
 
     def event(label: str) -> None:
+        nonlocal journal_compromised
         # Only stage names and statuses, never commands/secrets/error text.
         result.events.append(label)
-        journal(result.as_dict())
+        try:
+            journal(result.as_dict())
+        except Exception:
+            journal_compromised = True
+            raise
 
     def register_undo(operation: str, name: str) -> None:
         marker = f"{operation}:{name}"
@@ -170,7 +176,7 @@ def simulate_multiservice_release(
                 event("compensated:" + marker)
             except Exception:
                 result.rollback_errors.append("journal")
-        result.state = "rollback_failed" if result.rollback_errors else "rolled_back"
+        result.state = "rollback_failed" if result.rollback_errors or journal_compromised else "rolled_back"
         try:
             event("rollback_complete")
         except Exception:
