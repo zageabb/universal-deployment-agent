@@ -120,6 +120,8 @@ def test_safe_clone_inspection_does_not_check_out_or_run_code():
             return Mock(returncode=0, stdout=b"", stderr=b"")
         if args[-2:] == ["rev-parse", "HEAD"]:
             return Mock(returncode=0, stdout=head.encode(), stderr=b"")
+        if args[-3:] == ["cat-file", "-s", "HEAD:uda.yaml"]:
+            return Mock(returncode=0, stdout=b"1024", stderr=b"")
         if args[-2:] == ["show", "HEAD:uda.yaml"]:
             import yaml
             return Mock(returncode=0, stdout=yaml.safe_dump(manifest()).encode(), stderr=b"")
@@ -192,6 +194,8 @@ def test_selected_branch_must_match_manifest_declared_branch():
             return Mock(returncode=0, stdout=b"", stderr=b"")
         if args[-2:] == ["rev-parse", "HEAD"]:
             return Mock(returncode=0, stdout=b"a" * 40, stderr=b"")
+        if args[-3:] == ["cat-file", "-s", "HEAD:uda.yaml"]:
+            return Mock(returncode=0, stdout=b"1024", stderr=b"")
         if args[-2:] == ["show", "HEAD:uda.yaml"]:
             return Mock(returncode=0, stdout=yaml.safe_dump(value).encode(), stderr=b"")
         return Mock(returncode=1, stdout=b"", stderr=b"")
