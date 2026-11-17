@@ -108,3 +108,59 @@ def test_unknown_repository_and_missing_token_are_rejected():
     item["repository"] = "zageabb/demo"
     with pytest.raises(ValueError):
         reporting.publish_deployment(item, "")
+
+
+def test_atomic_attestation_is_created_outside_repository(tmp_path):
+    repo, sha = init_repo(tmp_path)
+    marker = tmp_path / "private" / "running.sha"
+    reporting.write_attestation({"repo_path": str(repo), "deployed_sha_file": str(marker)}, sha)
+    assert marker.read_text() == sha + "\n"
+    assert marker.stat().st_mode & 0o777 == 0o600
+
+
+def test_attestation_cannot_be_written_into_checkout(tmp_path):
+    repo, sha = init_repo(tmp_path)
+    with pytest.raises(ValueError, match="outside the repository"):
+        reporting.write_attestation({"repo_path": str(repo),
+                                     "deployed_sha_file": str(repo / "running.sha")}, sha)
+
+
+def test_auto_deployer_attests_only_after_health(tmp_path, monkeypatch):
+    import deploy_agent
+    repo, sha = init_repo(tmp_path)
+    marker = tmp_path / "private" / "running.sha"
+    app = {"name": "demo", "enabled": True, "auto_deploy": True,
+           "repo_path": str(repo), "branch": "main",
+           "restart_command": ["true"], "health_url": "http://127.0.0.1:9999/health",
+           "deployed_sha_file": str(marker)}
+    remote = "a" * 40
+    monkeypatch.setattr(deploy_agent, "inspect_application", lambda *_: {
+        "repo": repo, "dirty": "", "local": sha, "remote": remote, "update_available": True})
+    monkeypatch.setattr(deploy_agent, "git", lambda *_: "")
+    monkeypatch.setattr(deploy_agent, "run", lambda *_ , **kw: "")
+    monkeypatch.setattr(deploy_agent, "diagnostics", lambda *_: {})
+    observed = []
+    monkeypatch.setattr(deploy_agent, "health_check", lambda *_: observed.append("healthy"))
+    result = deploy_agent.deploy_application(app, False, deploy_agent.logging.getLogger("test"))
+    assert result["status"] == "deployed"
+    assert observed == ["healthy"]
+    assert marker.read_text().strip() == remote
+
+
+def test_failed_health_never_attests_new_sha(tmp_path, monkeypatch):
+    import deploy_agent
+    repo, sha = init_repo(tmp_path)
+    marker = tmp_path / "private" / "running.sha"
+    app = {"name": "demo", "enabled": True, "auto_deploy": True,
+           "repo_path": str(repo), "branch": "main",
+           "restart_command": ["true"], "health_url": "http://127.0.0.1:9999/health",
+           "deployed_sha_file": str(marker), "rollback": False}
+    monkeypatch.setattr(deploy_agent, "inspect_application", lambda *_: {
+        "repo": repo, "dirty": "", "local": sha, "remote": "a" * 40, "update_available": True})
+    monkeypatch.setattr(deploy_agent, "git", lambda *_: "")
+    monkeypatch.setattr(deploy_agent, "run", lambda *_ , **kw: "")
+    monkeypatch.setattr(deploy_agent, "health_check",
+                        lambda *_: (_ for _ in ()).throw(deploy_agent.DeployError("unhealthy")))
+    with pytest.raises(deploy_agent.DeployError, match="unhealthy"):
+        deploy_agent.deploy_application(app, False, deploy_agent.logging.getLogger("test"))
+    assert not marker.exists()
