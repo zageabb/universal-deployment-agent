@@ -191,3 +191,17 @@ def test_published_release_cannot_hide_new_dirty_state(tmp_path):
     item["state"] = "dirty"
     with pytest.raises(ValueError, match="unverifiable"):
         reporting.publish_once({}, item, "token", state_file)
+
+
+def test_deployment_api_requires_auth_and_does_not_publish(tmp_path):
+    import dashboard
+    config = tmp_path / "registry.json"
+    config.write_text(json.dumps({"applications": [], "dashboard_token": "secret"}))
+    client = dashboard.create_app(config).test_client()
+    assert client.get("/api/deployments").status_code == 401
+    with patch.object(reporting, "publish_deployment") as publish:
+        response = client.get("/api/deployments",
+                              headers={"Authorization": "Basic YWRtaW46c2VjcmV0"})
+    assert response.status_code == 200
+    assert response.get_json()["applications"] == []
+    publish.assert_not_called()
