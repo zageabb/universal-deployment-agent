@@ -90,10 +90,13 @@ This root should be an administrator-owned, private directory on a Linux
 filesystem. Verify that the external USB filesystem is suitable before moving
 this directory there.
 
-**Current limitation:** Stage-only Git cloning uses public HTTPS access. Private
-repository manifest previews are supported through the read-only GitHub API,
-but private source checkout requires a separately secured transfer mechanism.
-A private repo may therefore preview successfully but cannot yet be staged.
+**Private repository staging:** With a protected `UDA_GITHUB_TOKEN`, source is now
+retrieved using GitHub's Git commit/tree/blob API at the exact reviewed SHA.
+The transfer verifies each Git blob hash, rejects symlinks, submodules and
+unexpected filesystem paths, and does not store the token in any Git remote.
+This path is deliberately bounded to 1,000 files, 32 MiB total, and 8 MiB
+per file. Oversized repositories require a separate approved retrieval method.
+LFS-managed content and Git submodules are not automatically installed.
 No generated plan is permission to execute repository-defined commands.
 
 ## Inactive release preparation (implemented)
@@ -116,6 +119,22 @@ tamper-proof or a completed build. A dedicated restricted worker, secure
 ownership/permissions, dependency handling, artifact integrity and active
 service verification are required before production use. No new web endpoint
 can activate a release in this increment.
+
+## Restricted build worker (implemented, not connected to production)
+
+`onboarding_build.py` provides an explicitly approved, rootless Podman build
+worker. It requires a builder image pinned by immutable SHA-256 digest, verifies
+the prepared release receipt before starting, and uses `--network=none`,
+`--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, CPU
+and memory limits, and bounded process count. The approved source is mounted
+read-only and the build output is a separate directory.
+
+It rejects builds as root, missing Podman, and non-rootless configurations.
+The worker is **not wired into the dashboard**, is not a production installer,
+and cannot activate systemd, change Caddy or register an application. Offline
+dependency/build caches or intentionally reviewed network egress policies are
+needed for apps requiring downloads. Rootless isolation still requires
+host-level AppArmor/seccomp and mount-policy acceptance.
 
 ## Activation preflight and rollback checklist (implemented, no execution)
 
