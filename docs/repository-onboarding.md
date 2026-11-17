@@ -203,6 +203,28 @@ not yet perform boot-time crash recovery. A trusted Ubuntu worker must scan
 unresolved transactions on start-up, validate signed snapshots and resume or
 reverse outstanding operations safely before enabling production activation.
 
+## Local activation adapter (implemented as a controlled integration component)
+
+`onboarding_adapter.py` implements the transaction interface using
+transaction-scoped snapshots of the registry, systemd unit, generated proxy
+configuration and deployed-SHA receipt. File changes are made with atomic
+replace, and compensation restores the original file bytes. Unit and proxy
+actions, health probes, SSO checks and runtime SHA verification are injected
+callbacks. The corresponding tests run entirely in temporary directories and
+inject failures at each activation stage.
+
+The candidate registry record is enabled and its proxy route is published
+**only after service health succeeds**. Authentication and live runtime-SHA
+verification must subsequently pass before the deployment receipt is written.
+Any failure requests reverse compensation. A failed compensation is reported
+as `rollback_failed` and requires administrator recovery.
+
+The adapter is **not wired to the dashboard or Ubuntu systemd** and no
+production-capable callback implementation is provided in this increment.
+Before deploying it, the implementation needs a dedicated service account,
+strict path permissions, a non-bypassable approval handshake, durable snapshots,
+restart-time reconciliation and real Caddy/systemd integration tests.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
