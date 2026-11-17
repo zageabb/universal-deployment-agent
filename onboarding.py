@@ -19,6 +19,7 @@ from urllib.error import HTTPError, URLError
 from typing import Any
 
 import yaml
+from ui_groups import clean_group_name
 
 APP_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 BRANCH = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]{0,119}$")
@@ -81,6 +82,12 @@ def validate_manifest(value: Any) -> dict:
     if not APP_NAME.fullmatch(name):
         raise OnboardingError("application.name must be a safe lowercase slug")
     title = _text(application.get("display_name", name), "application.display_name")
+    group = application.get("group")
+    if group is not None:
+        try:
+            group = clean_group_name(group)
+        except ValueError as exc:
+            raise OnboardingError(f"Invalid application.group: {exc}") from exc
     runtime = _mapping(root.get("runtime"), "runtime")
     kind = runtime.get("type")
     if kind not in SUPPORTED_RUNTIME:
@@ -147,7 +154,7 @@ def validate_manifest(value: Any) -> dict:
         "requested_entrypoint": entry,
         "auto_update_requested": deployment.get("auto_update", False),
         "github_reporting_requested": deployment.get("github_reporting", False),
-        "group": application.get("group"),
+        "group": group,
     }
 
 
