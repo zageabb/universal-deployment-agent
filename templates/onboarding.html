@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UDA — Repository onboarding</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;background:#f4f7f5;color:#172b2a}*{box-sizing:border-box}
+body{margin:0}.wrap{max-width:980px;padding:32px 18px;margin:auto}h1{font-size:26px}
+.panel{background:#fff;border:1px solid #dce5e2;border-radius:14px;padding:22px;margin:18px 0}
+.form{display:grid;gap:14px}.field{display:grid;gap:6px}input{font:inherit;padding:10px;border:1px solid #aabcb6;border-radius:8px;width:100%}
+button,.back{font:inherit;padding:10px 15px;border:0;border-radius:9px;background:#123f38;color:#fff;text-decoration:none;cursor:pointer}
+.back{background:#47645f;display:inline-block}button:hover{background:#176b58}dt{color:#647572}dd{margin:0;overflow-wrap:anywhere}
+dl{display:grid;grid-template-columns:200px 1fr;gap:10px}code{font-size:13px}.warn{border-left:4px solid #986000;padding:11px;background:#fff5d7}
+.error{border-left:4px solid #aa342c;padding:11px;background:#ffe9e6}
+@media(max-width:600px){dl{grid-template-columns:1fr}dt{margin-top:7px}} 
+</style></head><body><main class="wrap">
+<a href="{{ url_for('index') }}" class="back">Back to UDA</a>
+<h1>Install from GitHub</h1>
+<p>This first stage reads <code>uda.yaml</code> and creates an installation plan. It does not run build scripts, change the UDA registry or install a service.</p>
+<section class="panel"><form method="post" action="{{ url_for('onboarding_preview') }}" class="form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="field"><label for="repo">GitHub repository URL</label><input id="repo" name="repository_url" type="url" value="{{ repository_url or '' }}" placeholder="https://github.com/owner/repository" required maxlength="256"></div>
+<div class="field"><label for="branch">Branch</label><input id="branch" name="branch" value="{{ branch or 'main' }}" required maxlength="120"></div>
+<button type="submit">Inspect repository</button>
+</form></section>
+{% if error %}<section class="error" role="alert">{{ error }}</section>{% endif %}
+{% if plan %}
+<section class="panel">
+<h2>Proposed installation</h2>
+<p class="warn">Preview only. Repository-authored commands require separate administrator approval before execution.</p>
+<dl>
+<dt>Repository</dt><dd>{{ plan.repository }}</dd>
+<dt>Branch</dt><dd>{{ plan.branch }}</dd>
+<dt>Exact commit</dt><dd><code>{{ plan.commit_sha }}</code></dd>
+<dt>Application</dt><dd>{{ plan.application }}</dd>
+<dt>Systemd service</dt><dd>{{ plan.service_unit or "Static site" }}</dd>
+<dt>Port</dt><dd>{{ plan.port }}</dd>
+<dt>Protected proxy path</dt><dd>{{ plan.proxy_path or "Not requested" }}</dd>
+<dt>Required secret names</dt><dd>{{ plan.required_environment|join(', ') or "None" }}</dd>
+<dt>Requested build steps</dt><dd><pre>{{ plan.build_commands_pending_approval|tojson(indent=2) }}</pre></dd>
+<dt>Requested entrypoint</dt><dd><pre>{{ plan.entrypoint_pending_approval|tojson(indent=2) }}</pre></dd>
+</dl>
+</section>
+{% endif %}
+</main></body></html>
