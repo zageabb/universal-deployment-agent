@@ -19,6 +19,7 @@ from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_
 from repo_visibility import resolved_repo_visibility
 from deployment_reporting import inventory, inventory_item
 from onboarding import inspect_repo, OnboardingError
+from onboarding_v2 import preview_v2
 from onboarding_install import prepare_plan, issue_ticket, approved_stage
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
@@ -284,7 +285,7 @@ def create_app(config_path: Path) -> Flask:
     @app.get("/onboarding")
     def onboarding_form():
         return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
-                               repository_url="", branch="main", plan=None, ticket=None,
+                               repository_url="", branch="main", plan=None, v2_plan=None, ticket=None,
                                staged=None, error=None)
 
     @app.post("/onboarding/preview")
@@ -293,14 +294,21 @@ def create_app(config_path: Path) -> Flask:
         branch = request.form.get("branch", "main").strip()
         try:
             preview = inspect_repo(repository_url, branch)
-            plan = prepare_plan(preview, config())
-            ticket = issue_ticket(plan, app.config["ONBOARDING_APPROVAL_KEY"])
+            if preview["manifest"]["schema_version"] == 2:
+                # No signed stage ticket, port allocation, registry mutation
+                # or executable command handling on the v2 read-only path.
+                v2_plan = preview_v2(preview, config())
+                plan, ticket = None, None
+            else:
+                plan = prepare_plan(preview, config())
+                ticket = issue_ticket(plan, app.config["ONBOARDING_APPROVAL_KEY"])
+                v2_plan = None
             error = None
         except OnboardingError as exc:
-            plan, ticket, error = None, None, str(exc)
+            plan, ticket, v2_plan, error = None, None, None, str(exc)
         return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
                                repository_url=repository_url, branch=branch,
-                               plan=plan, ticket=ticket, staged=None,
+                               plan=plan, v2_plan=v2_plan, ticket=ticket, staged=None,
                                error=error), (400 if error else 200)
 
     @app.post("/onboarding/stage")
@@ -325,7 +333,7 @@ def create_app(config_path: Path) -> Flask:
         except (OnboardingError, OSError) as exc:
             staged, error = None, str(exc)
         return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
-                               repository_url="", branch="main", plan=None, ticket=None,
+                               repository_url="", branch="main", plan=None, v2_plan=None, ticket=None,
                                staged=staged, error=error), (400 if error else 200)
 
     @app.get("/api/deployments")
