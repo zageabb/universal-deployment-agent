@@ -153,9 +153,9 @@ def test_environment_path_cannot_be_symlink(tmp_path):
 def test_systemd_injection_newline_and_percent_escaping(tmp_path):
     values = fixture(tmp_path)
     doc, release, env, commands, units = values
-    doc["services"][0]["entrypoint"] = ["/usr/bin/python3", "a%\nb"]
+    doc["services"][0]["entrypoint"] = ["/usr/bin/python3", "app.py", "a%\nb"]
     commands = dict(commands)
-    commands["web"] = ("/usr/bin/python3", "a%\nb")
+    commands["web"] = ("/usr/bin/python3", "app.py", "a%\nb")
     with pytest.raises(OnboardingError, match="argv"):
         render(values, approved_entrypoints=commands)
     doc["services"][0]["entrypoint"] = ["/usr/bin/python3", "app.py", "percent%value"]
