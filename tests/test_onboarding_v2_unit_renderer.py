@@ -158,8 +158,8 @@ def test_systemd_injection_newline_and_percent_escaping(tmp_path):
     commands["web"] = ("/usr/bin/python3", "a%\nb")
     with pytest.raises(OnboardingError, match="argv"):
         render(values, approved_entrypoints=commands)
-    doc["services"][0]["entrypoint"] = ["/usr/bin/python3", "percent%value"]
-    commands["web"] = ("/usr/bin/python3", "percent%value")
+    doc["services"][0]["entrypoint"] = ["/usr/bin/python3", "app.py", "percent%value"]
+    commands["web"] = ("/usr/bin/python3", "app.py", "percent%value")
     rendered = render(values, approved_entrypoints=commands)
     assert "percent%%value" in rendered["units"]["tender-web.service"]
 
