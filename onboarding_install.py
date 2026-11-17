@@ -124,6 +124,8 @@ def stage_checkout(plan: dict, staging_root: Path, *, clone_run=None) -> dict:
     name = plan.get("application")
     if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", name):
         raise OnboardingError("Invalid application name")
+    if staging_root.expanduser().is_symlink():
+        raise OnboardingError("Staging root must not be a symlink")
     root = staging_root.expanduser().resolve(strict=True)
     if root.is_symlink():
         raise OnboardingError("Staging root must not be a symlink")
@@ -161,7 +163,7 @@ def stage_checkout(plan: dict, staging_root: Path, *, clone_run=None) -> dict:
         return {"repository": repository, "application": name, "commit_sha": sha,
                 "staged_path": str(target), "status": "staged_only",
                 "service_created": False, "registry_modified": False}
-    except BaseException:
+    except (OnboardingError, OSError, ValueError):
         if target.exists() and target.is_dir() and not target.is_symlink():
             shutil.rmtree(target)
         raise
