@@ -32,6 +32,39 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: disposable unit-file adapter (development only)
+
+`onboarding_v2_unit_sandbox.py` implements the injected simulation-adapter
+contract against a private temporary filesystem sandbox. Unlike earlier
+in-memory tests, this increment writes atomically to **test-only systemd-like
+unit files** and captures their previous bytes and prior running status.
+
+- Sandbox must be an existing private directory below the operating-system
+  temporary root. Symlinks, hardlinked unit files, untrusted names and
+  writable/exposed lock files are rejected.
+- Atomic unit writes flush and fsync data and the parent directory.
+- All start, stop, runtime-state and health operations are supplied as **fake
+  test callbacks**, not systemctl commands. No dashboard endpoint calls this.
+- Rollback restores the exact previous unit bytes and previous running
+  state. A partial failed start or health probe triggers the simulator's
+  full-service compensation path.
+- The existing SHA-256 chained journal can be injected to record durable
+  intent before each simulated mutation. Source command and secret values are
+  not journalled.
+- Fail-closed unit paths remain restricted to the sandbox. The module has
+  no privileged Ubuntu worker, no Caddy or registry integration and no
+  authority to install or modify any actual service.
+
+**Test evidence:** [V2-003 Sandbox Unit Adapter CI run
+44194945825](https://github.com/zageabb/universal-deployment-agent/actions/runs/44194945825):
+**104/104 tests passed on Python 3.12 and 3.13**, covering this adapter
+plus the preceding V2-003 preflight/journal and V1/V2 transaction regressions.
+
+This is **not** production acceptance: a separately approved restricted
+Ubuntu systemd worker, actual unit-file renderer and policy review,
+operating-system isolation, restart-time recovery, integration tests and
+an explicit deployment authorisation boundary are still required.
+
 ## V2-003: Ubuntu read-only reconciliation and crash-journal foundation
 
 The multi-service simulated transaction coordinator is now accompanied by
