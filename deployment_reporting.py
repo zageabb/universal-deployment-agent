@@ -161,6 +161,46 @@ def publish_deployment(item: dict, token: str, environment_url: str | None = Non
             "sha": sha, "status_id": published["id"]}
 
 
+
+def publish_once(app: dict, item: dict, token: str, state_path: Path) -> dict:
+    """Serialize publications and avoid repeat GitHub events for unchanged releases."""
+    import fcntl
+    state_path = state_path.expanduser()
+    state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = state_path.with_suffix(state_path.suffix + ".lock")
+    with lock_path.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            previous = json.loads(state_path.read_text())
+        except FileNotFoundError:
+            previous = {}
+        if not isinstance(previous, dict):
+            raise ValueError("Deployment publication state is corrupt")
+        key = f"{item.get('repository')}|{item.get('environment', 'production')}"
+        # Do not skip validation just because an earlier publication exists.
+        if item.get("state") not in {"matched", "behind_remote"}:
+            raise ValueError("Refusing publication of unverifiable release")
+        if previous.get(key, {}).get("sha") == item.get("running_sha"):
+            return {"skipped": "already_published", **previous[key]}
+        published = publish_deployment(item, token, app.get("app_url"))
+        previous[key] = {"sha": item["running_sha"], "deployment_id": published["deployment_id"],
+                         "published_at": datetime.now(timezone.utc).isoformat()}
+        import tempfile
+        fd, temporary = tempfile.mkstemp(prefix=".uda-publications-", dir=state_path.parent)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w") as handle:
+                json.dump(previous, handle, indent=2)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, state_path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        return published
+
+
 def main() -> int:
     from deploy_agent import load_config, health_check
     parser = argparse.ArgumentParser(description="Preview or publish verified UDA deployments")
@@ -180,7 +220,8 @@ def main() -> int:
                     raise ValueError("Application is archived or disabled")
                 if app.get("kind", "service") == "service":
                     health_check(str(app["health_url"]), int(app.get("health_timeout", 30)))
-                item["publication"] = publish_deployment(item, token, app.get("app_url"))
+                state_path = Path(cfg.get("github_publication_state_file", "~/.local/state/deployment-agent/github-publications.json"))
+                item["publication"] = publish_once(app, item, token, state_path)
             except (ValueError, OSError, KeyError) as exc:
                 item["publication"] = {"error": str(exc)}
     print(json.dumps(data, indent=2))
