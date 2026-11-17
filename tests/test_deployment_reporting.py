@@ -164,3 +164,30 @@ def test_failed_health_never_attests_new_sha(tmp_path, monkeypatch):
     with pytest.raises(deploy_agent.DeployError, match="unhealthy"):
         deploy_agent.deploy_application(app, False, deploy_agent.logging.getLogger("test"))
     assert not marker.exists()
+
+
+def test_publish_once_deduplicates_identical_release(tmp_path):
+    item = {"repository": "zageabb/demo", "running_sha": "a" * 40,
+            "state": "matched", "environment": "production"}
+    app = {"app_url": "https://example.com/app"}
+    report = {"repository": "zageabb/demo", "deployment_id": 42,
+              "sha": "a" * 40, "status_id": 99}
+    state_file = tmp_path / "history" / "publications.json"
+    with patch.object(reporting, "publish_deployment", return_value=report) as publish:
+        assert reporting.publish_once(app, item, "token", state_file) == report
+        repeated = reporting.publish_once(app, item, "token", state_file)
+    assert repeated["skipped"] == "already_published"
+    assert publish.call_count == 1
+    assert state_file.stat().st_mode & 0o777 == 0o600
+
+
+def test_published_release_cannot_hide_new_dirty_state(tmp_path):
+    item = {"repository": "zageabb/demo", "running_sha": "a" * 40,
+            "state": "matched", "environment": "production"}
+    state_file = tmp_path / "publications.json"
+    with patch.object(reporting, "publish_deployment", return_value={
+            "deployment_id": 42, "sha": "a" * 40}):
+        reporting.publish_once({}, item, "token", state_file)
+    item["state"] = "dirty"
+    with pytest.raises(ValueError, match="unverifiable"):
+        reporting.publish_once({}, item, "token", state_file)
