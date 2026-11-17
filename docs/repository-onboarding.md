@@ -96,6 +96,27 @@ but private source checkout requires a separately secured transfer mechanism.
 A private repo may therefore preview successfully but cannot yet be staged.
 No generated plan is permission to execute repository-defined commands.
 
+## Inactive release preparation (implemented)
+
+`onboarding_release.py` can turn a verified staged checkout into a separate
+commit-named directory under a designated release root. It excludes `.git`,
+rejects symlinks and special files, limits repository size, records SHA-256
+file hashes in `.uda-release.json`, and refuses to overwrite an existing
+release. `verify_prepared_release` re-hashes the files and rejects modified
+or additional files before later activation.
+
+The module also generates a **preview-only** systemd service definition with
+baseline restrictions (`NoNewPrivileges`, `PrivateTmp` and
+`ProtectSystem`). It does **not** write this definition into systemd or
+execute any application entrypoint. No registry, Caddy, service, database,
+secrets or running application is changed.
+
+A prepared directory is *commit-named and content-verified*, not inherently
+tamper-proof or a completed build. A dedicated restricted worker, secure
+ownership/permissions, dependency handling, artifact integrity and active
+service verification are required before production use. No new web endpoint
+can activate a release in this increment.
+
 ## Next increment: approved install engine
 
 Build as a separate, auditable transaction:
@@ -104,7 +125,8 @@ Build as a separate, auditable transaction:
 2. Resolve required environment values without passing secrets into the repository.
 3. Reserve the proposed port under the deployment lock at final activation.
 4. Support secure private source transfers pinned to the approved commit.
-5. Execute approved build commands under a restricted service account/container.
+5. Use the prepared release verification receipt before restricted execution.
+6. Execute approved build commands under a restricted service account/container.
 6. Write an immutable release directory and carefully generated systemd unit.
 7. Start the application on localhost and run a full health/permission check.
 8. Atomically register it in UDA, then stage/reload Caddy and verify SSO.
