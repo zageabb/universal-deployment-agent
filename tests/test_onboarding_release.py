@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from onboarding import OnboardingError
-from onboarding_release import prepare_release, systemd_unit_preview
+from onboarding_release import prepare_release, systemd_unit_preview, verify_prepared_release
 
 
 def setup_source(tmp_path):
@@ -102,3 +102,30 @@ def test_systemd_preview_refuses_bad_entrypoint(tmp_path):
     with pytest.raises(OnboardingError, match="Invalid service argument"):
         systemd_unit_preview(plan, Path(prepared["release_path"]),
                              environment_file=tmp_path / "private.env")
+
+
+def test_prepared_release_verifies_exact_content(tmp_path):
+    staged, staging, releases, _ = setup_source(tmp_path)
+    prepared = prepare_release(staged, staging, releases)
+    receipt = verify_prepared_release(Path(prepared["release_path"]),
+                                      staged["commit_sha"])
+    assert receipt["verified"] is True
+    assert receipt["file_count"] == 2
+
+
+def test_release_tampering_is_detected(tmp_path):
+    staged, staging, releases, _ = setup_source(tmp_path)
+    prepared = prepare_release(staged, staging, releases)
+    release = Path(prepared["release_path"])
+    (release / "app.py").write_text("injected")
+    with pytest.raises(OnboardingError, match="checksum"):
+        verify_prepared_release(release, staged["commit_sha"])
+
+
+def test_release_addition_is_detected(tmp_path):
+    staged, staging, releases, _ = setup_source(tmp_path)
+    prepared = prepare_release(staged, staging, releases)
+    release = Path(prepared["release_path"])
+    (release / "unapproved.py").write_text("hello")
+    with pytest.raises(OnboardingError, match="file set"):
+        verify_prepared_release(release, staged["commit_sha"])
