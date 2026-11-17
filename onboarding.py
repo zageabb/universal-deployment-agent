@@ -193,7 +193,7 @@ def inspect_private_repo(full_name: str, branch: str, token: str) -> dict:
     if manifest_data.get("encoding") != "base64" or not isinstance(manifest_data.get("content"), str):
         raise OnboardingError("GitHub returned unsupported manifest encoding")
     try:
-        raw = base64.b64decode(manifest_data["content"], validate=False)
+        raw = base64.b64decode("".join(manifest_data["content"].split()), validate=True)
     except (ValueError, base64.binascii.Error) as exc:
         raise OnboardingError("GitHub returned invalid manifest data") from exc
     manifest = parse_manifest(raw)
