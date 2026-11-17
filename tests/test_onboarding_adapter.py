@@ -149,3 +149,39 @@ def test_adapter_failed_attestation_cleanup(tmp_path):
     assert result.state in {"rolled_back", "rollback_failed"}
     assert not unit.exists()
     assert not receipt.exists()
+
+
+def test_adapter_persists_recovery_snapshot_before_mutation(tmp_path):
+    import uuid
+    from onboarding_recovery import load_snapshot
+    plan, release, adapter, registry, unit, proxy, receipt, state, events = fixture(tmp_path)
+    root = tmp_path / "private-snapshots"
+    adapter.snapshot_root = root
+    transaction_id = str(uuid.uuid4())
+    original = registry.read_bytes()
+    result = execute_transaction(
+        plan, release, adapter, transaction_id=transaction_id,
+        explicitly_approved=True, production_enablement=True
+    )
+    assert result.state == "completed"
+    stored = load_snapshot(root, transaction_id)
+    assert stored["registry"] == original
+    assert stored["unit"] is None
+    assert stored["proxy"] is None
+
+
+def test_unavailable_recovery_store_blocks_activation(tmp_path):
+    import uuid
+    plan, release, adapter, registry, unit, proxy, receipt, state, events = fixture(tmp_path)
+    root = tmp_path / "exposed"
+    root.mkdir()
+    root.chmod(0o755)
+    adapter.snapshot_root = root
+    result = execute_transaction(
+        plan, release, adapter, transaction_id=str(uuid.uuid4()),
+        explicitly_approved=True, production_enablement=True
+    )
+    assert result.state == "rolled_back"
+    assert not unit.exists()
+    assert registry.read_text().find('"applications": []') >= 0
+    assert state["running"] is False
