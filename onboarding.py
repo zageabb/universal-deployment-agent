@@ -69,6 +69,9 @@ def validate_manifest(value: Any) -> dict:
         raise OnboardingError(f"Unrecognised manifest sections: {', '.join(sorted(unknown))}")
     if type(root.get("schema_version")) is not int or root["schema_version"] != 1:
         raise OnboardingError("schema_version must equal 1")
+    source = _mapping(root.get("source", {}), "source")
+    if "branch" in source:
+        validate_branch(source["branch"])
     application = _mapping(root.get("application"), "application")
     name = _text(application.get("name"), "application.name", 63)
     if not APP_NAME.fullmatch(name):
@@ -184,6 +187,9 @@ def inspect_repo(url: str, branch: str = "main") -> dict:
         except OnboardingError:
             raise OnboardingError("Repository has no root uda.yaml; use discovery mode later")
         manifest = parse_manifest(data)
+        declared = yaml.safe_load(data).get("source", {}).get("branch", branch)
+        if declared != branch:
+            raise OnboardingError("Manifest source.branch differs from selected branch")
         return {"repository": full_name, "branch": branch, "commit_sha": sha,
                 "manifest": manifest, "status": "preview_only",
                 "requires_approval": True}
