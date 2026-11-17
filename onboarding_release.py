@@ -162,3 +162,35 @@ def systemd_unit_preview(plan: dict, release_path: Path, *, environment_file: Pa
         "Restart=on-failure", "",
         "[Install]", "WantedBy=default.target", "",
     ])
+
+
+def verify_prepared_release(release_path: Path, expected_sha: str) -> dict:
+    """Re-hash every tracked release file and reject additions before activation."""
+    path = release_path.expanduser()
+    if path.is_symlink() or not path.is_dir():
+        raise OnboardingError("Missing or linked release directory")
+    if not isinstance(expected_sha, str) or not SHA40.fullmatch(expected_sha):
+        raise OnboardingError("Invalid expected release identity")
+    receipt = path / ".uda-release.json"
+    if receipt.is_symlink() or not receipt.is_file():
+        raise OnboardingError("Release receipt is missing")
+    try:
+        data = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise OnboardingError("Release receipt is unreadable") from exc
+    if data.get("commit_sha") != expected_sha:
+        raise OnboardingError("Release identity does not match approved commit")
+    expected = data.get("files")
+    if not isinstance(expected, list) or not expected:
+        raise OnboardingError("Release manifest is empty or corrupt")
+    actual_paths = _safe_file_tree(path)
+    actual_names = {p.as_posix() for p in actual_paths if p.as_posix() != ".uda-release.json"}
+    expected_names = {row.get("path") for row in expected if isinstance(row, dict)}
+    if len(expected_names) != len(expected) or actual_names != expected_names:
+        raise OnboardingError("Release file set changed after preparation")
+    hashes = {row["path"]: row["sha256"] for row in expected}
+    for row in _files_manifest(path, [Path(p) for p in sorted(actual_names)]):
+        if row["sha256"] != hashes[row["path"]]:
+            raise OnboardingError("Release file checksum mismatch")
+    return {"verified": True, "commit_sha": expected_sha,
+            "application": data["application"], "file_count": len(actual_names)}
