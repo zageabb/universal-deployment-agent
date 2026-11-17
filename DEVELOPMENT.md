@@ -45,6 +45,7 @@ Requirements:
 - No sync to the live server until combined releases are tested and accepted.
 
 Current implementation:
+- Implements frozen uda.yaml v1.0 schema in `schemas/uda-manifest-v1.schema.json`, matching Application-Standard `standards/schemas/uda-manifest-v1.schema.json`; unknown nested keys are rejected, and runtime version/working directories stay in the signed staging plan.
 - Restricts repository URLs to HTTPS GitHub and records exact source SHA.
 - Clones \`--no-checkout\` temporarily and reads only \`uda.yaml\`.
 - Limits manifest size, rejects unsafe YAML/invalid fields and validates
