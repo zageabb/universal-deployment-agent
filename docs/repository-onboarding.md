@@ -31,6 +31,44 @@ Application-Standard provides `templates/uda.yaml` and schema contract
 tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
+
+## V2-003: Ubuntu read-only reconciliation and crash-journal foundation
+
+The multi-service simulated transaction coordinator is now accompanied by
+two isolated, explicitly **non-activating** Ubuntu-side building blocks:
+
+- `onboarding_v2_ubuntu_preflight.py`: schema-validated service graph inspection
+  using only exact allowlisted, non-mutating `systemctl --user list-units` and
+  `systemctl --user show` argument vectors. The output is bounded, limited to
+  unit identity, load/state, unit-file location and working directory; source
+  command lines and environment values are never requested. The checkout path
+  must be provided by the trusted operator, not by the manifest. Missing
+  declared units, repository-associated unregistered companions, lifecycle
+  ownership disagreement and unverified source directories are **blocking
+  reconciliation discrepancies**. This is intentionally separate from the
+  repository-only v2 web preview; it does not SSH, restart units or modify the
+  running UDA registry.
+- `onboarding_v2_recovery_journal.py`: private `0700` journal root,
+  `0600` append-only file, per-event fsync, SHA-256 chained records and bounded,
+  allowlisted operation/state payloads. It rejects symlinked or exposed paths,
+  modified records, truncation and noncanonical sequences. It retains no
+  source commands, environment values or secrets. The recovery status reader
+  reports outstanding undo intent for **manual review**, but
+  `can_auto_replay` is always `false`.
+
+The journal can be injected into the V2-003 in-memory transaction coordinator
+for failure testing. It does **not** provide an independently authenticated
+approval capability, automatic recovery after crash, a production systemd
+installer, Caddy publication or a privileged worker identity. Chain hashes
+detect accidental/unauthorised modification without a trusted external root;
+they are not signatures and cannot prove authorship.
+
+A real Ubuntu worker will still require a documented least-privilege unit
+allowlist, atomic unit-file snapshots and restore, strict operator approval,
+transaction-specific recovery binding, source-SHA attestation, health/readiness
+checks, crash recovery, and disposable Ubuntu end-to-end acceptance before
+any production activation route is enabled.
+
 ## V2-003: multi-service transaction simulation (development only)
 
 The separate `onboarding_v2_multiservice.py` module now provides an
