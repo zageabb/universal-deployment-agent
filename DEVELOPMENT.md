@@ -1,6 +1,6 @@
 # Development Status
 
-Last reviewed: 2026-10-02
+Last reviewed: 2026-11-17
 Current development state: ACTIVE
 
 ## Purpose
@@ -29,6 +29,34 @@ COMPLETE requires applicable repository evidence: implementation, changed files/
 For coding work, an empty result, no write/edit action, unchanged branch HEAD, empty diff or missing requested validation means the task is not complete.
 
 ## Development ledger
+
+### DEV-016 — Archive and restore registered applications
+Status: 🔨 IN PROGRESS
+Priority: High
+Owner/Agent: Codex
+Branch: `feature/archive-restore`
+Integration status: isolated and regression-tested; ready for review, merge and live acceptance
+
+Requirement:
+- Let an administrator make an application dormant without deleting its UDA
+  registry entry, then restore the same registration later.
+
+Implementation:
+- The authenticated, CSRF-protected dashboard action changes the existing
+  `enabled` flag while holding the deployment lock.
+- Service applications are stopped/disabled when archived and enabled/started
+  when restored. UDA-managed scheduled jobs are reconciled and published proxy
+  routes are refreshed. Library entries only change registry state.
+- Service entries without `service_unit` are rejected because UDA cannot safely
+  control their runtime.
+
+Evidence:
+- Files: `dashboard.py`, `templates/dashboard.html`, operations/configuration
+  documentation and dashboard regression tests.
+- Tests: `PYTHONPATH=. python3 -m pytest -q` — 116 passed.
+- Recovery source: `backup/server-state-2026-11-17` preserves the original live
+  server implementation before this clean branch was prepared from current main.
+- Merge, deployment and external/user acceptance: pending.
 
 ### DEV-015 — Return authenticated users to protected applications
 Status: ⏳ AWAITING ACCEPTANCE

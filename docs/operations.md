@@ -94,7 +94,7 @@ Pause all checks:
 systemctl --user disable --now deployment-agent.timer
 ```
 
-Pause one application by setting `auto_deploy` to false. Set `enabled` to false only when the application should not even be fetched or reported.
+Pause automatic code deployment for one application by setting `auto_deploy` to false. To make a registered application dormant, use **Archive** on its dashboard card. The registry entry remains visible as Archived; UDA stops and disables its configured service, removes its managed scheduled-job timers, and refreshes the proxy configuration. Use **Restore** to enable the registry entry and service again. Service applications need a `service_unit` configured before the dashboard allows this action. Library entries have no service to stop, so archiving only changes their UDA enabled state.
 
 ## Manual recovery
 
