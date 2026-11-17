@@ -30,6 +30,38 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-018 — Repository-based application onboarding
+Status: 🔨 IN PROGRESS
+Priority: High
+Branch: \`feature/repository-onboarding\`
+Integration status: safe discovery and installation preview implemented; full install engine pending
+
+Requirements:
+- Register new GitHub-hosted applications without needing ChatGPT Desktop to
+  clone code, create service definitions, or maintain the UDA registry manually.
+- Standard root \`uda.yaml\` manifest for a preview of runtime, build, service,
+  proxy, environment variables and deployment preferences.
+- Administrator-approved and transactionally recoverable installation.
+- No sync to the live server until combined releases are tested and accepted.
+
+Current implementation:
+- Restricts repository URLs to HTTPS GitHub and records exact source SHA.
+- Clones \`--no-checkout\` temporarily and reads only \`uda.yaml\`.
+- Limits manifest size, rejects unsafe YAML/invalid fields and validates
+  branch choice, service entrypoint, group/proxy basics and port requests.
+- Generates an installation plan and checks UDA registry name/unit/port conflicts.
+- Adds authenticated, CSRF-protected dashboard preview.
+- Does not run repository commands or modify production configuration.
+
+Evidence:
+- Source: \`onboarding.py\`, \`templates/onboarding.html\` and
+  \`tests/test_onboarding.py\`.
+- Documentation: \`docs/repository-onboarding.md\`.
+- Tests pushed but full independent suite and CI are **NOT VERIFIED**.
+- Remaining: signed installation plan, controlled clone/install into immutable
+  release directory, service/port allocation, validation, safe UDA registration,
+  Caddy/SSO publication, rollback and private repository access.
+
 ### DEV-017 — UDA deployment identity and GitHub reporting
 Status: 🔨 IN PROGRESS
 Priority: High
