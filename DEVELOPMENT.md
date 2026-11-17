@@ -52,6 +52,7 @@ Current implementation:
 - Generates an installation plan, allocates a candidate port, and checks UDA registry conflicts.
 - Adds authenticated, CSRF-protected dashboard preview and signed 15-minute approval tickets.
 - Administrator-approved staging revalidates the exact SHA/plan, then clones into an isolated directory without executing repository-defined commands.
+- Inactive release preparation packages staged files under a commit-specific path, records SHA-256 digests, detects tampering and renders a systemd service *preview only*.
 - Does not install services, update the registry, execute builds or change Caddy.
 
 Evidence:
