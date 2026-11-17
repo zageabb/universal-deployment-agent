@@ -162,7 +162,7 @@ def publish_deployment(item: dict, token: str, environment_url: str | None = Non
 
 
 def main() -> int:
-    from deploy_agent import load_config
+    from deploy_agent import load_config, health_check
     parser = argparse.ArgumentParser(description="Preview or publish verified UDA deployments")
     parser.add_argument("--config", required=True)
     parser.add_argument("--publish", action="store_true",
@@ -176,6 +176,10 @@ def main() -> int:
             if not app.get("github_reporting_enabled", False):
                 continue
             try:
+                if not app.get("enabled", False):
+                    raise ValueError("Application is archived or disabled")
+                if app.get("kind", "service") == "service":
+                    health_check(str(app["health_url"]), int(app.get("health_timeout", 30)))
                 item["publication"] = publish_deployment(item, token, app.get("app_url"))
             except (ValueError, OSError, KeyError) as exc:
                 item["publication"] = {"error": str(exc)}
