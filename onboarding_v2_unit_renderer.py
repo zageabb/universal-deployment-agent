@@ -128,6 +128,15 @@ def render_reviewed_units(
         if approved[0] not in APPROVED_INTERPRETERS:
             raise OnboardingError("Systemd executable is not on restricted runtime allowlist")
         working = _relative_dir(root, service.get("working_dir", "."))
+        if approved[0] in ("/usr/bin/python3", "/usr/bin/node"):
+            if len(approved) < 2 or not re.fullmatch(
+                    r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:py|js|mjs)",
+                    approved[1]):
+                raise OnboardingError("Reviewed runtime entrypoint must name a local script")
+            script = working / approved[1]
+            if (script.is_symlink() or not script.is_file() or
+                    not script.resolve().is_relative_to(root)):
+                raise OnboardingError("Reviewed runtime script is absent from release")
         environment = _env_file(environment_files[name])
         dependencies = [expected_units[dep] for dep in service.get("depends_on", [])]
         dependencies = [_unit(dep) for dep in dependencies]
