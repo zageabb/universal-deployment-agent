@@ -1,6 +1,6 @@
 # UDA-DEPLOY-002 — Repository-based onboarding
 
-Development stage: **read-only preview plus explicit, signed, stage-only approval implemented; installation not yet enabled**.
+Development stage: **versioned v1 manifest validation, approved source staging and activation components implemented; production installer still disabled**.
 
 ## Purpose
 
@@ -8,6 +8,28 @@ An administrator opens **UDA → Install from GitHub**, supplies an HTTPS GitHub
 repository URL and branch, and receives a plan derived from the repository's
 root `uda.yaml` manifest. This removes the manual inspection step from
 ChatGPT Desktop. UDA does not yet apply the installation plan.
+
+## Versioned uda.yaml v1.0 contract
+
+The canonical authoring specification is maintained in the
+[Application-Standard repository](https://github.com/zageabb/Application-Standard/blob/main/standards/UDA_MANIFEST_v1.md)
+and the schema at `standards/schemas/uda-manifest-v1.schema.json`.
+UDA vendors the same schema at `schemas/uda-manifest-v1.schema.json` and
+enforces it during manifest discovery. Both source files must remain byte
+identical at release.
+
+Schema v1.0 rejects unknown keys, validates runtime combinations, bounded
+argv build/service commands, relative working directories, environment
+variable names, secure proxy policy, and requested deployment booleans.
+Optional `runtime.version`, `runtime.working_dir`, and
+`build.working_dir` are preserved in signed staging plans and checked
+again before source staging. Version strings are currently informational;
+they do **not** guarantee a matching interpreter or Node runtime has been
+provisioned.
+
+Application-Standard provides `templates/uda.yaml` and schema contract
+tests. The specification is frozen for application authors but remains
+subject to CI/review before merging into the standard repository.
 
 ## Manifest example
 
