@@ -6,12 +6,16 @@ modify the UDA registry. Installation is a separate, approval-gated operation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 import re
+import os
+import json
+import base64
 import subprocess
 import tempfile
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from typing import Any
 
 import yaml
@@ -158,9 +162,55 @@ def parse_manifest(content: bytes) -> dict:
     return validate_manifest(value)
 
 
+def inspect_private_repo(full_name: str, branch: str, token: str) -> dict:
+    """Use read-only GitHub API access for private repositories.
+
+    Fetch the chosen branch HEAD first, then load uda.yaml using that exact
+    commit SHA so a concurrent branch push cannot swap the manifest.
+    """
+    if not token:
+        raise OnboardingError("GitHub API token is required")
+    def read_json(path: str) -> dict:
+        url = f"https://api.github.com/repos/{full_name}/{path}"
+        request = Request(url, headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        })
+        try:
+            with urlopen(request, timeout=15) as response:
+                payload = response.read(200_000)
+                if len(payload) == 200_000:
+                    raise OnboardingError("GitHub API response exceeded size limit")
+                return json.loads(payload)
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+            raise OnboardingError("GitHub repository or branch could not be read") from exc
+    commit = read_json(f"commits/{quote(branch, safe='')}")
+    sha = commit.get("sha", "")
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise OnboardingError("GitHub did not return a valid commit SHA")
+    manifest_data = read_json(f"contents/uda.yaml?ref={sha}")
+    if manifest_data.get("encoding") != "base64" or not isinstance(manifest_data.get("content"), str):
+        raise OnboardingError("GitHub returned unsupported manifest encoding")
+    try:
+        raw = base64.b64decode(manifest_data["content"], validate=False)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise OnboardingError("GitHub returned invalid manifest data") from exc
+    manifest = parse_manifest(raw)
+    declared = yaml.safe_load(raw).get("source", {}).get("branch", branch)
+    if declared != branch:
+        raise OnboardingError("Manifest source.branch differs from selected branch")
+    return {"repository": full_name, "branch": branch, "commit_sha": sha,
+            "manifest": manifest, "status": "preview_only",
+            "requires_approval": True}
+
+
 def inspect_repo(url: str, branch: str = "main") -> dict:
     full_name = repository_name(url)
     branch = validate_branch(branch)
+    token = os.environ.get("UDA_GITHUB_TOKEN", "")
+    if token:
+        return inspect_private_repo(full_name, branch, token)
     # Read-only discovery. No manifest-defined code runs during this step.
     with tempfile.TemporaryDirectory(prefix="uda-onboard-") as temporary:
         checkout = Path(temporary) / "source"
