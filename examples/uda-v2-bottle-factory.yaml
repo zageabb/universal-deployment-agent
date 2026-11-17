@@ -1,0 +1,38 @@
+# Design fixture only: legacy alias requires separately approved retirement.
+schema_version: 2
+application:
+  name: bottle-factory-game
+  kind: web
+  group: Personal
+source: {branch: main}
+builds:
+  - name: frontend
+    toolchain: node
+    version: "22"
+    commands: [["npm", "ci"], ["npm", "run", "build"]]
+    artifact:
+      path: dist
+      kind: static
+      base_path: /apps/bottle-factory-game/
+      activate: atomic-symlink
+static:
+  output_dir: dist
+  base_path: /apps/bottle-factory-game/
+  publication: atomic-symlink
+  headers_profile: secure-default
+proxy:
+  enabled: true
+  authentication: uda
+  upstream: static
+  canonical_path: /apps/bottle-factory-game/
+  aliases:
+    - path: /apps/bottle_factory_game/
+      approval: separate
+      expires_on: "2027-12-31"
+      mode: redirect
+      redirect: true
+      asset_base_migration: rebuild-verified
+deployment:
+  strategy: static
+  approval: explicit
+  rollback: true
