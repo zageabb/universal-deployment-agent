@@ -158,3 +158,30 @@ def test_simulated_systemd_output_limit(tmp_path):
     probe = UserSystemdInspector(run=lambda _: "A" * (128 * 1024 + 1))
     with pytest.raises(OnboardingError, match="response"):
         inspect_live_graph(manifest(), checkout, probe)
+
+
+def test_exact_systemctl_allowlist_rejects_environment_disclosure():
+    for argv in (
+        ["systemctl", "--user", "show", "--property=Environment", "--", "demo.service"],
+        ["systemctl", "--user", "restart", "--", "demo.service"],
+        ["systemctl", "--user", "show", "--property=ExecStart", "--", "demo.service"],
+        ["systemctl", "--user", "list-units", "--all", "--type=service", "--no-legend",
+         "--plain", "--no-pager", "--", "demo.service"],
+    ):
+        with pytest.raises(OnboardingError, match="read-only"):
+            _default_run(argv)
+
+
+def test_inactive_service_with_wrong_workdir_is_not_accepted(tmp_path):
+    checkout, _, _ = inspector(tmp_path)
+    def run(argv):
+        if argv[2] == "list-units":
+            return ("tender-web.service loaded inactive dead -\\n"
+                    "tender-mailbox.service loaded inactive dead -\\n")
+        return (f"Id={argv[-1]}\\nLoadState=loaded\\nActiveState=inactive\\n"
+                f"SubState=dead\\nWorkingDirectory={tmp_path}/wrong\\n"
+                f"FragmentPath=/home/user/.config/systemd/user/{argv[-1]}\\n")
+    report = inspect_live_graph(manifest(), checkout, UserSystemdInspector(run=run))
+    assert report["ready_for_reconciliation"] is False
+    assert len([x for x in report["conflicts"] if "Unable to attest" in x]) == 2
+
