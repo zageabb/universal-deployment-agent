@@ -1,0 +1,64 @@
+# Design fixture only: network capability is never granted by the manifest.
+schema_version: 2
+application:
+  name: networkbridge
+  kind: web
+  group: Infrastructure
+source:
+  branch: main
+builds:
+  - name: ui-build
+    toolchain: node
+    version: "22"
+    working_dir: ui
+    commands: [["npm", "ci", "--no-audit"], ["npm", "run", "build"]]
+  - name: api-deps
+    toolchain: python
+    version: "3.12"
+    commands: [["uv", "sync", "--python", "3.12", "--no-dev"]]
+services:
+  - name: api
+    role: web
+    runtime: python
+    runtime_version: "3.12.14"
+    entrypoint: ["uvicorn", "networkbridge.api:app", "--host", "127.0.0.1", "--port", "8765"]
+    port: 8765
+    health: {type: http, path: /api/health}
+    required_builds: [ui-build, api-deps]
+  - name: worker
+    role: worker
+    runtime: python
+    runtime_version: "3.12.14"
+    entrypoint: ["python", "-m", "networkbridge.worker"]
+    health: {type: process}
+    required_builds: [api-deps]
+health:
+  aggregate: all-required
+  required_services: [api]
+  optional_services: [worker]
+  on_optional_failure: degraded
+capabilities:
+  - name: active-discovery
+    kind: network-discovery
+    target: lan
+    approval: explicit
+    enabled_by_default: false
+    scope: {cidr_refs: [NETWORKBRIDGE_ACTIVE_DISCOVERY_CIDR]}
+  - name: router-polling
+    kind: router-polling
+    target: configured-router
+    approval: explicit
+    enabled_by_default: false
+    scope: {endpoint_refs: [NETWORKBRIDGE_ROUTER_URL]}
+environment:
+  required: [NETWORKBRIDGE_ACTIVE_DISCOVERY_CIDR, NETWORKBRIDGE_ROUTER_URL]
+proxy:
+  enabled: true
+  authentication: uda
+  upstream: api
+  canonical_path: /apps/networkbridge/
+  authorization_groups: ["TAIJU - Development"]
+deployment:
+  strategy: systemd
+  approval: explicit
+  rollback: true
