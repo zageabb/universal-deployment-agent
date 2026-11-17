@@ -85,6 +85,39 @@ def inventory_item(app: dict) -> dict:
     return item
 
 
+
+def write_attestation(app: dict, sha: str) -> None:
+    """Atomically record a SHA only after the deployment health gate passed.
+
+    Requires an explicitly configured marker path. Never write into a Git tree.
+    """
+    target = app.get("deployed_sha_file")
+    if not target:
+        return
+    if not SHA.fullmatch(sha):
+        raise ValueError("Cannot attest invalid commit SHA")
+    path = Path(target).expanduser()
+    repo = Path(app["repo_path"]).expanduser().resolve()
+    if path.is_symlink() or path.resolve().is_relative_to(repo):
+        raise ValueError("Attestation must be outside the repository and not a symlink")
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    import tempfile
+    try:
+        fd, temporary = tempfile.mkstemp(prefix=".uda-sha-", dir=path.parent)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="ascii") as handle:
+                handle.write(sha + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+    except OSError as exc:
+        raise ValueError(f"Unable to write deployment attestation: {exc}") from exc
+
+
 def inventory(config: dict) -> dict:
     return {"generated_at": datetime.now(timezone.utc).isoformat(),
             "applications": [inventory_item(app) for app in config["applications"]]}
