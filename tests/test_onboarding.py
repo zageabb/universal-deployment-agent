@@ -142,3 +142,41 @@ def test_reject_manifest_missing_from_repo():
     with patch.object(onboarding.subprocess, "run", side_effect=fake_run):
         with pytest.raises(onboarding.OnboardingError, match="no root uda.yaml"):
             onboarding.inspect_repo("https://github.com/zageabb/demo")
+
+
+def test_onboarding_routes_require_auth_and_csrf(tmp_path):
+    import json
+    import dashboard
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"applications": [], "dashboard_token": "secret"}))
+    client = dashboard.create_app(config).test_client()
+    assert client.get("/onboarding").status_code == 401
+    assert client.post("/onboarding/preview").status_code == 401
+    header = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    form = client.get("/onboarding", headers=header)
+    assert form.status_code == 200
+    assert b"Install from GitHub" in form.data
+    assert client.post("/onboarding/preview", headers=header,
+                       data={"repository_url": "https://github.com/owner/repo"}).status_code == 403
+
+
+def test_onboarding_preview_does_not_mutate_registry(tmp_path):
+    import json
+    import dashboard
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({"applications": [], "dashboard_token": "secret"}))
+    client = dashboard.create_app(config).test_client()
+    header = {"Authorization": "Basic YWRtaW46c2VjcmV0"}
+    csrf = client.application.config["CSRF_TOKEN"]
+    preview = {"repository": "owner/repo", "branch": "main",
+               "commit_sha": "a" * 40, "manifest": onboarding.validate_manifest(manifest())}
+    before = config.read_bytes()
+    with patch.object(dashboard, "inspect_repo", return_value=preview) as inspect:
+        response = client.post("/onboarding/preview", headers=header,
+                               data={"csrf_token": csrf,
+                                     "repository_url": "https://github.com/owner/repo",
+                                     "branch": "main"})
+    assert response.status_code == 200
+    assert b"preview" in response.data.lower()
+    assert config.read_bytes() == before
+    inspect.assert_called_once()
