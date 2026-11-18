@@ -218,3 +218,13 @@ def test_journal_records_only_allowlisted_state_and_no_env_secrets(tmp_path):
     assert "ExecStart" not in events
     assert "SECRET=" not in events
     assert result["service_result"]["production_activation_allowed"] is False
+
+
+def test_invalid_transaction_identity_does_not_consume_review_token(tmp_path):
+    args, before, running, calls = setup(tmp_path)
+    args["transaction_id"] = "../invalid"
+    with pytest.raises(OnboardingError, match="transaction ID"):
+        run(args)
+    assert not calls
+    assert not list(args["review_receipts"].iterdir())
+    assert not list(args["journal_root"].iterdir())
