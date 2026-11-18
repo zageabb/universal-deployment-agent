@@ -18,6 +18,7 @@ import re
 from onboarding import OnboardingError
 from onboarding_release import verify_prepared_release
 from onboarding_v2_ubuntu_preflight import _unit
+from onboarding_v2_runtime_profiles import review_python_venv, VENV_ENTRY
 from uda_manifest_v2_validate import ManifestV2Error, validate as validate_v2
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -81,6 +82,7 @@ def render_reviewed_units(
     environment_files: dict[str, Path],
     approved_entrypoints: dict[str, tuple[str, ...]],
     expected_units: dict[str, str],
+    runtime_profiles: dict[str, dict] | None = None,
 ) -> dict:
     """Return immutable review artifact, never write service files.
 
@@ -109,6 +111,9 @@ def render_reviewed_units(
     receipt = verify_prepared_release(root, source_commit_sha)
     if receipt["application"] != manifest["application"]["name"]:
         raise OnboardingError("Prepared release belongs to another application")
+    runtime_profiles = {} if runtime_profiles is None else runtime_profiles
+    if not isinstance(runtime_profiles, dict) or set(runtime_profiles) - set(services):
+        raise OnboardingError("Unexpected reviewed runtime profile")
     names = set()
     unit_texts = {}
     for name in plan["deployment_order"]:
@@ -123,12 +128,19 @@ def render_reviewed_units(
                 tuple(entry) != approved or not approved or
                 not all(isinstance(arg, str) for arg in approved)):
             raise OnboardingError("Service entrypoint differs from independently reviewed argv")
-        # No shell, env indirection, relative executable resolution or arbitrary
-        # repo-supplied absolute executables. This is intentionally restrictive.
-        if approved[0] not in APPROVED_INTERPRETERS:
-            raise OnboardingError("Systemd executable is not on restricted runtime allowlist")
+        # The only relative binary accepted is a separately attested Python
+        # virtualenv. A manifest cannot nominate arbitrary shell wrappers.
         working = _relative_dir(root, service.get("working_dir", "."))
-        if approved[0] in ("/usr/bin/python3", "/usr/bin/node"):
+        executable = approved[0]
+        if name in runtime_profiles:
+            if executable != VENV_ENTRY or service["runtime"] != "python":
+                raise OnboardingError("Runtime profile is not for an approved Python virtualenv")
+            runtime = review_python_venv(runtime_profiles[name],
+                                         release_commit=source_commit_sha)
+            executable = runtime["resolved_entrypoint"]
+        elif executable not in APPROVED_INTERPRETERS:
+            raise OnboardingError("Systemd executable is not on restricted runtime allowlist")
+        if executable in ("/usr/bin/python3", "/usr/bin/node") or name in runtime_profiles:
             if len(approved) < 2 or not re.fullmatch(
                     r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:py|js|mjs)",
                     approved[1]):
@@ -137,6 +149,8 @@ def render_reviewed_units(
             if (script.is_symlink() or not script.is_file() or
                     not script.resolve().is_relative_to(root)):
                 raise OnboardingError("Reviewed runtime script is absent from release")
+            if name in runtime_profiles and not approved[1].endswith(".py"):
+                raise OnboardingError("Virtualenv runtime requires an approved Python script")
         environment = _env_file(environment_files[name])
         dependencies = [expected_units[dep] for dep in service.get("depends_on", [])]
         dependencies = [_unit(dep) for dep in dependencies]
@@ -153,7 +167,7 @@ def render_reviewed_units(
             "[Service]", "Type=simple",
             f"WorkingDirectory={_quote(str(working))}",
             f"EnvironmentFile={_quote(str(environment))}",
-            "ExecStart=" + " ".join(_quote(arg) for arg in approved),
+            "ExecStart=" + " ".join(_quote(arg) for arg in (executable, *approved[1:])),
             "Restart=" + ("no" if restart == "never" else restart),
             "NoNewPrivileges=yes", "PrivateTmp=yes",
             "ProtectSystem=strict", "ProtectHome=read-only",
