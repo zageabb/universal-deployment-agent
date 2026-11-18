@@ -32,6 +32,50 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: disposable Ubuntu 24.04 real systemd lifecycle acceptance (18 November 2026)
+
+The `tests/integration/v2_systemd/` integration harness now exercises the
+actual systemd service manager, not just mocked lifecycle callbacks or the
+`systemd-analyze verify` parser. It runs **only** in a GitHub-hosted, ephemeral
+Ubuntu 24.04 Docker systemd-PID1 environment:
+
+- Workflow `.github/workflows/v2-disposable-systemd.yml` builds the CI-only
+  Ubuntu image, starts a network-disabled container with private `/run`,
+  copies hard-coded `uda-v2-test-web.service` and
+  `uda-v2-test-worker.service` fixtures, then executes the test inside that
+  container. The container uses `--privileged` for systemd PID1 and must
+  remain restricted to ephemeral GitHub-hosted CI; **never run this CI command
+  against the production Docker daemon**.
+- The test script refuses to run unless `UDA_V2_DISPOSABLE_CONTAINER=1`,
+  `/.dockerenv` exists, PID 1 is systemd and the OS is Ubuntu 24.04.
+  Its command helper permits only the hard-coded two test service names.
+- Real `systemctl` starts the web service, confirms a local HTTP health
+  endpoint, then starts its dependent worker and confirms its heartbeat.
+- Stopping the optional worker demonstrates that the application remains
+  healthy at the web tier but must be recorded as **degraded**.
+- The test snapshots both real unit-file bytes and their running states,
+  deliberately replaces the web unit launcher with a failing command,
+  detects the failed service, restores both previous unit definitions,
+  reloads systemd and restores the prior web/worker running states.
+- Unit files and the entire disposable container are torn down at the end.
+  Machine-readable evidence is uploaded as a short-retention CI artifact.
+  No host volume, Docker socket, network connectivity, Caddy configuration,
+  UDA registry, project database or actual application is mounted or touched.
+
+**Verified CI acceptance:** [V2-003 Disposable Ubuntu Systemd Lifecycle
+run 44350066025](https://github.com/zageabb/universal-deployment-agent/actions/runs/44350066025)
+completed **successfully**. The job log confirms
+`PASS: disposable systemd startup, degraded worker and rollback`; the
+`uda-v2-disposable-systemd-evidence` artifact contains per-stage results.
+
+**Scope warning:** This integration harness directly controls two **CI-only
+systemd units**. It is not wired to the UDA manifest installer and is not a
+production deployment worker. It does not yet prove recovery through an
+unexpected host reboot, privilege separation of the future UDA worker,
+authentication of production activation approvals, or deployment of an
+actual 18-app manifest. Production activation remains disabled and the
+entire V2 implementation stays in draft PRs.
+
 ## V2-003: actual Ubuntu systemd parser acceptance (18 November 2026)
 
 `onboarding_v2_systemd_verify.py` extends the offline rehearsal with a real
