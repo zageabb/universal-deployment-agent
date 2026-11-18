@@ -32,6 +32,46 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: reviewed Python virtualenv runtime profiles
+
+`onboarding_v2_runtime_profiles.py` extends the **review-only** systemd unit
+renderer to support a separately provisioned Python virtualenv launcher:
+
+- A service may declare `[".venv/bin/python", "app.py"]` only if a
+  **separately approved** `runtime_profiles[service_name]` is supplied to
+  `render_reviewed_units`. The repository manifest cannot approve itself.
+- A Python runtime profile binds the virtualenv's private absolute directory,
+  its expected interpreter target, interpreter SHA-256, `pyvenv.cfg` SHA-256,
+  and the prepared source commit. This accommodates the common virtualenv
+  `bin/python` symlink only when it resolves to the exact independently
+  reviewed executable.
+- Render-time verification rejects symlink swaps, executable/config file
+  modifications, source-commit changes, public-writable virtualenv directories,
+  unknown workloads, non-Python services and unsupported `python -c` or
+  shell launchers. Application scripts still must exist in the prepared,
+  checksum-verified source release.
+- Unit text contains the reviewed **absolute virtualenv executable path**,
+  never an untrusted relative executable. The interpreter and config hashes
+  are included in `runtime_hashes`, which are incorporated into the overall
+  bundle digest. Consequently, changing runtime bytes while retaining the
+  executable path **changes the review bundle identity**.
+- `onboarding_v2_approval.py` checks the runtime evidence as part of the
+  existing bundle signature. An old signed review cannot approve a changed
+  runtime.
+- No virtualenv creation, pip installation, package execution, dependency
+  resolution, activation or production unit installation occurs. The runtime
+  profile is a **review artifact**, not authorisation to run processes.
+
+**Verification:** [V2-003 Runtime Profiles run 44243834473](https://github.com/zageabb/universal-deployment-agent/actions/runs/44243834473)
+passed **148 tests on Python 3.12 and 148 on Python 3.13**. The initial run
+detected a real bundle-hash omission for changed virtualenv interpreter bytes;
+the renderer, approval verifier and tests were updated together before the
+passing run.
+
+Outstanding work includes application-specific wrapper policies, immutable
+virtualenv build provenance, trusted host operator identity, actual restricted
+systemd activation, crash restart recovery and disposable Ubuntu acceptance.
+
 ## V2-003: independently signed, single-use reviewed-bundle attestation
 
 `onboarding_v2_approval.py` adds a **review-only** approval envelope for a
