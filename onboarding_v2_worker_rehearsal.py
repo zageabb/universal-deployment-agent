@@ -86,6 +86,9 @@ def rehearse_reviewed_release(
         is_running=is_running, start_unit=start_unit,
         stop_unit=stop_unit, health_probe=health_probe,
     )
+    # The journal must accept the transaction ID and private store before
+    # consuming the review token; an invalid transaction is not a review.
+    journal = DurableServiceJournal(journal_root, transaction_id)
     # Reviewing this exact bundle consumes a one-use attestation; it never
     # grants privileged execution permission.
     receipt = review_attestation(
@@ -94,7 +97,6 @@ def rehearse_reviewed_release(
     )
     if receipt["can_install"] is not False or receipt["permission"] != "review_only":
         raise OnboardingError("Review attestation unexpectedly enabled installation")
-    journal = DurableServiceJournal(journal_root, transaction_id)
     result = simulate_multiservice_release(
         manifest, adapter, journal=journal, simulation_only=True,
     )
