@@ -36,6 +36,11 @@ def _runner(argv: list[str], *, cwd: Path) -> tuple[int, str]:
             any(not isinstance(path, str) or not path.endswith(".service")
                 for path in argv[2:])):
         raise OnboardingError("Only systemd-analyze verify is permitted")
+    if (not isinstance(cwd, Path) or not cwd.is_absolute() or cwd.is_symlink()
+            or any(Path(path).parent != cwd or
+                   Path(path).name != _unit(Path(path).name)
+                   for path in argv[2:])):
+        raise OnboardingError("Systemd verify targets must be exact sandbox unit files")
     if not Path(VERIFY_TOOL).is_file():
         raise OnboardingError("Ubuntu systemd-analyze is unavailable")
     try:
