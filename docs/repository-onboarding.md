@@ -32,6 +32,41 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: integrated offline worker rehearsal (18 November 2026)
+
+`onboarding_v2_worker_rehearsal.py` composes the previously separate
+verification, approval and rollback components into one **offline-only**
+transaction rehearsal. It does **not** implement production service
+installation or authorize a real systemd worker:
+
+- Re-validates the full v2 systemd-only graph and independently prepared
+  source-release SHA, Python runtime profile hashes, exact reviewed startup
+  vectors, private environment-file references, and unit-bundle bytes.
+- Rejects a bundle that differs from **freshly rendered source/runtime
+  evidence**. The one-use review attestation must be bound to the exact
+  bundle hash, reviewer, application and source SHA.
+- Enforces `rehearsal_only: true`, a private temporary unit sandbox, a
+  separate private durable journal directory, and an exact worker-to-unit
+  allowlist. An invalid transaction ID is rejected **before** consuming the
+  review token.
+- Uses only injected **fake process callbacks** while writing isolated,
+  atomic unit-file copies. It records review receipt, journal and snapshot
+  evidence; required worker failure restores the previous unit bytes and
+  running status, and optional worker failure reports `degraded`.
+- A consumed review token cannot be reused for a second rehearsal. An
+  unapproved reviewer, changed source, altered rendered unit or unknown unit
+  blocks the operation without touching the simulated process state.
+- Results always report `host_changes_allowed: false` and
+  `production_activation_allowed: false`. The review receipt itself carries
+  `permission: review_only`, **not** installation authority.
+
+All tests use temporary filesystem paths and fake service callbacks; no
+`systemctl`, sudo, SSH, Caddy, UDA registry, Docker, database or network
+operations occur. This integration establishes an acceptance rehearsal, not a
+production deployment adapter. Real Ubuntu activation still requires
+independent operator authentication, restricted privilege boundaries, durable
+snapshots plus crash recovery and disposable-host end-to-end acceptance.
+
 ## V2-003: reviewed Python virtualenv runtime profiles
 
 `onboarding_v2_runtime_profiles.py` extends the **review-only** systemd unit
