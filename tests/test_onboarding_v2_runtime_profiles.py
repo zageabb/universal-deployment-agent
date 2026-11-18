@@ -16,6 +16,7 @@ from onboarding import OnboardingError
 from onboarding_release import prepare_release
 from onboarding_v2_runtime_profiles import review_python_venv
 from onboarding_v2_unit_renderer import render_reviewed_units
+from onboarding_v2_approval import issue_review_attestation, review_attestation
 
 SOURCE_SHA = "a" * 40
 ROOT = Path(__file__).resolve().parents[1]
@@ -173,3 +174,38 @@ def test_runtime_profile_not_serialized_into_unit_file(tmp_path):
     assert "python_sha256" not in text
     assert "config_sha256" not in text
     assert "source_commit" not in text
+
+
+def test_runtime_change_invalidates_previous_signed_approval(tmp_path):
+    manifest, args, profile = setup(tmp_path)
+    previous = render_reviewed_units(manifest, **args)
+    key = b"independent-review-authority-32bytes-test-only"
+    token = issue_review_attestation(previous, operator="reviewer@example.com",
+                                     signing_key=key, now=20000)
+    replacement = tmp_path / "new-reviewed-python"
+    replacement.write_bytes(b"changed-runtime-build")
+    replacement.chmod(0o700)
+    (profile["venv_root"] / "bin" / "python").unlink()
+    (profile["venv_root"] / "bin" / "python").symlink_to(replacement)
+    profile["approved_python"] = replacement
+    profile["python_sha256"] = file_sha(replacement)
+    updated = render_reviewed_units(manifest, **args)
+    assert updated["bundle_sha256"] != previous["bundle_sha256"]
+    store = tmp_path / "approvals"
+    store.mkdir(mode=0o700)
+    with pytest.raises(OnboardingError, match="scope differs"):
+        review_attestation(updated, token, operator="reviewer@example.com",
+                           signing_key=key, receipt_store=store, now=20001)
+    assert not list(store.iterdir())
+
+
+def test_runtime_evidence_hash_is_checked_by_approval_verifier(tmp_path):
+    manifest, args, _ = setup(tmp_path)
+    bundle = render_reviewed_units(manifest, **args)
+    assert set(bundle["runtime_hashes"]) == {"tender-web.service"}
+    altered = deepcopy(bundle)
+    altered["runtime_hashes"]["tender-web.service"] = "a" * 64
+    with pytest.raises(OnboardingError, match="digest mismatch"):
+        issue_review_attestation(altered, operator="reviewer@example.com",
+                                 signing_key=b"independent-review-authority-32bytes-test-only",
+                                 now=20000)
