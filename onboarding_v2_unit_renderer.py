@@ -116,6 +116,7 @@ def render_reviewed_units(
         raise OnboardingError("Unexpected reviewed runtime profile")
     names = set()
     unit_texts = {}
+    runtime_hashes = {}
     for name in plan["deployment_order"]:
         service = services[name]
         unit = _unit(expected_units[name])
@@ -138,6 +139,14 @@ def render_reviewed_units(
             runtime = review_python_venv(runtime_profiles[name],
                                          release_commit=source_commit_sha)
             executable = runtime["resolved_entrypoint"]
+            runtime_evidence = {
+                "python_sha256": runtime["python_sha256"],
+                "config_sha256": runtime["config_sha256"],
+                "resolved_entrypoint": executable,
+            }
+            runtime_hashes[unit] = hashlib.sha256(json.dumps(
+                runtime_evidence, sort_keys=True, separators=(",", ":")
+            ).encode()).hexdigest()
         elif executable not in APPROVED_INTERPRETERS:
             raise OnboardingError("Systemd executable is not on restricted runtime allowlist")
         if executable in ("/usr/bin/python3", "/usr/bin/node") or name in runtime_profiles:
@@ -188,6 +197,8 @@ def render_reviewed_units(
         "order": [expected_units[name] for name in plan["deployment_order"]],
         "unit_hashes": hashes,
     }
+    if runtime_hashes:
+        evidence["runtime_hashes"] = runtime_hashes
     digest = hashlib.sha256(json.dumps(
         evidence, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return {
