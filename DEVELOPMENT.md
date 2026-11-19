@@ -108,6 +108,22 @@ Phase 3 — independent validation and host verification:
 - Mark unresolved assumptions as REVIEW/BLOCKED, not PASS, and keep every PR
   in draft until the relevant independent acceptance and sign-off are recorded.
 
+Point 4 — workflow acceptance checklist (where V2 manifests are built):
+- [ ] ChatGPT + GitHub: review each applicable V1 manifest, repository
+      build files, source entrypoints and V2 schema before generating V2.
+- [ ] ChatGPT + GitHub: commit candidates to per-repository feature branches,
+      run independent schema/semantic/source tests and record draft PR evidence.
+- [ ] ChatGPT Desktop: read-only compare each candidate against effective
+      m901-lenovo systemd units, Docker settings, UDA registry and Caddy routes.
+- [ ] ChatGPT Desktop: record secret reference names only (never values) and
+      flag unresolved live-host differences for explicit review.
+- [ ] UDA: implement manifest discovery and validation without treating a
+      discovered manifest as executable or auto-activated.
+- [ ] UDA: enforce separate explicit production approval gates for installation,
+      database migration and interrupted-transaction recovery.
+- [ ] Retain review evidence and keep V2 candidate/PR deployment disabled
+      until the relevant approvals and independent acceptance are recorded.
+
 Completion criteria:
 - [ ] 12 phase-1 V2 candidates drafted, independently validated, and raised
       as draft PRs with no production activation.
