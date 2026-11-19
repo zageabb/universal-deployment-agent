@@ -355,7 +355,11 @@ def create_app(config_path: Path) -> Flask:
             abort(403, "Application is not authorized for automatic deployment")
         command = [str(Path(__file__).with_name("deploy_agent.py")), "--config",
                    str(app.config["DEPLOY_CONFIG"]), "--application", name]
-        result = subprocess.run(command, text=True, capture_output=True, timeout=600, check=False)
+        try:
+            result = subprocess.run(command, text=True, capture_output=True, timeout=600, check=False)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            app.logger.warning("Manual update for %s could not complete: %s", name, type(exc).__name__)
+            return redirect(url_for("index", message=f"{name}: update failed; inspect deployment logs"))
         message = f"{name}: update completed" if result.returncode == 0 else f"{name}: update failed"
         return redirect(url_for("index", message=message))
 
@@ -441,16 +445,20 @@ def create_app(config_path: Path) -> Flask:
                     return redirect(url_for("index", message=message))
                 suffix = ""
                 if selected.get("proxy_enabled"):
-                    refresh = subprocess.run(
-                        ["systemctl", "--user", "start", "uda-proxy-refresh.service"],
-                        text=True, capture_output=True, timeout=120, check=False,
-                    )
-                    if refresh.returncode:
-                        app.logger.warning(
-                            "Proxy refresh failed after changing %s: %s",
-                            name,
-                            (refresh.stderr or refresh.stdout).strip()[-300:],
+                    try:
+                        refresh = subprocess.run(
+                            ["systemctl", "--user", "start", "uda-proxy-refresh.service"],
+                            text=True, capture_output=True, timeout=120, check=False,
                         )
+                        if refresh.returncode:
+                            app.logger.warning(
+                                "Proxy refresh failed after changing %s: %s",
+                                name,
+                                (refresh.stderr or refresh.stdout).strip()[-300:],
+                            )
+                            suffix = "; proxy refresh needs attention"
+                    except (OSError, subprocess.TimeoutExpired) as exc:
+                        app.logger.warning("Proxy refresh unavailable for %s: %s", name, type(exc).__name__)
                         suffix = "; proxy refresh needs attention"
         except (OSError, subprocess.TimeoutExpired) as exc:
             action = "restore" if enabled else "archive"
