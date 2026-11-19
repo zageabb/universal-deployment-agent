@@ -69,6 +69,14 @@ def _digest_bundle(bundle: dict) -> tuple[str, str, str]:
             raise OnboardingError("Unit bundle text differs from attested hash")
     evidence = {"application": app, "commit_sha": commit, "order": order,
                 "unit_hashes": unit_hashes}
+    runtime_hashes = bundle.get("runtime_hashes")
+    if runtime_hashes is not None:
+        if (not isinstance(runtime_hashes, dict) or not runtime_hashes or
+                not set(runtime_hashes).issubset(unit_texts) or
+                any(not isinstance(v, str) or not SHA.fullmatch(v)
+                    for v in runtime_hashes.values())):
+            raise OnboardingError("Invalid reviewed runtime provenance")
+        evidence["runtime_hashes"] = runtime_hashes
     actual = hashlib.sha256(_canonical(evidence)).hexdigest()
     if not hmac.compare_digest(actual, digest):
         raise OnboardingError("Unit bundle evidence digest mismatch")
