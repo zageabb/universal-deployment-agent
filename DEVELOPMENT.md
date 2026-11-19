@@ -30,6 +30,37 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-021 — Independent V2 static-artifact acceptance (six review items)
+Status: 🔨 IN PROGRESS
+Priority: High
+Branch: `feature/uda-v2-independent-validation`
+PR: #27 (draft, must remain unmerged until reviewed)
+Independent baseline: 19 November 2026 — 14 PASS, 6 REVIEW, 0 FAIL;
+runner fixture tests 4 passed; manifest commands/builds not executed.
+
+Requirements and progress:
+- [x] Create read-only immutable Git-tree artifact auditor for static V2
+      candidates; never execute npm/build commands from manifest data.
+- [x] Add local regression checks covering root publication, exposed source or
+      secrets, generated artifact gaps, and symlinks (4 fixture tests passed).
+- [ ] Wallpaper Studio: audit root output; establish allowlisted document root.
+- [ ] Roundabout Designer: audit root output; establish allowlisted document root.
+- [ ] CueCraft: audit root output; establish allowlisted document root.
+- [ ] Should-Cost Intelligence Next: independently build and audit `dist/`.
+- [ ] DAXBridge: independently build and audit `dist/`.
+- [ ] Flowchain Studio: independently build and audit `dist/`.
+- [ ] Re-run fleet and static audits against pinned repository commits; retain
+      evidence and review source-map, asset base-path and secret exclusion.
+- [ ] Obtain isolated acceptance and explicit owner sign-off; do not interpret
+      manifest PASS or static-tree audit as permission to deploy/merge.
+
+Evidence and instructions:
+- `docs/v2-independent-fleet-validation.md`
+- `tools/validate_static_artifacts.py`
+- `tests/test_validate_static_artifacts.py`
+- Uploaded independent fleet report 2026-11-19 and its pinned JSON manifest SHAs.
+- UDA PR #26 production activation remains separate and approval-gated.
+
 ### DEV-020 — V2 manifests for live UDA applications not representable in V1
 Status: 🔵 PLANNED
 Priority: High
