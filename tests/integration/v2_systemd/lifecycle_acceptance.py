@@ -38,8 +38,9 @@ def guard():
     if Path("/proc/1/comm").read_text().strip() != "systemd":
         raise RuntimeError("Container systemd is not PID 1")
     os_release = Path("/etc/os-release").read_text()
-    if "ID=ubuntu" not in os_release or "VERSION_ID=\"24.04\"" not in os_release:
-        raise RuntimeError("Acceptance requires Ubuntu 24.04")
+    if "ID=ubuntu" not in os_release or not any(
+            f'VERSION_ID="{version}"' in os_release for version in ("22.04", "24.04")):
+        raise RuntimeError("Acceptance requires Ubuntu 22.04 or 24.04")
     for name in UNITS:
         if not (BASE / name).is_file():
             raise RuntimeError("Missing disposable test-owned unit fixture")
