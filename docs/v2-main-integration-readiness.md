@@ -99,3 +99,92 @@ oversized output and nonauthorization. All tests inject fake systemctl output.
 ## Additional fail-closed systemd validation
 
 The host readiness inspector now rejects unloaded/missing systemd units, failed units (including failed oneshot services), and incomplete `systemctl show` responses, even when the timers are inactive. Three isolated mocked regressions cover those cases. This is **not** maintenance authorization. No production timer state or live host configuration was changed. The added tests must pass in the PR #26 full regression before the integration can be considered for review.
+
+
+## V1 operational-path review — 19 November 2026
+
+The existing dashboard uses HTTP Basic authentication backed by a configured token
+and checks an application-generated CSRF token on every POST. These controls are
+mandatory for all of the following **state-changing** operations and must not
+be bypassed by V2 preview routes:
+
+| Route / operation | Host effects | Required pre-merge acceptance |
+| --- | --- | --- |
+| POST `/applications/<name>/update` | Spawn deployment poller, Git fast-forward, dependency install, restart and health check | Enforce enabled/auto_deploy/deployment_enabled, shared lock in poller, failure and rollback checks |
+| POST `/applications/<name>/service/<action>` | Start/stop/restart selected user service | Action allowlist, configured unit name, authorization, non-blocking deployment lock |
+| POST `/applications/<name>/enabled` | Enable/disable user unit, registry write, scheduled job reconciliation, optional Caddy refresh | Lock, valid service_unit, failed subprocess protection, document partial-commit recovery |
+| POST `/applications/<name>/scheduled-jobs/<job_name>/run` | Start generated user service | Enabled registry/job, generated unit names, deployment lock |
+| POST `/onboarding/stage` | Stage vetted repository snapshot in local staging directory | Signed approval ticket, deployment lock, no activation/systemd/proxy mutation |
+| POST group/assignment routes | Mutate JSON registry and grouping | Auth, CSRF, validated atomic registry replacement |
+
+**Known v1 operational caveat:** archive/restore is a multi-step operation,
+not an atomic transaction across systemd, registry, scheduled jobs and proxy
+refresh. If scheduled job reconciliation or Caddy refresh fails after the
+registry changes, the dashboard reports a partial failure; an operator must
+verify each resulting state and reconcile under a controlled maintenance
+window. It is incorrect to assume that rollback has occurred.
+
+**V1 regression hardening:** PR #26 now catches manual update executable/timeout
+failure and reports it through the dashboard rather than generating a 500.
+Proxy-refresh executable/timeout failure after archive/restore is reported as
+a partial state needing operator attention, not as an unhandled exception.
+Three regressions exercise these scenarios with mocked subprocesses.
+
+## Live-host maintenance isolation checklist (approval required)
+
+All commands below are *instructions for an operator during a separately
+approved window*, **not** actions authorized for an automated agent or this PR.
+Do not paste the state-changing commands into a CI job or the production
+Docker acceptance harness. Run commands as the same user whose systemd user
+manager owns UDA. Always retain the recorded unit states.
+
+### A. Read-only baseline, before requesting a window
+
+```bash
+python3 onboarding_v2_host_readiness.py
+systemctl --user list-timers --all deployment-agent.timer uda-proxy-refresh.timer
+systemctl --user show deployment-agent.timer uda-proxy-refresh.timer deployment-agent.service uda-proxy-refresh.service --property=LoadState,ActiveState,SubState,UnitFileState,NextElapseUSecRealtime
+systemctl --user status deployment-agent.service uda-proxy-refresh.service --no-pager
+git rev-parse HEAD
+git status --porcelain
+```
+
+Record all expected application health endpoints, SSO tests, SheetBridge
+service state and Caddy configuration checks with an accountable operator.
+The host-readiness script is advisory and must never be interpreted as
+authorization. An active timer is an expected blocker before isolation.
+
+### B. Isolate only in the approved window
+
+Record whether each timer was enabled and active **individually**. After
+approval, the operator can stop the timers, but must not assume that stopping
+a timer stops a service already in progress. Check whether the corresponding
+oneshot is still active, confirm the production deployment lock is released
+and identify/resolve a legitimate lock holder before proceeding. Never
+remove or truncate the lock file to force access. Verify the proxy-refresh
+service is quiescent and preserve existing Caddy routes. No test may use
+the production config, checkout, lock path, port or systemd unit names.
+
+### C. Disconnected acceptance
+
+Use a separate pinned-SHA checkout and explicit isolated config, state
+directory, lock path, unit names and loopback ports. Execute read-only
+preflight, mocked regression and health validation first. Any subsequent
+state-changing disposable or host-local test requires its **own** approval
+and a documented rollback procedure; no automatic activation or
+compensation replay is permitted. Never run privileged Docker with host
+mounts or production Docker access in this validation.
+
+### D. Restore and verify
+
+Restore **exactly** each original timer's active/enabled state rather than
+blindly enabling both. Confirm no lingering test processes, systemd units,
+listeners or changed proxy config, then compare Git commit, deployment state,
+SSO, SheetBridge, Caddy routes and health endpoints to baseline. Record any
+drift and stop the release if restoration is incomplete.
+
+**Outstanding approvals:** accountable production owner must approve the
+maintenance window, isolation/recovery operator, scope of allowed writes and
+rollback plan. A documented read-only preflight and green CI alone do not
+satisfy those approvals. Keep PR #26 in draft until sign-off and host evidence
+are attached.
