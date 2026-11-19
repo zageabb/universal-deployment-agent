@@ -218,7 +218,28 @@ DEV-020 execution update — 19 November 2026:
       before any deployment; V2 may not activate this image as-is.
 - [ ] Run canonical V2 schema/semantic and independent isolated checks on
       both Tender Designer and Lucky Lab; host verification read-only.
-- [ ] Continue Bank of Mum and Context Studio V2-only drafts.
+- [x] Bank of Mum V2-only review candidate committed on
+      `zageabb/Bank_of_mum` draft PR #22 at `7b5ab3623874e20510e9c87d7d4aa3eb9cb6e2c4`.
+      Active runtime is FastAPI + Next.js (legacy Flask must not be deployed);
+      backend/Next versions, health paths and lockfile are source-backed.
+- [x] Context Studio V2-only review candidate committed on
+      `zageabb/context-studio` draft PR #6 at
+      `86e0f70bbcaaa09c3de00a0d30df1f3e738a62dc`.
+      Documented dual systemd runtime must be reconciled with current
+      Vinext/Cloudflare frontend before acceptance.
+- [ ] **CRITICAL Bank of Mum:** backend import auto-runs create_all,
+      Phase 2/3 schema/data migrations and immutable trigger installation.
+      Require reviewed migration split, backups and explicit DB approval.
+- [ ] **CRITICAL Context Studio:** backend import runs create_all and managed
+      migrations; Vinext start port/base path and Cloudflare bindings have
+      not been shown compatible with the live Ubuntu runtime.
+- [ ] Validate both new V2 manifests using canonical UDA schema/semantic
+      checker and disposable application builds/tests; source review alone
+      is not independent acceptance.
+- [ ] Compare effective live systemd, Caddy, registry, SQLite locations and
+      secret reference names with ChatGPT Desktop in read-only mode.
+- [ ] Continue remaining eight first-phase V2-only manifests without
+      loosening the draft/explicit-approval gates.
 
 Phase 1 — draft from existing repository + UDA report evidence (12):
 - Tender Designer — web and mailbox worker; verify worker health.
