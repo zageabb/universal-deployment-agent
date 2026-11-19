@@ -393,6 +393,19 @@ DEV-020 Phase-2 special-case design review — 19 November 2026:
 - [x] Add opt-in disposable `tools/prepare_v2_only_workspace.sh` for
       the exact 11 review branches (refuses existing output; source clone only);
       document operator-run independent validation and private evidence paths.
+- [x] Read-only GitHub source inspection of all 11 draft YAML manifests
+      against current V2 JSON Schema structural constraints: **11/11
+      with no schema-shape findings**. This lightweight structural check
+      is NOT an independently executed Python JSON Schema + semantic run.
+- [x] Correct research-core V2 library isolation/verification declaration,
+      and explicit persistent volume lifecycle owners in Lucky Lab and
+      SideCar; commits `716df8b`, `dba124b`, `4068ca6`.
+- [x] Extend V2-only independent validator with 11 app-specific machine-
+      readable `REVIEW_GATE` categories, preserving migration/SSO/volume/
+      lockfile/runtime hold status even when schema/source checks succeed.
+- [x] Add four further Python regressions (canonical library and persistent
+      volume semantic acceptance/rejection; per-repository risk inventory;
+      review gate reporting). **Tests committed, execution pending.**
 - [ ] Run pinned eleven-candidate V2-only canonical schema/semantic/source
       validation and the complete UDA regression suite, recording results
       outside GitHub until explicit evidence-publication approval.
