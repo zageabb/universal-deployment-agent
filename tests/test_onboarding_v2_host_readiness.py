@@ -104,3 +104,36 @@ def test_report_contains_no_config_or_secret_values(tmp_path):
         "deployment-agent.timer", "uda-proxy-refresh.timer",
         "deployment-agent.service", "uda-proxy-refresh.service",
     }
+
+
+def test_unloaded_or_missing_unit_fails_closed(tmp_path):
+    release, runner, calls = fixture(tmp_path)
+    def missing_unit(command, **kwargs):
+        if command[-1] == "deployment-agent.timer":
+            return SimpleNamespace(returncode=0, stdout=(
+                "LoadState=not-found\\nActiveState=inactive\\nSubState=dead\\n"
+                "UnitFileState=disabled\\n"), stderr="")
+        return runner(command, **kwargs)
+    result = inspect_host(os_release=release, runner=missing_unit)
+    assert "systemd_unit_not_loaded" in result["maintenance_isolation_blockers"]
+    assert not result["ready_for_isolated_test_scheduling"]
+    assert result["deployment_allowed"] is False
+
+
+def test_failed_unit_fails_closed_even_with_inactive_timers(tmp_path):
+    release, runner, calls = fixture(tmp_path, states={
+        "deployment-agent.service": "failed",
+    })
+    result = inspect_host(os_release=release, runner=runner)
+    assert "systemd_unit_failed" in result["maintenance_isolation_blockers"]
+    assert not result["ready_for_isolated_test_scheduling"]
+
+
+def test_partial_systemd_properties_fail_closed(tmp_path):
+    release, runner, calls = fixture(tmp_path)
+    def missing_property(command, **kwargs):
+        return SimpleNamespace(returncode=0, stdout=(
+            "LoadState=loaded\\nActiveState=inactive\\n"), stderr="")
+    result = inspect_host(os_release=release, runner=missing_property)
+    assert "timer_inspection_incomplete" in result["maintenance_isolation_blockers"]
+    assert not result["ready_for_isolated_test_scheduling"]
