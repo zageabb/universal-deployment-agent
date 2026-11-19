@@ -101,7 +101,25 @@ The operator-provided report and complete JSON evidence are held outside
 GitHub; no evidence attachments were published because separate publication
 approval was not given. These results are recorded as summary only.
 
-- [ ] Wallpaper Studio: audit root output; establish allowlisted document root.
+- [x] Implement an exact-file allowlisted staging script on the three
+      static-root application V2 branches, with V2 output_dir changed to
+      `build/uda-public`; original V1 manifests remain intact.
+- [x] Add four offline staging regression tests per app (source test files
+      committed; independent execution and evidence **pending**).
+- [x] Harden Roundabout Designer `deploy/serve.sh` to reject an unstaged
+      document root, and serve staged public files rather than repository root.
+- [x] Extend UDA fleet parity to permit only the exact reviewed static staging
+      command/output/artifact pattern, with three new negative/positive tests
+      committed (independent execution pending).
+- [ ] Independently execute staging and regression on pinned disposable
+      checkouts of Wallpaper Studio, Roundabout Designer, CueCraft and UDA.
+- [ ] Inspect deployed URL asset resolution and exact published file inventory;
+      compare effective live document root read-only via authorised Desktop.
+- [ ] Wallpaper Studio: verify allowlisted staged output (3 approved files)
+      and root document handling before acceptance.
+- [ ] Roundabout Designer: verify allowlisted staged output (16 approved files)
+      and compatibility of JavaScript dependencies and Caddy path.
+- [ ] CueCraft: verify single-file HTML staging and browser functionality.
 - [ ] Roundabout Designer: audit root output; establish allowlisted document root.
 - [ ] CueCraft: audit root output; establish allowlisted document root.
 - [ ] Should-Cost Intelligence Next: independently build and audit `dist/`.
