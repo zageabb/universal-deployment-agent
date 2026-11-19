@@ -14,6 +14,7 @@ import subprocess
 import sys
 
 from jsonschema import Draft202012Validator
+import yaml
 
 from tools.validate_v2_fleet import git, load_revision_file
 
@@ -84,7 +85,7 @@ def inspect(repo: Path, schema: dict, semantic_validate) -> dict:
         result["errors"] = sorted(set(result["errors"]))
         result["warnings"] = sorted(set(result["warnings"]))
         result["status"] = ("FAIL" if result["errors"] else "REVIEW")
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError, yaml.YAMLError) as exc:
         result["errors"].append(f"INSPECTION:{type(exc).__name__}:{str(exc)[:200]}")
     return result
 
