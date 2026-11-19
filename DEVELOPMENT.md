@@ -332,12 +332,41 @@ DEV-020 continuation — 19 November 2026 (SheetBridge and LedgerOne):
       executable V2 candidates (still no V1 parity or host mutation).
 - [ ] Independently execute canonical schema/semantic checks for all nine
       candidates using pinned checkouts; source-only review is not PASS.
-- [ ] Continue with remaining 3 Phase-1 apps and the 5 special/partial
-      evidence cases, retaining ScreenCraft design-only hold.
+- [x] Draft both remaining straightforward Phase-1 applications (Bottle
+      Factory and Should-Cost); ScreenCraft remains design-only blocked.
+- [ ] Proceed with 5 special/partial evidence cases after source checks.
 
 DEV-020 authoring: **9 of 17 executable V2 manifests** plus
 **1 design-only blocked case** (ScreenCraft). No new candidate accepted,
 merged or deployed.
+
+DEV-020 Phase-1 authoring checkpoint — 19 November 2026:
+- [x] `bottle_factory_game` review-only static V2 manifest and documented
+      source blockers committed in draft `zageabb/bottle_factory_game#9`
+      at `5d064c4f5afaf01eddd219d1cd4d75b6089193f5`.
+- [ ] **Bottle Factory blockers:** npm lockfile absent; source-only
+      `npm ci` must refuse until lockfile is reviewed. Existing app route
+      `/apps/bottle_factory_game/` differs from V2 canonical hyphen slug;
+      require separately approved alias or migration and Vite asset rebuild.
+- [x] `should-cost-intelligence` Flask V2 draft and review checklist
+      committed in `zageabb/should-cost-intelligence#48`
+      at `1426afe554d4b323a9889290d9fd6abcd1cf5983`.
+- [ ] **Should-Cost blocker:** Flask factory calls schema initialization;
+      verify explicit migrations, SQLite/estimator/evidence preservation,
+      source-pinned research-core build and effective production WSGI.
+- [x] Register both new repos in the no-V1 read-only
+      `tools/validate_v2_only.py` validator.
+- [ ] Independently run schema, semantic, source/build checks and fixture
+      regressions against **11** pinned V2-only candidate repos.
+- [ ] Resolve ScreenCraft's design-only safety hold before creating its
+      executable manifest. Do not invent a PostgreSQL SHA or run Alembic.
+- [ ] Proceed to five DEV-020 Phase-2 special cases only after reviewing
+      ownership, database and runtime evidence for each.
+
+Phase-1 authoring complete in draft form: **11/12 executable manifests**
+and **ScreenCraft design-only review**. DEV-020 overall: **11/17**
+executable candidates; no candidate independently accepted, merged or
+deployed. Existing 20-app acceptance applies only to its pinned commits.
 
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
