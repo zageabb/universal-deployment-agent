@@ -95,3 +95,7 @@ timer restoration remain mandatory before any host-local tests.
 `tests/test_onboarding_v2_host_readiness.py` checks both OS versions,
 active timers, active service, failed status inspection, arbitrary unit names,
 oversized output and nonauthorization. All tests inject fake systemctl output.
+
+## Additional fail-closed systemd validation
+
+The host readiness inspector now rejects unloaded/missing systemd units, failed units (including failed oneshot services), and incomplete `systemctl show` responses, even when the timers are inactive. Three isolated mocked regressions cover those cases. This is **not** maintenance authorization. No production timer state or live host configuration was changed. The added tests must pass in the PR #26 full regression before the integration can be considered for review.
