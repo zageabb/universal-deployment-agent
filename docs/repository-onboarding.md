@@ -31,6 +31,47 @@ Application-Standard provides `templates/uda.yaml` and schema contract
 tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
+## V2-003: multi-service transaction simulation (development only)
+
+The separate `onboarding_v2_multiservice.py` module now provides an
+**injected-adapter, simulation-only** service-graph transaction for v2
+`deployment.strategy: systemd` applications with explicit aggregate health.
+
+- Parse and validate the canonical v2 service graph; reject cycles and
+  unsupported deployment kinds, containers, databases, sensitive capabilities
+  and complex proxy routes. There is no link from the dashboard or an
+  installation route to the simulator.
+- Acquire an injected exclusive lock and capture a snapshot of **every unit**
+  before any configuration action.
+- Execute named `configure` and `start` callbacks in dependency order.
+  Before each effect, register an idempotent undo action and pass its intent
+  to an injected **durable journal callback**. Callback failure blocks
+  additional mutations.
+- Check individual service health using the health type declared in v2.
+  Required service failures cause **full release compensation**; optional
+  worker probe failure marks the release `degraded`, not healthy.
+- Reverse compensations in opposite order. Partial failure during
+  `configure` or `start` is covered because undo is registered *before*
+  invoking the adapter. Compensations that fail remain in `pending_undo`,
+  and the result is `rollback_failed`; an incomplete rollback must never
+  be reported as success.
+- All audit records contain only service names, operation labels, status and
+  error **types**. They do not persist source-authored command vectors or
+  environment values.
+- The result always declares `production_activation_allowed: false`.
+
+**Test evidence:** V2-003 CI workflow
+[run 44189808670](https://github.com/zageabb/universal-deployment-agent/actions/runs/44189808670)
+passed **58 tests on Python 3.12 and 3.13**, including transaction failure
+injection and existing onboarding/adapter regression tests.
+
+This is **not a real systemd installer**. It has no privileged service
+adapter, journal persistence provided by default, crash-recovery integration,
+Caddy/SSO publication, real source preparation, health polling or deployment
+receipt. Database migration, container, and UDA self-bootstrap pathways are
+explicitly out of scope. Disposable Ubuntu acceptance and a separate trusted
+approval boundary remain mandatory before a production integration.
+
 ## V2-002: version-aware read-only manifest inspection (development)
 
 The GitHub repository onboarding reader now dispatches a root `uda.yaml` by
