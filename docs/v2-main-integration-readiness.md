@@ -71,3 +71,27 @@ Before a live integration/upgrade:
 
 This document does **not** authorize those state-changing maintenance
 operations. Live host testing and main merge require independent approval.
+
+## Additional zero-mutation host inspection gate
+
+`python3 onboarding_v2_host_readiness.py` provides an optional read-only
+observation of the **local user-systemd** deployment and proxy-refresh timers
+and their paired oneshot services, including the currently reported next run.
+It accepts Ubuntu 22.04 and 24.04 and returns fail-closed blockers when either
+timer is active, a oneshot is running, the OS is unsupported, or an observation
+fails. It does **not** issue `stop`, `disable`, `start`, `systemctl reload`,
+lock operations or deploy commands, and never displays secrets from the UDA
+configuration. The command may exit with code 1 when timers are running;
+that is the **expected pre-maintenance status**, not a reason to disable the
+timers without an agreed maintenance window.
+
+A result marked `ready_for_isolated_test_scheduling` only records that the
+limited four systemd status checks showed no blockers. It explicitly says
+`deployment_allowed=false`, `timer_mutation_allowed=false` and
+`lock_holder_verified=false`. Independent deployment-lock checks, pinned
+repositories, reserved loopback ports, signed execution approval and planned
+timer restoration remain mandatory before any host-local tests.
+
+`tests/test_onboarding_v2_host_readiness.py` checks both OS versions,
+active timers, active service, failed status inspection, arbitrary unit names,
+oversized output and nonauthorization. All tests inject fake systemctl output.
