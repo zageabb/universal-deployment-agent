@@ -217,7 +217,8 @@ def inspect_private_repo(full_name: str, branch: str, token: str) -> dict:
         raw = base64.b64decode("".join(manifest_data["content"].split()), validate=True)
     except (ValueError, base64.binascii.Error) as exc:
         raise OnboardingError("GitHub returned invalid manifest data") from exc
-    manifest = parse_manifest(raw)
+    from onboarding_v2 import parse_versioned_manifest
+    manifest = parse_versioned_manifest(raw)
     declared = yaml.safe_load(raw).get("source", {}).get("branch", branch)
     if declared != branch:
         raise OnboardingError("Manifest source.branch differs from selected branch")
@@ -259,12 +260,13 @@ def inspect_repo(url: str, branch: str = "main") -> dict:
             raise OnboardingError("Git returned an invalid commit SHA")
         try:
             size = int(git("cat-file", "-s", "HEAD:uda.yaml").decode().strip())
-            if size > MAX_MANIFEST_BYTES:
-                raise OnboardingError("Manifest exceeds 32 KiB limit")
+            if size > 128 * 1024:
+                raise OnboardingError("Manifest exceeds v2 size limit (128 KiB)")
             data = git("show", "HEAD:uda.yaml")
         except OnboardingError:
             raise OnboardingError("Repository has no root uda.yaml; use discovery mode later")
-        manifest = parse_manifest(data)
+        from onboarding_v2 import parse_versioned_manifest
+        manifest = parse_versioned_manifest(data)
         declared = yaml.safe_load(data).get("source", {}).get("branch", branch)
         if declared != branch:
             raise OnboardingError("Manifest source.branch differs from selected branch")
