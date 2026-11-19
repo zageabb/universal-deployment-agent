@@ -45,7 +45,7 @@ jobs:
       - name: Real systemd SIGKILL, restart inspection and explicit test rollback
         run: |
           docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-crash-systemd \
-            /usr/bin/python3 /opt/uda-v2-disposable/crash_acceptance.py
+            /opt/uda-v2-test-venv/bin/python /opt/uda-v2-disposable/crash_acceptance.py
           docker exec uda-v2-crash-systemd /usr/bin/python3 -c \
             'import json; e=json.load(open("/opt/uda-v2-disposable/systemd-crash-evidence.json")); assert e["ubuntu"]=="${{ matrix.ubuntu-version }}"; assert e["production_activation_allowed"] is False; assert all(e[k] is True for k in ("systemd_pid1", "sigkill_confirmed", "journal_survived", "pre_mutation_snapshot_survived", "manual_plan_reopened", "no_automatic_replay", "restored_previous_bytes", "restored_previous_running_state"))'
       - name: Capture version-specific evidence
