@@ -68,12 +68,13 @@ This maintenance gate is independent of PR #27 and of the 20 V2 manifest
 conversions, whose static application reviews remain open.
 
 ### DEV-021 — Independent V2 static-artifact acceptance (six review items)
-Status: 🔨 IN PROGRESS
+Status: ✅ TECHNICAL ACCEPTANCE COMPLETE — OWNER RELEASE SIGN-OFF PENDING
 Priority: High
 Branch: `feature/uda-v2-independent-validation`
-PR: #27 (draft, must remain unmerged until reviewed)
-Independent baseline: 19 November 2026 — 14 PASS, 6 REVIEW, 0 FAIL;
-runner fixture tests 4 passed; manifest commands/builds not executed.
+PR: #27 (draft and unmerged; 20/20 technical acceptance at `0d8deaac840a7dd29073283c2320f626ff025d66`)
+Independent manifest-only baseline: 19 November 2026 — 14 PASS, 6 REVIEW, 0 FAIL.
+Commit-bound combined acceptance: 20 PASS, 0 REVIEW, 0 FAIL; UDA full regression
+518 passed, 1 skipped; PR #27 CI green on Ubuntu 22.04 and 24.04.
 
 Requirements and progress:
 - [x] Create read-only immutable Git-tree artifact auditor for static V2
@@ -106,13 +107,10 @@ approval was not given. These results are recorded as summary only.
 - [x] Implement an exact-file allowlisted staging script on the three
       static-root application V2 branches, with V2 output_dir changed to
       `build/uda-public`; original V1 manifests remain intact.
-- [x] Add five offline staging regression tests per app (source test files
-      committed; independent execution and evidence **pending**).
+- [x] Independently run five offline staging regressions per application (15 passed); public inventories and localhost `/apps/` route smoke checks passed.
 - [x] Harden Roundabout Designer `deploy/serve.sh` to reject an unstaged
       document root, and serve staged public files rather than repository root.
-- [x] Extend UDA fleet parity to permit only the exact reviewed static staging
-      command/output/artifact pattern, with three new negative/positive tests
-      committed (independent execution pending).
+- [x] Extend and independently test reviewed staging parity; arbitrary path/command changes remain errors.
 - [x] Independently compare staged script allowlists with committed HTML
       resource references and V2 policy declarations: Wallpaper Studio
       3 allowlisted files / 2 HTML refs, Roundabout Designer 16 / 15,
@@ -122,13 +120,11 @@ approval was not given. These results are recorded as summary only.
       checkouts of Wallpaper Studio, Roundabout Designer, CueCraft and UDA.
 - [ ] Inspect deployed URL asset resolution and exact published file inventory;
       compare effective live document root read-only via authorised Desktop.
-- [ ] Wallpaper Studio: verify allowlisted staged output (3 approved files)
-      and root document handling before acceptance.
-- [ ] Roundabout Designer: verify allowlisted staged output (16 approved files)
-      and compatibility of JavaScript dependencies and Caddy path.
-- [ ] CueCraft: verify single-file HTML staging and browser functionality.
-- [ ] Roundabout Designer: audit root output; establish allowlisted document root.
-- [ ] CueCraft: audit root output; establish allowlisted document root.
+- [x] Wallpaper Studio: independently verify 3-file staged output and localhost route (HTTP 200).
+- [x] Roundabout Designer: independently verify 16-file staged output and localhost route (HTTP 200); live Caddy verification remains separate.
+- [x] CueCraft: verify single-file HTML staging and localhost route (HTTP 200); full live browser acceptance remains separate.
+- [x] Roundabout Designer: replace root-publication candidate with allowlisted staged output (independent artifact acceptance passed).
+- [x] CueCraft: replace root-publication candidate with single-file staged output (independent artifact acceptance passed).
 - [x] Inspect Node build reproducibility prerequisites: Should-Cost Next has
       `package-lock.json`, but DAXBridge and Flowchain Studio have no
       npm lockfile on their current V2 branches (source check 19 Nov 2026).
@@ -138,9 +134,7 @@ approval was not given. These results are recorded as summary only.
       outputs without running npm: inventory/hash public files, check asset
       base paths, missing assets, file types, symlinks, source maps, sensitive
       signatures and npm lockfile presence.
-- [x] Add six disposable fixture tests in
-      `tests/test_verify_node_static_build.py`; independent execution
-      remains pending and no live build results are claimed.
+- [x] Independently run six fixture tests for `tools/verify_node_static_build.py`; Node artifact acceptance is 3 PASS / 0 REVIEW / 0 FAIL.
 - [x] Produce isolated Node builds and run the post-build verifier with
       immutable source commits, clean build logs, file hashes and tests.
 - [x] Generate and review pinned lockfiles for DAXBridge and Flowchain
@@ -159,8 +153,12 @@ approval was not given. These results are recorded as summary only.
       GitHub CI was not executed because GitHub rejected the job before setup
       for an account billing/spending-limit failure; retain this as an external
       release blocker despite the passing 43-test independent run and build.
-- [ ] Obtain isolated acceptance and explicit owner sign-off; do not interpret
-      manifest PASS or static-tree audit as permission to deploy/merge.
+- [x] Obtain independent isolated technical acceptance for all 20 conversions at the tested commits.
+- [ ] Resolve DAXBridge PR #5 CI billing/spending-limit failure and rerun CI successfully.
+- [ ] Obtain explicit owner release/merge approval; no manifest merge or V2 production activation is authorised.
+
+Evidence handling: final acceptance report and JSON files supplied in chat; they have
+NOT been attached to GitHub because separate publication approval is outstanding.
 
 Evidence and instructions:
 - `docs/v2-independent-fleet-validation.md`
