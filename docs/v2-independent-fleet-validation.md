@@ -84,3 +84,48 @@ Required separate acceptance:
 **Important:** this audit is intentionally conservative: its output will not
 turn REVIEW to PASS automatically. It only identifies evidence and concrete
 risks, while the existing fleet JSON report remains the manifest-gate baseline.
+
+## Review-only allowlisted static publication implementation (19 November 2026)
+
+The following three **V2 feature branches** now include a fail-closed
+`tools/uda_stage_static.py` and `tests/test_uda_stage_static.py`:
+
+- `zageabb/wallpaper` — `index.html`, `styles.css`, `app.js`
+- `zageabb/roundabout_designer` — `index.html`, `src/styles.css`
+  and the 14 JavaScript modules explicitly loaded by `index.html`
+- `zageabb/CueCraft` — standalone `index.html` only
+
+Each V2 manifest now declares a reviewed static build command and
+`build/uda-public` output with atomic-symlink publication; original
+V1 `uda.yaml` files are untouched. The staging implementation:
+- Refuses an existing output destination rather than deleting contents;
+- Copies only fixed allowlisted regular files, preserving paths;
+- Rejects symlink input/parents, missing/oversized files and missing HTML
+  local asset references;
+- Never places reports, secrets, build scripts or repository metadata into
+  the public artifact;
+- Emits file hashes and sizes to stdout, outside the public directory;
+- Is **not** automatically executed by the read-only fleet/audit utilities.
+
+For independent acceptance, operate on a fresh disposable clone pinned
+to the V2 candidate commit, never the production checkout:
+
+    python3 -m unittest discover -s tests -p test_uda_stage_static.py -v
+    python3 tools/uda_stage_static.py
+
+Capture the resulting file inventory/hashes and prove no file outside the
+fixed allowlist is present in `build/uda-public`. Verify HTML/CSS asset
+references and served `/apps/<slug>/` routes in a separate unprivileged
+localhost test. Roundabout Designer's `deploy/serve.sh` now refuses to
+serve unless this staged index exists. Confirm the effective UDA/Caddy
+document-root before accepting any release.
+
+The fleet parity validator recognises **only** this exact staging command
+and output/artifact declaration as an intentional V1-to-V2 change;
+arbitrary path or build changes remain errors. Staged artifacts are not
+committed to Git; a source-tree-only audit remains REVIEW until independent
+execution, publication boundary and runtime evidence are supplied.
+
+**Status:** implementation committed; staging regression execution,
+isolated artifact inspection and production-owner acceptance **not yet
+verified**. No V2 activation or manifest merge is permitted.
