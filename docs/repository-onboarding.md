@@ -32,6 +32,46 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: disposable real systemd SIGKILL and recovery inspection (19 November 2026)
+
+The `tests/integration/v2_systemd/crash_acceptance.py` integration harness
+uses the real UDA V2 `save_recovery_evidence`,
+`DurableServiceJournal` and `plan_interrupted_recovery` modules against
+**two hard-coded test services** in a disposable Ubuntu systemd-PID1
+container. It does **not** implement privileged production deployment or
+automated recovery.
+
+- The separate, network-disabled Ubuntu **22.04 and 24.04** CI jobs build
+  their own test-only Docker images. Each has an isolated Python virtual
+  environment with a compatible `jsonschema` API, because Ubuntu 22.04's
+  distribution version lacks `Draft202012Validator`.
+- The test starts the web and worker services, saves their actual unit-file
+  bytes and running status, durably journals a `restore:web` intent, then
+  replaces only the `uda-v2-test-web.service` unit file and issues a
+  `systemctl daemon-reload`.
+- The update subprocess kills **itself** with `SIGKILL`; a new process
+  verifies the persisted snapshot, complete SHA-256 chained journal and
+  exact expected compensation target.
+- The UDA recovery preflight provides **review-only** actions. The parent
+  verifies that inspection did not change the modified unit. The test
+  harness then explicitly stops its two disposable services, restores
+  their original unit bytes and running states, and verifies HTTP health.
+- The workflow uploads version-specific evidence artifacts. It uses a
+  privileged Docker container only on an ephemeral GitHub-hosted runner;
+  `--network none` and no production mounts keep the test away from
+  Caddy, UDA registry, production service accounts and application DBs.
+  Never run this workflow against a production Docker daemon.
+
+**Successful acceptance:** [run 44557629274](https://github.com/zageabb/universal-deployment-agent/actions/runs/44557629274)
+passed for both Ubuntu versions.
+
+**Limitations:** This verifies process death during a real *test* systemd
+unit-file update, not power loss, host reboot or an actual authenticated
+UDA installer. The integration fixture explicitly restores its own test
+services; UDA **does not** yet replay recovery automatically or support
+production activation. A separately authenticated, least-privilege host
+worker and approved maintenance-window testing are still required.
+
 ## V2-003: actual SIGKILL and read-only recovery after restart (19 November 2026)
 
 `tests/test_onboarding_v2_process_crash.py` and
