@@ -60,8 +60,25 @@ def check_parity(v1: dict, v2: dict) -> list[str]:
         problems.append("POLICY:V2 must require approval and disable auto-update")
     if v1["runtime"]["type"] == "static":
         same("static", d2.get("strategy"), "deployment.strategy")
-        same(v1["runtime"].get("working_dir", "."),
-             v2.get("static", {}).get("output_dir"), "static.output_dir")
+        old_output = v1["runtime"].get("working_dir", ".")
+        new_output = v2.get("static", {}).get("output_dir")
+        if old_output != new_output:
+            builds = v2.get("builds", [])
+            reviewed_static_staging = (
+                old_output == "." and new_output == "build/uda-public"
+                and len(builds) == 1
+                and builds[0].get("toolchain") == "static"
+                and builds[0].get("commands") == [["python3", "tools/uda_stage_static.py"]]
+                and builds[0].get("output_dir") == new_output
+                and builds[0].get("artifact", {}).get("path") == new_output
+                and builds[0].get("artifact", {}).get("kind") == "static"
+            )
+            if not reviewed_static_staging:
+                problems.append("PARITY:static.output_dir")
+            else:
+                # Staging changes publication behaviour intentionally: the
+                # separate artifact audit/build acceptance remains mandatory.
+                pass
         if v2.get("services"):
             problems.append("PARITY:static has unexpected service")
     else:
