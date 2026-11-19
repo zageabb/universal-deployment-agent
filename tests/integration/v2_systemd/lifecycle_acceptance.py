@@ -5,7 +5,7 @@ No module from this script is imported by UDA. Refuses host execution unless:
 - explicit UDA_V2_DISPOSABLE_CONTAINER=1
 - Docker marker /.dockerenv
 - systemd is PID 1
-- Ubuntu 24.04 base
+- Ubuntu 22.04 or 24.04 base
 
 Only two hard-coded, test-prefixed systemd units are ever touched. The
 acceptance result covers startup, dependency ordering, web/worker health,
@@ -38,8 +38,9 @@ def guard():
     if Path("/proc/1/comm").read_text().strip() != "systemd":
         raise RuntimeError("Container systemd is not PID 1")
     os_release = Path("/etc/os-release").read_text()
-    if "ID=ubuntu" not in os_release or "VERSION_ID=\"24.04\"" not in os_release:
-        raise RuntimeError("Acceptance requires Ubuntu 24.04")
+    if "ID=ubuntu" not in os_release or not any(
+            f'VERSION_ID="{version}"' in os_release for version in ("22.04", "24.04")):
+        raise RuntimeError("Acceptance requires Ubuntu 22.04 or 24.04")
     for name in UNITS:
         if not (BASE / name).is_file():
             raise RuntimeError("Missing disposable test-owned unit fixture")
@@ -91,7 +92,8 @@ def sha(data):
 def main():
     guard()
     evidence = {
-        "ubuntu": "24.04",
+        "ubuntu": next(version for version in ("22.04", "24.04")
+                       if f'VERSION_ID="{version}"' in Path("/etc/os-release").read_text()),
         "environment": "docker-only-systemd-pid1",
         "units": list(UNITS),
         "production_activation_allowed": False,
