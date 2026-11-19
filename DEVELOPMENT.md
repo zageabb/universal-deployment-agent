@@ -188,6 +188,27 @@ Scope:
 - Keep UDA integration PR #26 and production maintenance acceptance as
   separate gates. GitHub Actions are not required: use independent validation.
 
+DEV-020 execution update — 19 November 2026:
+- [x] Tender Designer source inspected for Flask web entrypoint, independent
+      mailbox daemon, launchers, venv requirements, SQLite and uploaded-file
+      persistence, and named production environment requirements.
+- [x] Tender Designer review-only V2 candidate committed in
+      `zageabb/tender_designer` at `1b2cd7635aecb1a573b00a0e20213211b7c73de0`;
+      draft PR #23 against `main` is open.
+- [x] Static source checks: required top-level fields, allowed top-level keys,
+      service declarations, explicit deployment approval and auto-update
+      disabled. These are *not* equivalent to canonical schema validation.
+- [ ] Run canonical UDA V2 JSON Schema and semantic validator against Tender
+      Designer candidate, then isolated repository regression tests.
+- [ ] Use ChatGPT Desktop for **read-only** effective systemd, Caddy, registry,
+      SQLite/data ownership, secret-name and backup verification on
+      `m901-lenovo`; never copy secret values.
+- [ ] Confirm the declared admin credential mode, service unit ownership,
+      mailbox lease/health semantics and production group before acceptance.
+- [ ] Keep Tender Designer PR #23 draft/unmerged, with no migrations, live
+      deployment or V2 activation.
+- [ ] Proceed with Lucky Lab, Bank of Mum and Context Studio V2-only drafts.
+
 Phase 1 — draft from existing repository + UDA report evidence (12):
 - Tender Designer — web and mailbox worker; verify worker health.
 - Lucky Lab — Compose/container lifecycle; verify persistent-data policy.
