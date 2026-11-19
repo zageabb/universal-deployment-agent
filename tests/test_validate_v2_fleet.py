@@ -67,3 +67,44 @@ def test_immutable_git_read_does_not_change_checkout(tmp_path):
     assert doc["schema_version"] == 1
     assert len(commit) == 40 and len(digest) == 64
     assert git("status", "--porcelain") == before
+
+
+
+def _static_pair():
+    old, new = _pair()
+    old["runtime"] = {"type": "static", "working_dir": "."}
+    old["service"] = {"type": "static", "port": 5094, "health_path": "/"}
+    new.pop("services")
+    new["static"] = {"output_dir": ".", "publication": "atomic-symlink"}
+    new["deployment"]["strategy"] = "static"
+    return old, new
+
+
+def test_safe_allowlisted_staging_is_explicitly_supported():
+    old, new = _static_pair()
+    new["static"]["output_dir"] = "build/uda-public"
+    new["builds"] = [{
+        "name": "stage-public", "toolchain": "static",
+        "commands": [["python3", "tools/uda_stage_static.py"]],
+        "output_dir": "build/uda-public",
+        "artifact": {"path": "build/uda-public", "kind": "static"},
+    }]
+    assert check_parity(old, new) == []
+
+
+def test_arbitrary_static_output_change_is_rejected():
+    old, new = _static_pair()
+    new["static"]["output_dir"] = "build/anything"
+    assert "PARITY:static.output_dir" in check_parity(old, new)
+
+
+def test_staging_requires_exact_reviewed_command():
+    old, new = _static_pair()
+    new["static"]["output_dir"] = "build/uda-public"
+    new["builds"] = [{
+        "toolchain": "static",
+        "commands": [["bash", "-c", "cp -r . build/uda-public"]],
+        "output_dir": "build/uda-public",
+        "artifact": {"path": "build/uda-public", "kind": "static"},
+    }]
+    assert "PARITY:static.output_dir" in check_parity(old, new)
