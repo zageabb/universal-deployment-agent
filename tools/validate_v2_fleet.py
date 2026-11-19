@@ -28,10 +28,10 @@ def git(repo: Path, *args: str) -> str:
                             capture_output=True, timeout=25, check=False)
     if result.returncode:
         raise ValueError(f"git {args[0]} failed: {result.stderr.strip()[:160]}")
-    return result.stdout.strip()
+    return result.stdout
 
 def load_revision_file(repo: Path, ref: str, path: str):
-    commit = git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}")
+    commit = git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
     content = git(repo, "show", f"{commit}:{path}")
     if len(content.encode()) > 128 * 1024:
         raise ValueError(f"{path} is oversized")
