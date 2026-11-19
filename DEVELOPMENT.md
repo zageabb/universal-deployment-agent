@@ -127,6 +127,15 @@ approval was not given. These results are recorded as summary only.
       npm lockfile on their current V2 branches (source check 19 Nov 2026).
 - [x] Add read-only source warning for missing npm lockfiles, and verify
       declared Python staging build scripts exist in Git trees.
+- [x] Add `tools/verify_node_static_build.py` to inspect existing `dist/`
+      outputs without running npm: inventory/hash public files, check asset
+      base paths, missing assets, file types, symlinks, source maps, sensitive
+      signatures and npm lockfile presence.
+- [x] Add six disposable fixture tests in
+      `tests/test_verify_node_static_build.py`; independent execution
+      remains pending and no live build results are claimed.
+- [ ] Produce isolated Node builds and run the post-build verifier with
+      immutable source commits, clean build logs, file hashes and tests.
 - [ ] Generate and review pinned lockfiles for DAXBridge and Flowchain
       Studio in disposable development checkouts before any reproducible
       isolated build; keep changes in their own review branches.
