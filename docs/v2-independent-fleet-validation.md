@@ -216,7 +216,7 @@ scanned by the artifact verifier. Arbitrary gzip files remain forbidden.
 
 ## DEV-020 — V2-only candidates without a V1 manifest
 
-The seven initial source-backed DEV-020 candidates use
+The nine initial source-backed DEV-020 candidates use
 `feature/uda-v2-review` in their application repositories:
 
 - `tender_designer` (web + mailbox)
@@ -226,6 +226,8 @@ The seven initial source-backed DEV-020 candidates use
 - `research-core` (Python library, no listener)
 - `SideCar` (Docker + named SQLite/attachment volume)
 - `NetworkBridge` (FastAPI, independent worker and Vite build; SQLite initialization review)
+- `Sheetbridge` (FastAPI/Vite; protected UDA assertion; optional form SQLite)
+- `LedgerOne` (Flask accounting service; source development launcher review)
 
 These **must not** be assessed using V1 parity. Use the separate immutable,
 offline source/schema/semantic inspection tool:
