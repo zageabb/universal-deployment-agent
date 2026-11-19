@@ -30,6 +30,84 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-020 — V2 manifests for live UDA applications not representable in V1
+Status: 🔵 PLANNED
+Priority: High
+Branch: to be created per application (draft PRs only)
+Depends on: V2 schema/semantic validator and independent validation tooling in UDA PR #27
+Integration status: authoring not started; production activation prohibited
+
+Scope:
+- Prepare review-only `uda.v2.yaml` candidates for the 17 live/enabled UDA
+  registrations that lacked faithful V1 manifests, using the 17 November
+  UDA deployment inventory and V1 gap reports plus current GitHub source.
+- Preserve the actual service graph, build/runtime tools, systemd ownership,
+  Docker/container data volumes, health checks, proxy authentication and
+  secret references. Never infer missing credentials, irreversible migration
+  rollback, backups, or live-host-only configuration.
+- Build manifests on isolated feature branches and open draft PRs; do not
+  replace existing V1 manifests, install services, run migrations, reload
+  Caddy, alter the production registry, or silently enable auto-update.
+- Keep UDA integration PR #26 and production maintenance acceptance as
+  separate gates. GitHub Actions are not required: use independent validation.
+
+Phase 1 — draft from existing repository + UDA report evidence (12):
+- Tender Designer — web and mailbox worker; verify worker health.
+- Lucky Lab — Compose/container lifecycle; verify persistent-data policy.
+- Bank of Mum — Node frontend and Python API; verify two service health targets.
+- Context Studio — Node/Python services and custom proxy subpath routing.
+- Research Core — Python library with no long-running service.
+- Sidecar — container lifecycle and named persistent volume.
+- ScreenCraft — app/PostgreSQL container graph and secret-backed proxy assertions.
+- NetworkBridge — API, worker, Node UI build, discovery/router capabilities.
+- SheetBridge — Python service, Node build and proxy assertion boundary.
+- Should-Cost Intelligence — Alembic migrations and service dependencies.
+- LedgerOne — Flask database upgrade, migration compatibility and rollback.
+- Bottle Factory Game — static artifacts and separately approved legacy
+  underscore-path alias/asset migration.
+
+Phase 2 — special/partial evidence (5):
+- Camper Power Studio — compare host-only supervisor wrapper and both processes;
+  do not invent service entrypoints.
+- DB Migration — verify PostgreSQL dependency, schema/readiness and separately
+  approved database-write capability, without exposing credentials.
+- Application Home — resolve shared UDA lifecycle/component ownership; no
+  independent app manifest or duplicate service owner without design approval.
+- Universal Deployment Agent — bootstrap-only, externally supervised self-upgrade;
+  ordinary self-deployment must remain blocked.
+- ShadowPrompt Lab — reconcile missing WSGI source/entrypoint before producing
+  an executable service declaration.
+
+Phase 3 — independent validation and host verification:
+- Extend the read-only fleet runner (`tools/validate_v2_fleet.py`) to accept
+  these V2-only candidates and compare against recorded live-deployment
+  evidence, rather than assuming a V1 parity baseline.
+- Run YAML, canonical V2 JSON Schema, UDA semantic graph, source-file, security,
+  and permission checks; obtain immutable source SHAs and evidence reports.
+- Run build/runtime checks only in an approved disposable sandbox; do not
+  execute arbitrary manifest commands on `m901-lenovo`.
+- Use ChatGPT Desktop / the authorised operator for read-only comparison with
+  effective systemd, Docker, Caddy, env-variable names, data ownership and
+  health. GitHub remains the canonical source of truth.
+- Mark unresolved assumptions as REVIEW/BLOCKED, not PASS, and keep every PR
+  in draft until the relevant independent acceptance and sign-off are recorded.
+
+Completion criteria:
+- [ ] 12 phase-1 V2 candidates drafted, independently validated, and raised
+      as draft PRs with no production activation.
+- [ ] 5 special-case designs resolved or explicitly blocked with evidence.
+- [ ] Fleet validator extended for V2-only candidates and independently tested.
+- [ ] Per-repository source, runtime/security, data/migration, health and proxy
+      discrepancies recorded and reviewed.
+- [ ] Production sign-off separately recorded before any deployment or merge.
+
+Evidence inputs:
+- `uda-manifest-inventory.md` (17 November 2026, 50 UDA registry entries).
+- `uda-v1-deployment-gap-reports.md` (16 contract/deployment model gaps plus
+  ShadowPrompt Lab source mismatch).
+- `docs/v2-independent-fleet-validation.md` and UDA draft PR #27.
+
+
 ### DEV-018 — Repository-based application onboarding
 Status: 🔨 IN PROGRESS
 Priority: High
