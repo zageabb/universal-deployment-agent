@@ -36,8 +36,25 @@ UPGRADE_EXEC = "ExecStart=/usr/bin/false"
 PRIOR_EXEC = "ExecStart=/usr/bin/python3 /opt/uda-v2-disposable/web.py"
 
 
-def _assert_container():
-    guard()
+def _assert_container(*, child=False):
+    if not child:
+        guard()  # Parent refuses to use an already installed test unit.
+    else:
+        # The child necessarily sees test units installed by the parent.
+        if os.environ.get("UDA_V2_DISPOSABLE_CONTAINER") != "1":
+            raise RuntimeError("Explicit disposable CI opt-in required")
+        if not Path("/.dockerenv").exists():
+            raise RuntimeError("Host systemd execution is forbidden")
+        if Path("/proc/1/comm").read_text().strip() != "systemd":
+            raise RuntimeError("Isolated systemd must be PID1")
+        release = Path("/etc/os-release").read_text()
+        if "ID=ubuntu" not in release or not any(
+                f'VERSION_ID="{version}"' in release
+                for version in ("22.04", "24.04")):
+            raise RuntimeError("Unexpected Ubuntu version")
+        if not all((BASE / unit).is_file() and (SYSTEMD / unit).is_file()
+                   for unit in UNITS):
+            raise RuntimeError("Missing fixed disposable test unit")
     if set(UNITS) != {WEB, WORKER}:
         raise RuntimeError("Invalid disposable unit allowlist")
 
@@ -63,7 +80,7 @@ def _bundle() -> dict:
 
 
 def _child() -> None:
-    _assert_container()
+    _assert_container(child=True)
     control = json.loads((STATE / "control.json").read_text())
     transaction_id = control["transaction_id"]
     bundle = json.loads((STATE / "bundle.json").read_text())
