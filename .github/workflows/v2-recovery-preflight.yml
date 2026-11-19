@@ -1,0 +1,26 @@
+name: V2-003 Interrupted Recovery Preflight
+on:
+  push:
+    branches: [feature/uda-v2-recovery-preflight]
+  pull_request:
+    branches: [feature/uda-v2-disposable-systemd-lifecycle]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Recovery snapshot, integrity, rollback and prior V2 regression
+        run: python -m pytest -q tests/test_onboarding_v2_recovery_preflight.py tests/test_onboarding_v2_systemd_verify.py tests/test_onboarding_v2_worker_rehearsal.py tests/test_onboarding_v2_runtime_profiles.py tests/test_onboarding_v2_approval.py tests/test_onboarding_v2_unit_renderer.py tests/test_onboarding_v2_unit_sandbox.py tests/test_onboarding_v2_ubuntu_preflight.py tests/test_onboarding_v2_recovery_journal.py tests/test_onboarding_v2_multiservice.py tests/test_onboarding_v2.py tests/test_onboarding_transaction.py tests/test_onboarding_adapter.py
+      - name: Compile recovery preflight
+        run: python -m py_compile onboarding_v2_recovery_preflight.py
