@@ -99,8 +99,10 @@ def test_snapshot_tampering_is_rejected(tmp_path):
     plan, txn, snap, root, journal = setup(tmp_path)
     record(journal, "applying", "intent:stop:web", ["stop:web"])
     location = snap / (txn + ".json")
-    data = location.read_text()
-    location.write_text(data.replace("prior", "later"))
+    data = json.loads(location.read_text())
+    # Stored unit bytes are base64; corrupt the signed snapshot digest itself.
+    data["integrity_sha256"] = "0" * 64
+    location.write_text(json.dumps(data) + "\n")
     with pytest.raises(OnboardingError, match="integrity"):
         read(plan, txn, snap, root)
 
