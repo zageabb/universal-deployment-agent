@@ -32,6 +32,39 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: actual SIGKILL and read-only recovery after restart (19 November 2026)
+
+`tests/test_onboarding_v2_process_crash.py` and
+`tests/fixtures/v2_crash_child.py` verify that durable pre-mutation
+snapshots and a chained journal survive an abrupt **OS SIGKILL** of an
+independent Python subprocess. All files are created inside a disposable
+private temporary sandbox, and only fake service callbacks are used.
+
+- In one test a child is killed after a successful fsynced snapshot but
+  **before** any configuration change. The restarted process sees the old
+  bytes and a review-required state with no invented compensation steps.
+- In another test the child is killed **after** overwriting the first
+  isolated unit file. Its recovery journal contains the previously fsynced
+  `intent:restore:web`, and a new process can identify the exact
+  transaction, reviewed unit mapping and prior running states.
+- A fresh Python interpreter independently reloads both evidence files
+  and returns a manual-only recovery plan. The inspection does **not**
+  restore any files or start/stop any service.
+- A deliberately truncated journal after crash fails validation. The
+  execution flag and automatic recovery permission remain **false**.
+  No Caddy, production UDA registry, live systemd or database is touched.
+
+**Verified CI:** [V2-003 Process Crash Recovery Evidence run 44554504064](https://github.com/zageabb/universal-deployment-agent/actions/runs/44554504064)
+passed **189 tests** on both Python 3.12 and Python 3.13, including
+prior snapshot-first, journal, approval, parser and simulated-worker tests.
+
+This is **process-crash evidence acceptance**, not proof of host power
+loss durability or reboot recovery, and not a trusted replay worker.
+Remaining: disposable systemd integration with abrupt process failure,
+operator-authorized recovery, host privilege boundaries and a controlled
+host acceptance procedure. The new 22.04/24.04 matrix enhancement on
+draft PR #21 must be integrated into the stacked chain before final merge.
+
 ## V2-003: snapshot-first offline worker rehearsal (19 November 2026)
 
 `onboarding_v2_worker_rehearsal.py` now integrates the read-only recovery
