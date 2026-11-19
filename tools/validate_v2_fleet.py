@@ -93,8 +93,21 @@ def check_parity(v1: dict, v2: dict) -> list[str]:
             same(v1["service"].get("health_path"), s.get("health", {}).get("path"), "service.health_path")
             same(v1["runtime"]["type"], s.get("runtime"), "service.runtime")
             same(v1["runtime"].get("working_dir", "."), s.get("working_dir", "."), "service.working_dir")
-    same(v1.get("build", {}).get("commands", []),
-         [cmd for b in v2.get("builds", []) for cmd in b.get("commands", [])], "build.commands")
+    old_commands = v1.get("build", {}).get("commands", [])
+    new_commands = [cmd for b in v2.get("builds", []) for cmd in b.get("commands", [])]
+    allowed_staging = (
+        v1["runtime"]["type"] == "static"
+        and v1["runtime"].get("working_dir", ".") == "."
+        and v2.get("static", {}).get("output_dir") == "build/uda-public"
+        and len(v2.get("builds", [])) == 1
+        and v2["builds"][0].get("toolchain") == "static"
+        and v2["builds"][0].get("output_dir") == "build/uda-public"
+        and v2["builds"][0].get("artifact", {}).get("path") == "build/uda-public"
+        and v2["builds"][0].get("artifact", {}).get("kind") == "static"
+        and new_commands == old_commands + [["python3", "tools/uda_stage_static.py"]]
+    )
+    if not allowed_staging:
+        same(old_commands, new_commands, "build.commands")
     same(set(v1.get("environment", {}).get("required", [])),
          set(v2.get("environment", {}).get("required", [])), "environment.required")
     return problems
