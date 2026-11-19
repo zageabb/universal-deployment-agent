@@ -256,6 +256,31 @@ Phase 1 — draft from existing repository + UDA report evidence (12):
 - Bottle Factory Game — static artifacts and separately approved legacy
   underscore-path alias/asset migration.
 
+DEV-020 continuation — 19 November 2026:
+- [x] Create review-only `research-core` Python library V2 manifest
+      (no service or HTTP port), plus source/consumer verification notes;
+      draft PR `zageabb/research-core#2`, commit `4d2573b`.
+- [x] Create review-only `SideCar` Docker V2 manifest, backed by Git
+      Compose and Dockerfile evidence; draft PR `zageabb/SideCar#3`,
+      commit `4d0a288`. Existing named Docker volume and production
+      PIN/secret must be reviewed; development defaults are not acceptable.
+- [x] Add `tools/validate_v2_only.py` for V2-only immutable source,
+      canonical schema and semantic inspection (no V1 parity requirement,
+      no manifest command execution); add five disposable fixture regressions.
+- [ ] Independently run the new V2-only validator/regressions against six
+      candidate repositories, and resolve any reported schema/source failures.
+- [ ] Compare live UDA registry, systemd/Docker/Caddy, secret **names**, and
+      persistence/backup evidence read-only via ChatGPT Desktop before
+      accepting any candidate.
+- [ ] Resolve all startup auto-migration and container data-ownership
+      blockers; no database writes or recovery actions without explicit approval.
+- [ ] Continue remaining six Phase-1 V2-only application drafts.
+- [ ] Re-run all independent UDA regressions and CI on the changed PR #27
+      head; its earlier 518-pass baseline does not cover these new changes.
+
+Current DEV-020 authoring: **6 of 17 applications drafted**, all review-only;
+none accepted, merged or deployed.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
