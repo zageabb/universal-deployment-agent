@@ -129,3 +129,42 @@ execution, publication boundary and runtime evidence are supplied.
 **Status:** implementation committed; staging regression execution,
 isolated artifact inspection and production-owner acceptance **not yet
 verified**. No V2 activation or manifest merge is permitted.
+
+## Generated Node static artifacts — next independent acceptance gate
+
+The initial GitHub source review found `package-lock.json` on
+Should-Cost Intelligence Next, but **no recognised npm lockfile** on
+DAXBridge or Flowchain Studio. Do not treat `npm install` without a
+reviewed lockfile as reproducible release-build evidence. Generate and review
+the missing lockfiles on separate development branches before acceptance.
+
+After an authorised operator has completed each **isolated, unprivileged**
+Node build from a pinned Git commit, inspect its resulting `dist/` tree:
+
+    python tools/verify_node_static_build.py \
+      --repos-root /path/to/disposable-built-repositories \
+      --out /path/to/evidence/uda-v2-node-artifacts.json
+    python -m pytest -q tests/test_verify_node_static_build.py
+
+The tool never invokes npm or executes bundle contents. It records file
+SHA-256 digests and checks for missing `index.html`, missing assets, wrong
+`/apps/<slug>/` base paths, symlinks, forbidden file types/source maps,
+private-key/AWS-key signatures and missing lockfiles. A PASS is restricted
+to **static artifact inspection** and must not be called runtime health,
+build-provenance or production acceptance.
+
+Required independent build procedure (outside the UDA production tree):
+1. Pin the target V2 candidate commit and preserve source cleanliness.
+2. Verify the reviewed Node/npm versions and npm lockfile. Refuse unpinned
+   dependencies; review license/security concerns separately.
+3. In a disposable unprivileged sandbox with no production secrets/DB/ports,
+   use the reviewed repository build commands; record their exact command,
+   exit status and stderr/stdout without secret values.
+4. Verify the expected `dist/` tree using the read-only inspector above;
+   exercise the application's test suite separately.
+5. Check UDA-authenticated subpath routing and live document-root alignment
+   with authorised Desktop read-only inspection before any release decision.
+
+No builds were performed when this tooling was authored. The initial
+20-repository fleet evidence (14 PASS, 6 REVIEW) and the six-item static
+audit (0 PASS, 6 REVIEW) remain the verified baseline until rerun.
