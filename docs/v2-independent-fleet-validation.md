@@ -42,3 +42,45 @@ Source inspection does not prove application startup, installed dependencies, co
 V2 files remain named uda.v2.yaml, not uda.yaml. This avoids activating V2 accidentally. Each V2 PR targets its existing V1 feature branch. Neither the V1 nor V2 manifest PRs may be merged based solely on this acceptance report. UDA PR #26 retains a separate production-host approval gate.
 
 Retain JSON evidence, runner commit, UDA schema/semantic validator commit, and independent build reports. Redact local path/username details before sharing. Never publish secret values or upload reports to GitHub without separate approval.
+
+## Follow-on static artifact acceptance (six REVIEW results, 19 November 2026)
+
+The independent fleet evidence reports 14 PASS, 6 REVIEW, 0 FAIL and four passing
+runner tests. The six REVIEW entries are expected: Wallpaper Studio, Roundabout
+Designer and CueCraft use repository-root static publication; Should-Cost Next,
+DAXBridge and Flowchain Studio require generated dist builds.
+
+Use the extra **read-only** Git-object audit (no scripts are executed):
+
+    python tools/validate_static_artifacts.py \
+      --repos-root /path/to/disposable/repositories \
+      --out /path/to/evidence/uda-v2-static-artifacts.json
+    python -m pytest -q tests/test_validate_static_artifacts.py
+
+The audit resolves immutable commits, enumerates tracked output paths and flags
+configuration/source files, hidden/sensitive directories and symlinks. A repository-root
+publication remains REVIEW **even when only apparently safe tracked files exist**:
+untracked files and the Git directory must not be exposed by a live web-server document
+root. For generated `dist/`, a Git-tree review does not prove a successful build.
+
+Required separate acceptance:
+1. Root-published apps: in a disposable checkout build a *new* allowlisted
+   publication directory containing only explicitly approved web assets; inspect
+   relative URLs, file list, symlink policy, headers and deny access to
+   .git/.env/source/config/backup paths. Compare the intended runtime document
+   root to the isolated staging directory before approving a manifest change.
+2. Generated apps: pin commits, use an isolated unprivileged build sandbox with
+   no production environment/credentials, and run the repository's reviewed
+   install/build commands (not arbitrary argv loaded from a manifest). Confirm
+   build exit 0, dist/index.html, asset hashes and that dist contains no source
+   maps, credentials, backend data, symlinks or unexpected files. Record Node,
+   npm, lockfile version, command, hashes, logs and dependency review.
+3. Execute application tests only within that sandbox, not as evidence of
+   production runtime. Verify routed /apps/<slug>/ assets and UDA login/SSO
+   separately under approved controlled acceptance.
+4. Attach explicit per-application evidence and owner sign-off before changing
+   REVIEW status. Never adjust status based solely on the audit script output.
+
+**Important:** this audit is intentionally conservative: its output will not
+turn REVIEW to PASS automatically. It only identifies evidence and concrete
+risks, while the existing fleet JSON report remains the manifest-gate baseline.
