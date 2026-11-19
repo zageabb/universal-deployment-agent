@@ -143,7 +143,7 @@ def _parent() -> None:
         if not wait_for(lambda: active(WEB) and active(WORKER) and http_healthy()):
             raise RuntimeError("Baseline web and worker failed health")
         child = subprocess.run(
-            ["/usr/bin/python3", str(Path(__file__).resolve()), "child"],
+            ["/opt/uda-v2-test-venv/bin/python", str(Path(__file__).resolve()), "child"],
             env={**os.environ, "UDA_V2_DISPOSABLE_CONTAINER": "1"},
             capture_output=True, text=True, timeout=30, check=False)
         if child.returncode != -signal.SIGKILL:
