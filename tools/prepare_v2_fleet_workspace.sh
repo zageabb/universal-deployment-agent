@@ -23,11 +23,11 @@ repos=(
   should-cost-intelligence-next AutoKeeper roundabout_designer CueCraft
   DAXBridge flowchain_studio
 )
-for name in "\${repos[@]}"; do
+for name in "${repos[@]}"; do
   remote="$name"
   [[ "$name" == "internet_pricing" ]] && remote="Internet_pricing"
   git clone --no-checkout --single-branch --branch feature/uda-manifest-v2-review \
-    "https://github.com/zageabb/\${remote}.git" "$target/$name"
+    "https://github.com/zageabb/${remote}.git" "$target/$name"
   git -C "$target/$name" fetch --no-tags origin \
     feature/uda-manifest-v1:refs/heads/feature/uda-manifest-v1
 done
