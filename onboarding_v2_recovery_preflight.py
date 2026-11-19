@@ -41,7 +41,8 @@ def _private(root: Path) -> Path:
     return root
 
 
-def _payload(transaction_id: str, bundle: dict, snapshots: dict) -> dict:
+def _payload(transaction_id: str, bundle: dict, snapshots: dict,
+             service_units: dict[str, str]) -> dict:
     _id(transaction_id)
     app, source, bundle_hash = _digest_bundle(bundle)
     ordered = bundle["order"]
@@ -49,6 +50,12 @@ def _payload(transaction_id: str, bundle: dict, snapshots: dict) -> dict:
         raise OnboardingError("Snapshot inventory missing or oversized")
     if set(snapshots) != set(ordered) or len(ordered) != len(set(ordered)):
         raise OnboardingError("Snapshot units do not match reviewed bundle")
+    if (not isinstance(service_units, dict) or
+            set(service_units.values()) != set(ordered) or
+            len(service_units) != len(ordered) or
+            any(not isinstance(name, str) or not SERVICE.fullmatch(name)
+                for name in service_units)):
+        raise OnboardingError("Trusted service-to-unit mapping is missing or ambiguous")
     units = {}
     for unit in ordered:
         record = snapshots[unit]
@@ -65,14 +72,15 @@ def _payload(transaction_id: str, bundle: dict, snapshots: dict) -> dict:
         }
     return {"version": 1, "transaction_id": transaction_id,
             "application": app, "source_commit": source, "bundle_sha256": bundle_hash,
-            "unit_order": ordered[:], "units": units}
+            "unit_order": ordered[:], "units": units,
+            "service_units": dict(service_units)}
 
 
 def save_recovery_evidence(root: Path, transaction_id: str, bundle: dict,
-                           snapshots: dict) -> Path:
+                           snapshots: dict, service_units: dict[str, str]) -> Path:
     """Create once, durably, BEFORE any mutation. Never overwrite snapshot."""
     directory = _private(root)
-    data = _payload(transaction_id, bundle, snapshots)
+    data = _payload(transaction_id, bundle, snapshots, service_units)
     checksum = hashlib.sha256(_json(data)).hexdigest()
     content = _json({**data, "integrity_sha256": checksum}) + b"\n"
     if len(content) > MAX_EVIDENCE:
@@ -112,7 +120,7 @@ def _load(root: Path, transaction_id: str) -> dict:
     except (OSError, ValueError, UnicodeError) as exc:
         raise OnboardingError("Recovery evidence is unreadable") from exc
     keys = {"version", "transaction_id", "application", "source_commit",
-            "bundle_sha256", "unit_order", "units", "integrity_sha256"}
+            "bundle_sha256", "unit_order", "units", "service_units", "integrity_sha256"}
     if not isinstance(data, dict) or set(data) != keys or data["version"] != 1:
         raise OnboardingError("Unknown recovery evidence layout")
     checksum = data.pop("integrity_sha256")
@@ -124,7 +132,8 @@ def _load(root: Path, transaction_id: str) -> dict:
 
 
 def plan_interrupted_recovery(*, snapshot_root: Path, journal_root: Path,
-                              transaction_id: str, reviewed_bundle: dict) -> dict:
+                              transaction_id: str, reviewed_bundle: dict,
+                              service_units: dict[str, str]) -> dict:
     """Produce no-execution compensation checklist from strictly verified evidence."""
     app, commit, digest = _digest_bundle(reviewed_bundle)
     source = _load(snapshot_root, transaction_id)
@@ -133,7 +142,9 @@ def plan_interrupted_recovery(*, snapshot_root: Path, journal_root: Path,
             source["source_commit"] != commit or
             source["bundle_sha256"] != digest or
             source["unit_order"] != reviewed_bundle["order"] or
-            set(source["units"]) != set(reviewed_bundle["units"])):
+            set(source["units"]) != set(reviewed_bundle["units"]) or
+            source["service_units"] != service_units):
+
         raise OnboardingError("Recovery evidence is not for the reviewed transaction")
     for unit, value in source["units"].items():
         if not isinstance(value, dict) or set(value) != {"bytes", "sha256", "running"}:
@@ -167,17 +178,18 @@ def plan_interrupted_recovery(*, snapshot_root: Path, journal_root: Path,
         raise OnboardingError("Pending compensation does not match journal intents")
     for op in pending:
         action, sep, name = op.partition(":")
-        if sep != ":" or action not in ("stop", "restore") or name not in source["units"]:
-            # Existing journal uses service names; a separate trusted mapping
-            # must bind each service to exactly one systemd unit.
-            raise OnboardingError("Recovery operation not in reviewed unit allowlist")
-    # The journal records SERVICE NAMES, whereas the bundle contains UNIT
-    # names. There is no trustworthy mapping without a separate signed plan.
-    # Never guess a mapping or permit automatic replay.
+        if sep != ":" or action not in ("stop", "restore") or name not in service_units:
+            raise OnboardingError("Recovery operation not in reviewed service allowlist")
+    # The signed deployment approval MUST separately bind this mapping. The
+    # snapshot digest alone is not a trusted authorisation and never grants IO.
     return {"transaction_id": transaction_id, "state": "review_required",
             "application": app, "source_commit": commit, "bundle_sha256": digest,
-            "pending_compensations": list(reversed(pending)),
+            "pending_compensations": [
+                {"operation": op.split(":")[0], "service": op.split(":")[1],
+                 "unit": service_units[op.split(":")[1]]}
+                for op in reversed(pending)
+            ],
             "prior_unit_states": {unit: value["running"] for unit, value in source["units"].items()},
             "requires_operator_review": True, "can_execute": False,
             "automatic_replay_allowed": False,
-            "blocking_reason": "Signed service-to-unit mapping and independent recovery approval required"}
+            "blocking_reason": "Independent operator authorization and verified mapping provenance required"}
