@@ -1,5 +1,6 @@
 # Disposable CI-only Ubuntu systemd host. Never deploy this image.
-FROM ubuntu:24.04
+ARG UBUNTU_VERSION=24.04
+FROM ubuntu:${UBUNTU_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     systemd systemd-sysv python3 ca-certificates && \
