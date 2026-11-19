@@ -1,0 +1,309 @@
+# UDA-DEPLOY-002 — Repository-based onboarding
+
+Development stage: **versioned v1 manifest validation, approved source staging and activation components implemented; production installer still disabled**.
+
+## Purpose
+
+An administrator opens **UDA → Install from GitHub**, supplies an HTTPS GitHub
+repository URL and branch, and receives a plan derived from the repository's
+root `uda.yaml` manifest. This removes the manual inspection step from
+ChatGPT Desktop. UDA does not yet apply the installation plan.
+
+## Versioned uda.yaml v1.0 contract
+
+The canonical authoring specification is maintained in the
+[Application-Standard repository](https://github.com/zageabb/Application-Standard/blob/main/standards/UDA_MANIFEST_v1.md)
+and the schema at `standards/schemas/uda-manifest-v1.schema.json`.
+UDA vendors the same schema at `schemas/uda-manifest-v1.schema.json` and
+enforces it during manifest discovery. Both source files must remain byte
+identical at release.
+
+Schema v1.0 rejects unknown keys, validates runtime combinations, bounded
+argv build/service commands, relative working directories, environment
+variable names, secure proxy policy, and requested deployment booleans.
+Optional `runtime.version`, `runtime.working_dir`, and
+`build.working_dir` are preserved in signed staging plans and checked
+again before source staging. Version strings are currently informational;
+they do **not** guarantee a matching interpreter or Node runtime has been
+provisioned.
+
+Application-Standard provides `templates/uda.yaml` and schema contract
+tests. The specification is frozen for application authors but remains
+subject to CI/review before merging into the standard repository.
+
+## Manifest example
+
+```yaml
+schema_version: 1
+application:
+  name: example-app
+  display_name: Example App
+  group: Development
+source:
+  branch: main
+runtime:
+  type: python
+service:
+  type: systemd
+  entrypoint: ["python", "app.py"]
+  port: auto
+  health_path: /health
+build:
+  commands:
+    - ["python", "-m", "compileall", "."]
+proxy:
+  enabled: true
+  path: /apps/example-app/
+  authentication: uda
+deployment:
+  auto_update: false
+  rollback: true
+  github_reporting: false
+environment:
+  required:
+    - DATABASE_URL
+    - SECRET_KEY
+```
+
+`environment.required` contains **only variable names**, never secret values.
+Commands are argument vectors for review, not shell lines for immediate execution.
+
+## Security properties
+
+- Only HTTPS `github.com/owner/repository` URLs; no arbitrary hosts,
+  embedded credentials, query strings or path prefixes.
+- Only safe branch names. Exact source commit is recorded in the plan.
+- The preview uses a short-lived `git clone --no-checkout` with the credential
+  helper disabled; repository files and scripts are **not executed**.
+- Python `yaml.safe_load` reads a size-limited manifest with known top-level
+  sections. Malformed and unsafe fields are rejected.
+- Port, service unit and app-name collisions are identified against the registry.
+- The preview uses existing UDA dashboard authentication and CSRF protection.
+- No registry write, systemd mutation, Caddy configuration edit, package install
+  or GitHub publication occurs during preview.
+- With a protected `UDA_GITHUB_TOKEN` present, UDA reads the branch head and
+  then reads `uda.yaml` at that exact SHA using the read-only GitHub API. This
+  also enables private repositories covered by the token's Contents: read access.
+  Without a token, UDA uses a temporary no-checkout Git clone for public repos.
+  Never insert tokens into repository URLs or manifests.
+- A manifest **never grants permission to execute code**. Execution requires a
+  separate trusted installer, administrator approval and sandboxing.
+
+## Stage-only approval (implemented, not an installation)
+
+The preview now allocates a candidate unprivileged port (default 5200–5999)
+and issues a short-lived HMAC-signed ticket containing the exact SHA, commands,
+service unit, environment variable names and proposed proxy path.
+
+The administrator may click **Approve source staging only**. This:
+- Requires existing dashboard Basic authentication and form CSRF validation.
+- Rejects tampered/expired tickets (15-minute lifetime); a dashboard process
+  restart invalidates outstanding tickets, safely requiring a new preview.
+- Re-reads the repository and rejects source or plan changes.
+- Rechecks application name, service-unit and port collisions.
+- Uses the existing UDA deployment lock to avoid concurrent service changes.
+- Clones a pinned commit to a separate staging directory and refuses symlinks.
+- Stops without installing dependencies, running build commands, creating
+  systemd units, changing the UDA registry or modifying Caddy.
+
+An example configuration is `onboarding_staging_root` in the top-level
+registry, defaulting to `~/.local/state/deployment-agent/onboarding-staging`.
+This root should be an administrator-owned, private directory on a Linux
+filesystem. Verify that the external USB filesystem is suitable before moving
+this directory there.
+
+**Private repository staging:** With a protected `UDA_GITHUB_TOKEN`, source is now
+retrieved using GitHub's Git commit/tree/blob API at the exact reviewed SHA.
+The transfer verifies each Git blob hash, rejects symlinks, submodules and
+unexpected filesystem paths, and does not store the token in any Git remote.
+This path is deliberately bounded to 1,000 files, 32 MiB total, and 8 MiB
+per file. Oversized repositories require a separate approved retrieval method.
+LFS-managed content and Git submodules are not automatically installed.
+No generated plan is permission to execute repository-defined commands.
+
+## Inactive release preparation (implemented)
+
+`onboarding_release.py` can turn a verified staged checkout into a separate
+commit-named directory under a designated release root. It excludes `.git`,
+rejects symlinks and special files, limits repository size, records SHA-256
+file hashes in `.uda-release.json`, and refuses to overwrite an existing
+release. `verify_prepared_release` re-hashes the files and rejects modified
+or additional files before later activation.
+
+The module also generates a **preview-only** systemd service definition with
+baseline restrictions (`NoNewPrivileges`, `PrivateTmp` and
+`ProtectSystem`). It does **not** write this definition into systemd or
+execute any application entrypoint. No registry, Caddy, service, database,
+secrets or running application is changed.
+
+A prepared directory is *commit-named and content-verified*, not inherently
+tamper-proof or a completed build. A dedicated restricted worker, secure
+ownership/permissions, dependency handling, artifact integrity and active
+service verification are required before production use. No new web endpoint
+can activate a release in this increment.
+
+## Restricted build worker (implemented, not connected to production)
+
+`onboarding_build.py` provides an explicitly approved, rootless Podman build
+worker. It requires a builder image pinned by immutable SHA-256 digest, verifies
+the prepared release receipt before starting, and uses `--network=none`,
+`--read-only`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`, CPU
+and memory limits, and bounded process count. The approved source is mounted
+read-only and the build output is a separate directory.
+
+It rejects builds as root, missing Podman, and non-rootless configurations.
+The worker is **not wired into the dashboard**, is not a production installer,
+and cannot activate systemd, change Caddy or register an application. Offline
+dependency/build caches or intentionally reviewed network egress policies are
+needed for apps requiring downloads. Rootless isolation still requires
+host-level AppArmor/seccomp and mount-policy acceptance.
+
+## Activation preflight and rollback checklist (implemented, no execution)
+
+The `onboarding_preflight.py` module checks the prepared release receipt and
+SHA-256 file hashes, approved commit, reserved name/unit/port, service collisions,
+protected environment file permissions and systemd unit preview. It returns an
+audit checklist for staging, health checks, registry/Caddy publication and
+rollback. **The result explicitly sets `execution_allowed: false`.**
+
+No live systemd service, database, Caddy route or UDA application registration
+is changed by this preflight. It does not yet provide a production installer,
+perform network health checks, or establish runtime sandbox permissions.
+The future worker must use dedicated least-privilege credentials, support
+separate final approval and keep a previous known-good release for rollback.
+
+## Disabled registry preview (implemented)
+
+`onboarding_registry.py` produces a proposed registry record with
+`enabled: false`, `auto_deploy: false`, `deployment_enabled: false`,
+`proxy_enabled: false`, `show_on_home: false`, and
+`github_reporting_enabled: false`. It compares the proposal with the
+existing registry, rejects application/service/port collisions, and lists
+compensating rollback actions for every later activation step. **It does not
+write the registry**.
+
+A future trusted activation worker must verify the current backup, use the
+production lock, reserve a port, install the service, confirm loopback health,
+apply protected UDA/Caddy configuration, verify login and record the actual
+runtime SHA before enabling publication. Previous releases and configuration
+must remain recoverable.
+
+## Transaction controller (implemented, isolated from production)
+
+`onboarding_transaction.py` defines an activation coordinator and a narrow
+worker interface. It requires independent, trusted approval and enablement
+flags, holds a deployment lock, captures a recovery snapshot, checks preflight,
+then sequences systemd configuration, service start, health, disabled registry
+publication, proxy refresh, UDA authentication, runtime SHA verification and
+deployment attestation.
+
+**Compensation is registered before every mutation**, allowing rollback even
+when an operation partially completes before throwing an exception. The worker
+must implement transaction-scoped snapshots, atomic changes and idempotent
+compensating operations. Rollback failures are recorded and reported as
+`rollback_failed`; they must never be reported as success. GitHub publication
+is a separate post-commit step and its failure does not uninstall an otherwise
+healthy application.
+
+The controller has **no built-in privileged Ubuntu adapter**, is not called
+by dashboard routes, and cannot change a live server by itself. The next
+security-gated stage is implementing and independently accepting a restricted
+systemd/Caddy/registry adapter with crash-recovery journaling.
+
+## Durable activation audit (implemented, production integration pending)
+
+`onboarding_journal.py` provides an append-only JSONL journal stored in a
+private directory with file permissions `0600`. Each transition is flushed
+and fsynced before proceeding; error strings are redacted to avoid leaking
+application secrets into persistent audit files. Separate tests inject journal
+write failures during rollback and verify that remaining compensations still
+run.
+
+The coordinator intentionally has no privileged systemd/Caddy adapter or
+public activation route. The journal records the transaction state but does
+not yet perform boot-time crash recovery. A trusted Ubuntu worker must scan
+unresolved transactions on start-up, validate signed snapshots and resume or
+reverse outstanding operations safely before enabling production activation.
+
+## Local activation adapter (implemented as a controlled integration component)
+
+`onboarding_adapter.py` implements the transaction interface using
+transaction-scoped snapshots of the registry, systemd unit, generated proxy
+configuration and deployed-SHA receipt. File changes are made with atomic
+replace, and compensation restores the original file bytes. Unit and proxy
+actions, health probes, SSO checks and runtime SHA verification are injected
+callbacks. The corresponding tests run entirely in temporary directories and
+inject failures at each activation stage.
+
+The candidate registry record is enabled and its proxy route is published
+**only after service health succeeds**. Authentication and live runtime-SHA
+verification must subsequently pass before the deployment receipt is written.
+Any failure requests reverse compensation. A failed compensation is reported
+as `rollback_failed` and requires administrator recovery.
+
+The adapter is **not wired to the dashboard or Ubuntu systemd** and no
+production-capable callback implementation is provided in this increment.
+Before deploying it, the implementation needs a dedicated service account,
+strict path permissions, a non-bypassable approval handshake, durable snapshots,
+restart-time reconciliation and real Caddy/systemd integration tests.
+
+## Restart/crash recovery foundation (implemented)
+
+`onboarding_recovery.py` now stores a durable transaction snapshot of the
+original UDA registry, systemd unit, Caddy file and deployment receipt before
+mutations. Snapshot storage is private (`0700` directory, `0600` files),
+created with exclusive file creation and fsync. The activation journal records
+`pending_undo` compensation intent **before** each side effect, allowing a
+restart-time scanner to identify incomplete work.
+
+`inspect_incomplete` performs **read-only** discovery of unfinished
+transactions. `replay_compensations` can reverse the pending steps in order,
+but only with a separate explicit approval and an adapter that holds the
+deployment lock. Failed compensation is reported as `rollback_failed`, not a
+successful recovery. The local adapter may optionally persist recovery
+snapshots when `snapshot_root` is configured; unavailable/insecure storage
+stops activation before changing the host.
+
+**Still required:** A restricted Ubuntu worker that validates transaction
+identity, operator approval, trusted path ownership and snapshot provenance,
+and persists each recovery replay event. Crash recovery is not currently
+auto-executed by UDA startup, and the dashboard has no activation route.
+Large registry backups require an independently assessed retention policy.
+These facilities must be validated in a disposable Ubuntu instance before
+production use.
+
+## Next increment: approved install engine
+
+Build as a separate, auditable transaction:
+
+1. Persist completed release approval/audit and separate *execution* permissions.
+2. Resolve required environment values without passing secrets into the repository.
+3. Reserve the proposed port under the deployment lock at final activation.
+4. Support secure private source transfers pinned to the approved commit.
+5. Use the prepared release verification receipt before restricted execution.
+6. Execute approved build commands under a restricted service account/container.
+6. Write an immutable release directory and carefully generated systemd unit.
+7. Start the application on localhost and run a full health/permission check.
+8. Atomically register it in UDA, then stage/reload Caddy and verify SSO.
+9. Save the last healthy release and deployment attestation, and publish to
+   GitHub only if reporting is expressly enabled and tests have passed.
+10. On any failure restore the previous registry, proxy, release and service
+    configuration, recording the complete audit trail.
+
+No installer must run commands from an untrusted repo as the UDA admin/root
+service. Private-repository manifest discovery is supported through a protected token;
+private installation and node/static deployments still need separate acceptance
+fixtures before they can be enabled.
+
+## Validation
+
+Run the following against the head SHA in an **independent disposable checkout**:
+
+```shell
+python3 -m pip install -r requirements.txt pytest
+PYTHONPATH=. python3 -m pytest -q
+```
+
+Archive/restore PR #7 and reporting PR #8 remain stacked dependencies.
+There is no live Ubuntu rollout until all three changes have passed
+the acceptance and reconciliation checks.
