@@ -30,6 +30,50 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-018 — Repository-based application onboarding
+Status: 🔨 IN PROGRESS
+Priority: High
+Branch: \`feature/repository-onboarding\`
+Integration status: safe discovery and installation preview implemented; full install engine pending
+
+Requirements:
+- Register new GitHub-hosted applications without needing ChatGPT Desktop to
+  clone code, create service definitions, or maintain the UDA registry manually.
+- Standard root \`uda.yaml\` manifest for a preview of runtime, build, service,
+  proxy, environment variables and deployment preferences.
+- Administrator-approved and transactionally recoverable installation.
+- No sync to the live server until combined releases are tested and accepted.
+
+Current implementation:
+- Implements frozen uda.yaml v1.0 schema in `schemas/uda-manifest-v1.schema.json`, matching Application-Standard `standards/schemas/uda-manifest-v1.schema.json`; unknown nested keys are rejected, and runtime version/working directories stay in the signed staging plan.
+- Restricts repository URLs to HTTPS GitHub and records exact source SHA.
+- Clones \`--no-checkout\` temporarily and reads only \`uda.yaml\`.
+- Limits manifest size, rejects unsafe YAML/invalid fields and validates
+  branch choice, service entrypoint, group/proxy basics and port requests.
+- Generates an installation plan, allocates a candidate port, and checks UDA registry conflicts.
+- Adds authenticated, CSRF-protected dashboard preview and signed 15-minute approval tickets.
+- Administrator-approved staging revalidates the exact SHA/plan, then clones into an isolated directory without executing repository-defined commands.
+- Inactive release preparation packages staged files under a commit-specific path, records SHA-256 digests, detects tampering and renders a systemd service *preview only*.
+- Authenticated private repository staging retrieves pinned commits through the GitHub API with per-blob integrity checks and bounded snapshot size.
+- Optional rootless Podman build worker enforces offline, read-only source, restricted resources and separate approval; remains disconnected from production activation.
+- A disabled UDA registry entry and deterministic activation/rollback plan can be previewed without changing production.
+- A separate transaction coordinator implements lock/snapshot/preflight, compensation-before-mutation, health/SSO/runtime attestation ordering and rollback failure reporting.
+- Append-only fsync journal captures state and pending compensation intent without persisting raw error/secret values; rollback continues even when journal persistence fails.
+- Durable private recovery snapshots preserve the exact pre-activation registry, unit, proxy and attestation files; incomplete transaction scanner and explicitly approved reverse replay added.
+- Fail-closed worker policy ensures no repository manifest, dashboard configuration or review-only recovery check can enable a privileged production adapter.
+- File-backed adapter uses atomic registry/unit/proxy/attestation replacement and injected systemd/health/SSO callbacks; production callbacks/dashboard activation remain disabled.
+- Fail-closed activation preflight checks release integrity, service/port collisions, approval flags and protected environment files; returns an auditable rollback checklist without enabling execution.
+- Does not install services, update the registry, execute builds or change Caddy.
+
+Evidence:
+- Source: \`onboarding.py\`, \`templates/onboarding.html\` and
+  \`tests/test_onboarding.py\`.
+- Documentation: \`docs/repository-onboarding.md\`.
+- Tests pushed but full independent suite and CI are **NOT VERIFIED**.
+- Remaining: privilege-separated production worker, audited recovery replay and
+  restart-time orchestration, wiring build approvals and real systemd/Caddy callbacks,
+  final port reservation, large-source/LFS policy and live Ubuntu acceptance.
+
 ### DEV-017 — UDA deployment identity and GitHub reporting
 Status: 🔨 IN PROGRESS
 Priority: High
