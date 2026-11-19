@@ -13,7 +13,7 @@ Place all 20 repositories as direct subdirectories under one repos-root, using t
 - feature/uda-manifest-v1: root uda.yaml
 - feature/uda-manifest-v2-review: uda.v2.yaml
 
-Clone/fetch repositories as a separate, deliberate preparation step. GitHub Actions is not needed. For the GitHub repository Internet_pricing, name its local destination directory internet_pricing for compatibility with the fleet inventory. Never embed GitHub credentials in the report.
+For an explicit disposable fetch into a NEW directory, use: bash tools/prepare_v2_fleet_workspace.sh /path/to/new-fleet-clones . This is a separate network-writing preparation step; the validator itself is offline. Check repository access before running it. GitHub Actions is not needed. For the GitHub repository Internet_pricing, name its local destination directory internet_pricing for compatibility with the fleet inventory. Never embed GitHub credentials in the report.
 
 ## Execute
 
