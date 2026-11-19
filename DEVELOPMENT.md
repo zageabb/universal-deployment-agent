@@ -281,6 +281,35 @@ DEV-020 continuation — 19 November 2026:
 Current DEV-020 authoring: **6 of 17 applications drafted**, all review-only;
 none accepted, merged or deployed.
 
+DEV-020 continuation — 19 November 2026 (next increment):
+- [x] Review `NetworkBridge` source, API/worker systemd samples, Vite
+      lockfile and SQLite initialization. Draft `uda.v2.yaml` +
+      `docs/uda-v2-review.md` at `zageabb/NetworkBridge#44`,
+      commit `4027399488327be202289cbb5ebf4734006db436`.
+- [ ] **NetworkBridge blocker:** API lifespan and monitoring worker
+      both initialise/write SQLite schema. Require independently reviewed
+      migration/data retention, real host service ownership and separate
+      router-polling/discovery permissions. No polling activated.
+- [x] Review `ScreenCraft` Compose/PostgreSQL/Flask graph and create
+      design-only blocker document in draft `zageabb/ScreenCraft#38`,
+      commit `e05a257d311fa1cd2d0a7bc9f7862cb459639ec0`.
+- [ ] **ScreenCraft blocker:** current Compose PostgreSQL image uses
+      unpinned `postgres:17-alpine`, and the app Docker entrypoint
+      runs Alembic upgrades automatically. Verify immutable image digest,
+      persistent volume and SSO trust contract, separate database migrations
+      and secure restore evidence BEFORE drafting an executable V2 manifest.
+- [x] Harden read-only V2-only validator to report malformed YAML as
+      an inspection failure rather than crash.
+- [ ] Independently run canonical V2 schema, semantic, source checks and
+      fixture regressions on the **seven** executable V2-only candidates;
+      do not claim acceptance based on draft PRs or CI from prior commits.
+- [ ] Follow up with additional source-backed V2-only drafts, keeping
+      production activation and merges separately approval-gated.
+
+DEV-020 authoring now: **7 of 17 executable candidates**, plus
+**1 design-only blocked case** (ScreenCraft). None has completed
+independent V2-only acceptance. No production changes executed.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
