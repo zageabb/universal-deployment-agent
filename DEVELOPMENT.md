@@ -80,6 +80,27 @@ Requirements and progress:
       candidates; never execute npm/build commands from manifest data.
 - [x] Add local regression checks covering root publication, exposed source or
       secrets, generated artifact gaps, and symlinks (4 fixture tests passed).
+Independent static-artifact audit result (19 November 2026):
+- [x] Run static Git-tree auditor against PR #27 commit `f97f5a8`.
+      Result: **0 PASS / 6 REVIEW / 0 FAIL**, exit 1 as designed;
+      auditor regression tests: **4 passed in 2.40s**.
+- [x] Confirm read-only inspection: no builds and no production changes.
+- [x] Record source-tree exposure findings without treating them as leaked
+      credentials: Wallpaper Studio had 3 public candidates and 5 flagged
+      tracked files; Roundabout Designer 16 and 27; CueCraft 1 and 10.
+      Each needs an allowlisted staging directory and verified server
+      document root, excluding repo Git data, docs, tests and source/config.
+- [x] Confirm all three generated `dist/` outputs are untracked in Git
+      (zero committed output files): Should-Cost Next, DAXBridge and
+      Flowchain Studio each require a pinned isolated build, asset inventory
+      and safety review.
+- [ ] Collect signed artifact/build acceptance evidence for all six before
+      changing classification, merging manifests or enabling deployment.
+
+The operator-provided report and complete JSON evidence are held outside
+GitHub; no evidence attachments were published because separate publication
+approval was not given. These results are recorded as summary only.
+
 - [ ] Wallpaper Studio: audit root output; establish allowlisted document root.
 - [ ] Roundabout Designer: audit root output; establish allowlisted document root.
 - [ ] CueCraft: audit root output; establish allowlisted document root.
