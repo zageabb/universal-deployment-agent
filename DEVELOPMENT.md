@@ -155,6 +155,10 @@ approval was not given. These results are recorded as summary only.
       **14 PASS / 6 REVIEW / 0 FAIL** by design; verified artifact evidence
       closes those reviews to **20 PASS / 0 REVIEW / 0 FAIL** without granting
       deployment, activation or merge authority.
+- [x] Verify UDA PR #27 CI and Flowchain Studio PR #3 CI green. DAXBridge PR #5
+      GitHub CI was not executed because GitHub rejected the job before setup
+      for an account billing/spending-limit failure; retain this as an external
+      release blocker despite the passing 43-test independent run and build.
 - [ ] Obtain isolated acceptance and explicit owner sign-off; do not interpret
       manifest PASS or static-tree audit as permission to deploy/merge.
 

@@ -203,6 +203,11 @@ Final independent run on 19 November 2026:
 - Commit-bound combined acceptance: **20 PASS / 0 REVIEW / 0 FAIL**.
 - Focused regression suite: **29 passed** across fleet, static, Node artifact and
   combined-evidence tests.
+- UDA PR #27 CI passed on Ubuntu 22.04 and 24.04. Flowchain Studio PR #3 CI
+  passed. DAXBridge PR #5's GitHub-hosted job did not start: GitHub reported an
+  account payment/spending-limit failure before any workflow step. Its 43-test
+  independent run and build passed, but the repository CI check remains an
+  external release blocker until billing is restored and the workflow reruns.
 
 The DAXBridge review also removed an unnecessary Markdown file from the public
 Vite tree. Its required `catalogs/default.tsv.gz` is accepted only at that exact
