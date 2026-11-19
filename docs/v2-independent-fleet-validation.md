@@ -216,7 +216,7 @@ scanned by the artifact verifier. Arbitrary gzip files remain forbidden.
 
 ## DEV-020 — V2-only candidates without a V1 manifest
 
-The six initial source-backed DEV-020 candidates use
+The seven initial source-backed DEV-020 candidates use
 `feature/uda-v2-review` in their application repositories:
 
 - `tender_designer` (web + mailbox)
@@ -225,6 +225,7 @@ The six initial source-backed DEV-020 candidates use
 - `context-studio` (FastAPI + Vinext frontend)
 - `research-core` (Python library, no listener)
 - `SideCar` (Docker + named SQLite/attachment volume)
+- `NetworkBridge` (FastAPI, independent worker and Vite build; SQLite initialization review)
 
 These **must not** be assessed using V1 parity. Use the separate immutable,
 offline source/schema/semantic inspection tool:
@@ -257,3 +258,13 @@ activation, database-write grants, migration and rollback each require
 distinct explicit authorization. The previously accepted 20-app combined
 technical result is unaffected; adding new tooling to PR #27 requires a fresh
 independent regression and the corresponding GitHub CI check.
+
+## ScreenCraft V2-only design hold
+
+`zageabb/ScreenCraft` draft PR #38 contains `docs/UDA_V2_DESIGN_REVIEW.md`
+only. This is **not** an executable V2 manifest and is intentionally not
+included in the V2-only validator fleet. It must first resolve the
+non-digest-pinned PostgreSQL image, automatic Alembic startup migration,
+real Docker volume ownership and authenticated UDA identity/header trust
+contract. Do not supply an invented image digest, run migrations or change
+production Compose/Caddy in order to make the candidate pass.
