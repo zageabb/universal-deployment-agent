@@ -30,6 +30,43 @@ For coding work, an empty result, no write/edit action, unchanged branch HEAD, e
 
 ## Development ledger
 
+### DEV-022 — UDA V2 controlled maintenance acceptance on m901-lenovo
+Status: ⏳ AWAITING ACCEPTANCE
+Priority: High
+PR: #26 (draft; no merge/production activation)
+Accepted technical test scope: read-only/review-only V2 integration at pinned
+commit `1433ad57d0a5e45b6b0b536783181dda25fa63e7`.
+
+Maintenance evidence (19 November 2026, approved 18:00–19:00 GMT;
+execution 18:01–18:06 UTC):
+- [x] Approved host maintenance window executed with controlled timer isolation.
+- [x] Independent isolated regression passed: **491 passed in 35.40s**
+      using Python 3.10.12 at the pinned PR #26 commit.
+- [x] Both production timers restored enabled/active; no lock holder or
+      temporary test unit, process, checkout or virtualenv remains.
+- [x] SheetBridge, UDA dashboard and UDA home healthy (HTTP 200);
+      public SheetBridge route continued redirecting HTTP 302 to UDA login.
+- [x] Caddy healthy, valid configuration, unchanged Caddyfile SHA-256.
+- [x] Production UDA checkout reconciled clean at `d92621c8`, aligned
+      with origin/main; seven modified and two untracked files preserved on
+      `backup/pre-v2-maintenance-20261119-1801` at `3e42eda81e27b27a7ef71976802dc3081ad75744`.
+- [x] Existing `db-migration` regression logged as unrelated exception:
+      `test_unconfirmed_relationship_rejected` expected HTTP 400 but
+      received HTTP 500 following unexpected database connection.
+      Production deployment-agent oneshot still fails due to this issue.
+- [x] Full evidence attached to PR #26 as issue comment 7017706825.
+- [ ] Accountable production owner reviews exception, preserved checkout
+      backup and review-only activation boundary.
+- [ ] Explicit production-owner sign-off for merging PR #26 recorded.
+- [ ] Any future V2 activation or automatic recovery separately approved.
+
+Result: **CONTROLLED ACCEPTANCE PASS WITH RECORDED EXCEPTION**, not a
+production merge/activation authorization. No automatic recovery enabled.
+
+Evidence: `https://github.com/zageabb/universal-deployment-agent/pull/26#issuecomment-7017706825`
+This maintenance gate is independent of PR #27 and of the 20 V2 manifest
+conversions, whose static application reviews remain open.
+
 ### DEV-021 — Independent V2 static-artifact acceptance (six review items)
 Status: 🔨 IN PROGRESS
 Priority: High
