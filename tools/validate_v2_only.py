@@ -21,6 +21,7 @@ from tools.validate_v2_fleet import git, load_revision_file
 REPOS = (
     "tender_designer", "lucky-lab-slot-statistics", "Bank_of_mum",
     "context-studio", "research-core", "SideCar", "NetworkBridge",
+    "Sheetbridge", "LedgerOne",
 )
 REF = "feature/uda-v2-review"
 
