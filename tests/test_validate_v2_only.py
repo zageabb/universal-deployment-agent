@@ -136,3 +136,20 @@ def test_canonical_persistent_volume_requires_lifecycle_owner():
     del unsafe["containers"][0]["volumes"][0]["owner"]
     with pytest.raises(ValueError, match="Persistent volume requires lifecycle owner"):
         validate(unsafe)
+
+
+def test_every_v2_only_repo_has_explicit_unresolved_review_gates():
+    from tools.validate_v2_only import REPOS, REVIEW_GATES
+
+    assert set(REVIEW_GATES) == set(REPOS)
+    assert all(REVIEW_GATES[repo] for repo in REPOS)
+
+
+def test_report_retains_concrete_review_gates_even_after_source_checks(tmp_path):
+    from tools.validate_v2_only import REVIEW_GATES
+
+    result = inspect(fixture(tmp_path), SCHEMA, lambda value: None)
+    assert result["status"] == "REVIEW"
+    assert not result["errors"]
+    for code in REVIEW_GATES["research-core"]:
+        assert "REVIEW_GATE:" + code in result["warnings"]
