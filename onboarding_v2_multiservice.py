@@ -82,6 +82,7 @@ def _validated_plan(document: dict) -> tuple[dict, dict]:
 def simulate_multiservice_release(
     document: dict, adapter: SimulationAdapter, *,
     journal: Callable[[dict], None],
+    before_mutation: Callable[[dict[str, object]], None] | None = None,
     simulation_only: bool = False,
 ) -> MultiServiceResult:
     """Simulate transaction order, health aggregation and reverse compensation.
@@ -131,6 +132,12 @@ def simulate_multiservice_release(
                 raise OnboardingError("Missing recovery snapshot for a service")
             snapshots[name] = snap
             event("snapshot:" + name)
+        # The caller must durably persist all pre-mutation snapshots while
+        # the adapter lock is held, before any configure/start callback.
+        # On failure no service mutation is allowed.
+        if before_mutation is not None:
+            before_mutation(dict(snapshots))
+            event("snapshots_persisted")
         result.state = "applying"
         event("preflight_complete")
         for name in result.order:
