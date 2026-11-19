@@ -32,6 +32,42 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: independently signed, single-use reviewed-bundle attestation
+
+`onboarding_v2_approval.py` adds a **review-only** approval envelope for a
+previously verified unit bundle. An independent operator authority, not the
+UDA web dashboard or manifest, provides the signing key and authenticated
+reviewer identity. The module intentionally exposes no HTTP signing endpoint.
+
+- The HMAC-SHA256 attestation binds the **exact** application identity,
+  pinned source commit SHA, reviewed unit-bundle digest, reviewer, purpose
+  `review_unit_bundle`, and an unpredictable single-use nonce.
+- Validity is limited to 15 minutes. A review is consumed through an
+  exclusive-create receipt in an existing private directory (`0700`), with
+  a `0600` file, fsync and directory fsync. Reuse is denied.
+- The verifier re-hashes each unit text, checks the unit hashes and canonical
+  bundle digest, rejects changed order/source identity and rejects another
+  reviewer, wrong key, forged action, expiry or malformed envelope.
+- Receipts record only review identity and bundle hashes, never entrypoint
+  commands or environment values.
+- A successful review returns `permission: review_only`,
+  `can_install: false`, `can_start_service: false`, and
+  `can_recover: false`. **Neither the token nor receipt is an activation
+  authorization.** A separate, independently authenticated privileged worker,
+  strict host policy and an activation-specific approval protocol are still
+  unimplemented.
+
+The review signing key and operator identity **must be provided by a trusted
+out-of-band authority**. HMAC protects integrity and authenticity only while
+this key remains secret. This mechanism alone does not enforce identity
+authentication, nonrepudiation or permission for actual host mutations.
+No dashboard or production service path calls the attestation component.
+
+**CI evidence:** [V2-003 Review Approval Gate run
+44198636614](https://github.com/zageabb/universal-deployment-agent/actions/runs/44198636614)
+passed **134 tests on both Python 3.12 and 3.13**. This includes new
+tampering, expiry, replay and scope tests plus preceding V1/V2 regressions.
+
 ## V2-003: pinned-source systemd unit review bundles
 
 The `onboarding_v2_unit_renderer.py` increment generates deterministic
