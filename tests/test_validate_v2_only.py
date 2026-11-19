@@ -80,3 +80,59 @@ def test_semantic_fail_is_not_ignored(tmp_path):
     result = inspect(fixture(tmp_path), SCHEMA, reject)
     assert result["status"] == "FAIL"
     assert "SEMANTIC:bad graph" in result["errors"]
+
+
+# These cases use the real canonical JSON Schema + semantic validator,
+# not the intentionally minimal fixture schema used above.
+def test_canonical_library_requires_isolated_install_verification():
+    import pytest
+    from uda_manifest_v2_validate import validate
+
+    doc = {
+        "schema_version": 2,
+        "application": {"name": "research-core", "kind": "library"},
+        "deployment": {"strategy": "library", "approval": "explicit",
+                       "auto_update": False, "rollback": False},
+        "lifecycle": {"owner": "research-core"},
+        "library": {
+            "isolation": "package-artifact",
+            "verify_commands": [["python3", "-m", "pytest", "-q", "tests"]],
+        },
+    }
+    assert validate(doc)["deployment_allowed"] is False
+    invalid = {key: value for key, value in doc.items() if key != "library"}
+    with pytest.raises(ValueError, match="Library deployment requires isolated"):
+        validate(invalid)
+
+
+def test_canonical_persistent_volume_requires_lifecycle_owner():
+    import copy
+    import pytest
+    from uda_manifest_v2_validate import validate
+
+    doc = {
+        "schema_version": 2,
+        "application": {"name": "sidecar", "kind": "web"},
+        "containers": [{
+            "name": "sidecar",
+            "build": {"context": ".", "dockerfile": "Dockerfile",
+                      "provenance": "pinned-source-commit"},
+            "volumes": [{
+                "name": "sidecar-data", "kind": "named", "mount_path": "/data",
+                "owner": "sidecar", "preserve_data": True,
+                "backup_policy": "manual-review",
+                "restore_policy": "manual-recovery",
+            }],
+            "health": {"type": "process"},
+        }],
+        "proxy": {"enabled": True, "upstream": "sidecar",
+                  "canonical_path": "/apps/sidecar/", "authentication": "uda"},
+        "deployment": {"strategy": "containers", "approval": "explicit",
+                       "auto_update": False, "rollback": False},
+        "lifecycle": {"owner": "sidecar"},
+    }
+    assert validate(doc)["deployment_allowed"] is False
+    unsafe = copy.deepcopy(doc)
+    del unsafe["containers"][0]["volumes"][0]["owner"]
+    with pytest.raises(ValueError, match="Persistent volume requires lifecycle owner"):
+        validate(unsafe)
