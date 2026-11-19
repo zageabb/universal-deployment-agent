@@ -16,7 +16,7 @@ import uuid
 from onboarding import OnboardingError
 from onboarding_v2_approval import review_attestation
 from onboarding_v2_multiservice import simulate_multiservice_release
-from onboarding_v2_recovery_journal import DurableServiceJournal
+from onboarding_v2_recovery_journal import DurableServiceJournal, _id
 from onboarding_v2_recovery_preflight import save_recovery_evidence, _private as private_snapshot_root
 from onboarding_v2_unit_renderer import render_reviewed_units
 from onboarding_v2_unit_sandbox import UnitSandboxAdapter, _private_sandbox
@@ -55,8 +55,7 @@ def rehearse_reviewed_release(
     """
     if rehearsal_only is not True:
         raise OnboardingError("Worker activation is disabled; explicit rehearsal-only required")
-    if not isinstance(transaction_id, str):
-        raise OnboardingError("Missing rehearsal transaction identity")
+    _id(transaction_id)  # Validate before joining a transaction-derived path.
     # Validate all directories before using the receipt: prevents burning a
     # one-time review token for an untrusted or unavailable sandbox.
     root = _private_sandbox(sandbox)
