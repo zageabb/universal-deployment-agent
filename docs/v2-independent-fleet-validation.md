@@ -231,6 +231,25 @@ The eleven initial source-backed DEV-020 candidates use
 - `bottle_factory_game` (static Vite build; missing npm lockfile and legacy underscore path)
 - `should-cost-intelligence` (Flask and source-time database schema setup; evidence storage review)
 
+Prepare a **new disposable workspace** in a development environment,
+not the production UDA checkout. Network cloning is a separate, explicit
+operator action; the validator itself is offline:
+
+```bash
+bash tools/prepare_v2_only_workspace.sh /path/to/NEW-v2-only-checkouts
+python -m pytest -q tests/test_validate_v2_only.py
+python -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+The preparation script refuses an existing output directory, clones only
+the eleven specified review branches and does **not** run their code.
+Review branch HEAD commits in the JSON before comparing source to live
+host. All credentials are supplied by the operator's normal Git
+authentication, never embedded in output or GitHub PR comments.
+
 These **must not** be assessed using V1 parity. Use the separate immutable,
 offline source/schema/semantic inspection tool:
 
