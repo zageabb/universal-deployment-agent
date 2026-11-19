@@ -390,6 +390,9 @@ DEV-020 Phase-2 special-case design review — 19 November 2026:
       independent read-only host ownership/service/volume/identity
       reconciliation, separate approved runtime graph and backup/restore
       evidence. Do not loosen deployment or database-write gates.
+- [x] Add opt-in disposable `tools/prepare_v2_only_workspace.sh` for
+      the exact 11 review branches (refuses existing output; source clone only);
+      document operator-run independent validation and private evidence paths.
 - [ ] Run pinned eleven-candidate V2-only canonical schema/semantic/source
       validation and the complete UDA regression suite, recording results
       outside GitHub until explicit evidence-publication approval.
