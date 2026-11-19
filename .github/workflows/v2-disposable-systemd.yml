@@ -11,17 +11,24 @@ jobs:
   real-systemd-disposable:
     runs-on: ubuntu-latest
     timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu-version: ['22.04', '24.04']
     steps:
       - uses: actions/checkout@v4
-      - name: Build disposable Ubuntu 24.04 systemd image
-        run: docker build -t uda-v2-disposable:${{ github.sha }} tests/integration/v2_systemd
+      - name: Build disposable Ubuntu ${{ matrix.ubuntu-version }} systemd image
+        run: |
+          docker build --build-arg UBUNTU_VERSION=${{ matrix.ubuntu-version }} \
+            -t uda-v2-disposable:${{ github.sha }}-${{ matrix.ubuntu-version }} \
+            tests/integration/v2_systemd
       - name: Start isolated systemd PID1 container (no host mounts or network)
         run: |
           docker run -d --name uda-v2-disposable-systemd \
             --privileged --cgroupns=private \
             --network none --read-only=false \
             --tmpfs /run --tmpfs /run/lock \
-            uda-v2-disposable:${{ github.sha }}
+            uda-v2-disposable:${{ github.sha }}-${{ matrix.ubuntu-version }}
           for i in $(seq 1 60); do
             if docker exec uda-v2-disposable-systemd systemctl list-units --no-pager >/dev/null 2>&1; then
               echo "Disposable systemd is ready"
@@ -38,6 +45,8 @@ jobs:
         run: |
           docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-disposable-systemd \
             python3 /opt/uda-v2-disposable/lifecycle_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c \
+            'import json; e=json.load(open("/tmp/uda-v2-systemd-evidence.json")); assert e["ubuntu"] == "${{ matrix.ubuntu-version }}"; assert e["production_activation_allowed"] is False; assert all(e[k] is True for k in ("systemd_started", "web_health", "worker_health", "degraded_worker_detected", "failed_upgrade_detected", "restored_previous_bytes", "restored_previous_running_state"))'
       - name: Save acceptance evidence
         if: always()
         run: |
@@ -47,7 +56,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: uda-v2-disposable-systemd-evidence
+          name: uda-v2-disposable-systemd-${{ matrix.ubuntu-version }}-evidence
           path: /tmp/uda-v2-evidence/
           retention-days: 7
       - name: Remove disposable container
