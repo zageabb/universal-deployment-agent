@@ -291,3 +291,40 @@ non-digest-pinned PostgreSQL image, automatic Alembic startup migration,
 real Docker volume ownership and authenticated UDA identity/header trust
 contract. Do not supply an invented image digest, run migrations or change
 production Compose/Caddy in order to make the candidate pass.
+
+## DEV-020 source-shape progress and mandatory second-stage validation
+
+On 19 November 2026, a GitHub-read-only structural inspection against the
+then-current V2 JSON Schema found **no shape errors in the eleven review
+manifests**. This inspection was **not** the full Python canonical semantic
+execution, source-tree validation or app runtime acceptance. Three semantic
+contract gaps were corrected on their draft heads: research-core now declares
+its isolated wheel verification policy, and Lucky Lab and SideCar persistent
+volumes now name a lifecycle owner.
+
+The V2-only read-only validator now emits specific `REVIEW_GATE:<CODE>`
+warnings for all eleven applications, in addition to generic host and data
+acceptance warnings. The gates cover startup database operations, data
+preservation, runtime fidelity, library consumers, UDA/SSO proxy trust,
+router/discovery privileges, static route migration and missing lockfiles.
+**A schema success never lifts these gates.** Do not alter the validator to
+turn a source-only REVIEW into a production acceptance PASS.
+
+After cloning in the disposable workspace, run from the UDA branch HEAD:
+
+```bash
+python3 -m pytest -q tests/test_validate_v2_only.py \
+  tests/test_uda_manifest_v2_validate.py
+python3 -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+Exit status 1 means the eleven candidates remain REVIEW; exit status 2
+means FAIL and requires correction. The operator should retain tested
+Git SHA-256/manifest hashes, per-repository failures and regression counts,
+plus separate disposable build/host read-only evidence. No deployment,
+production write, manifest execution or PR-evidence publication is implied.
+The earlier 518-pass UDA regression baseline predates the new PR #27 code
+and must not be cited as a pass at the latest branch head.
