@@ -32,6 +32,40 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: snapshot-first offline worker rehearsal (19 November 2026)
+
+`onboarding_v2_worker_rehearsal.py` now integrates the read-only recovery
+snapshot from PR #22 into the simulated multi-service transaction:
+
+- Validates the private snapshot directory and transaction UUID before
+  consuming a one-use reviewed-bundle token.
+- Under the existing exclusive sandbox service lock, captures **all** old
+  unit-file bytes and prior running states, and calls the new coordinator
+  `before_mutation` hook to persist a transaction-bound, fsynced snapshot.
+- The durable journal records a `snapshots_persisted` transition after the
+  snapshot callback succeeds and **before** any `configure` or `start`
+  effect can run.
+- The snapshot binds the exact reviewed bundle SHA, source commit, service
+  identity and service-to-unit mapping. Existing transaction evidence cannot
+  be overwritten.
+- A failed snapshot write, duplicate transaction, invalid UUID or exposed
+  snapshot directory fails closed without unit changes. Test injection verifies
+  no fake service callback runs if snapshot persistence fails.
+- The operation remains a **sandbox-only offline rehearsal**; its review
+  approval still carries no authority to modify real systemd units or recover
+  an interrupted installation automatically.
+
+**CI evidence:** [V2-003 Snapshot Before Mutation run
+44541266799](https://github.com/zageabb/universal-deployment-agent/actions/runs/44541266799)
+passed **184 tests on both Python 3.12 and 3.13** with the snapshot-first
+integration, invalid-path/duplicate-transaction and failed-persistence
+regressions.
+
+**Outstanding:** process-kill/reboot tests, authentic approval-to-execution
+protocol, host-locked production unit adapter, source/identity attestation and
+post-crash manual compensation. The SHA-256 local snapshot is not an external
+signature. Production activation and automatic replay remain disabled.
+
 ## V2-003: interrupted transaction recovery preflight (19 November 2026)
 
 `onboarding_v2_recovery_preflight.py` adds private, immutable-once

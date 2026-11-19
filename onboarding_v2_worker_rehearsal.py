@@ -16,7 +16,8 @@ import uuid
 from onboarding import OnboardingError
 from onboarding_v2_approval import review_attestation
 from onboarding_v2_multiservice import simulate_multiservice_release
-from onboarding_v2_recovery_journal import DurableServiceJournal
+from onboarding_v2_recovery_journal import DurableServiceJournal, _id
+from onboarding_v2_recovery_preflight import save_recovery_evidence, _private as private_snapshot_root
 from onboarding_v2_unit_renderer import render_reviewed_units
 from onboarding_v2_unit_sandbox import UnitSandboxAdapter, _private_sandbox
 from uda_manifest_v2_validate import ManifestV2Error, validate as validate_v2
@@ -40,6 +41,7 @@ def rehearse_reviewed_release(
     expected_units: dict[str, str], runtime_profiles: dict[str, dict] | None,
     review_token: str, reviewer: str, trusted_review_key: bytes,
     review_receipts: Path, sandbox: Path, journal_root: Path,
+    snapshot_root: Path,
     transaction_id: str, is_running: Callable[[str], bool],
     start_unit: Callable[[str], None], stop_unit: Callable[[str], None],
     health_probe: Callable[[str, str], bool],
@@ -53,14 +55,20 @@ def rehearse_reviewed_release(
     """
     if rehearsal_only is not True:
         raise OnboardingError("Worker activation is disabled; explicit rehearsal-only required")
-    if not isinstance(transaction_id, str):
-        raise OnboardingError("Missing rehearsal transaction identity")
+    _id(transaction_id)  # Validate before joining a transaction-derived path.
     # Validate all directories before using the receipt: prevents burning a
     # one-time review token for an untrusted or unavailable sandbox.
     root = _private_sandbox(sandbox)
     journal_root = _private_sandbox(journal_root)
-    if root == journal_root or root.is_relative_to(journal_root) or journal_root.is_relative_to(root):
-        raise OnboardingError("Journal must be separate from service unit sandbox")
+    snapshot_root = _private_sandbox(snapshot_root)
+    locations = [root, journal_root, snapshot_root]
+    if any(a == c or a.is_relative_to(c) or c.is_relative_to(a)
+           for i, a in enumerate(locations) for c in locations[i + 1:]):
+        raise OnboardingError("Journal, snapshots and unit sandbox must be separate")
+    private_snapshot_root(snapshot_root)
+    # Reject repeated transaction IDs before consuming a single-use review.
+    if (snapshot_root / (transaction_id + ".json")).exists():
+        raise OnboardingError("Recovery snapshot for transaction already exists")
     try:
         validate_v2(manifest)
     except (ManifestV2Error, KeyError, TypeError) as exc:
@@ -97,8 +105,21 @@ def rehearse_reviewed_release(
     )
     if receipt["can_install"] is not False or receipt["permission"] != "review_only":
         raise OnboardingError("Review attestation unexpectedly enabled installation")
+    def persist_snapshots(captured: dict[str, object]) -> None:
+        # This callback is invoked after ALL unit snapshots and under the
+        # coordinator lock, but BEFORE configure/start mutates anything.
+        evidence = {}
+        for service, unit in expected_units.items():
+            snap = captured[service]
+            if not isinstance(snap, dict) or snap.get("name") != service:
+                raise OnboardingError("Incorrect captured service snapshot")
+            evidence[unit] = {"bytes": snap["bytes"], "running": snap["running"]}
+        save_recovery_evidence(snapshot_root, transaction_id, fresh,
+                               evidence, expected_units)
+
     result = simulate_multiservice_release(
-        manifest, adapter, journal=journal, simulation_only=True,
+        manifest, adapter, journal=journal,
+        before_mutation=persist_snapshots, simulation_only=True,
     )
     return {
         "mode": "offline_rehearsal",
@@ -108,6 +129,7 @@ def rehearse_reviewed_release(
         "transaction_id": transaction_id,
         "service_result": result.as_dict(),
         "journal": journal.recovery_status(),
+        "snapshot_persisted": (snapshot_root / (transaction_id + ".json")).is_file(),
         "review_permission": receipt["permission"],
         "host_changes_allowed": False,
         "production_activation_allowed": False,

@@ -62,6 +62,8 @@ def setup(tmp_path, *, unhealthy=(), fail_on=None, old_active=()):
     journal_root.mkdir(mode=0o700)
     receipts = tmp_path / "receipts"
     receipts.mkdir(mode=0o700)
+    snapshot_root = tmp_path / "snapshots"
+    snapshot_root.mkdir(mode=0o700)
     bundle = render_reviewed_units(
         doc, release_path=Path(release["release_path"]),
         source_commit_sha=SHA, environment_files=env,
@@ -99,6 +101,7 @@ def setup(tmp_path, *, unhealthy=(), fail_on=None, old_active=()):
         review_token=token, reviewer="reviewer@example.com",
         trusted_review_key=KEY, review_receipts=receipts,
         sandbox=unit_root, journal_root=journal_root,
+        snapshot_root=snapshot_root,
         transaction_id=str(uuid.uuid4()),
         is_running=lambda name: name in running,
         start_unit=start, stop_unit=stop, health_probe=health,
@@ -228,3 +231,57 @@ def test_invalid_transaction_identity_does_not_consume_review_token(tmp_path):
     assert not calls
     assert not list(args["review_receipts"].iterdir())
     assert not list(args["journal_root"].iterdir())
+
+
+def test_snapshot_evidence_precedes_any_unit_configuration(tmp_path):
+    from onboarding_v2_recovery_preflight import _load
+    args, before, running, calls = setup(tmp_path, old_active={"web"})
+    original_start = args["start_unit"]
+    def checked_start(name):
+        snapshot = _load(args["snapshot_root"], args["transaction_id"])
+        assert set(snapshot["units"]) == set(args["expected_units"].values())
+        assert snapshot["units"][args["expected_units"]["web"]]["running"] is True
+        original_start(name)
+    args["start_unit"] = checked_start
+    result = run(args)
+    assert result["snapshot_persisted"] is True
+    event_data = (args["journal_root"] / (args["transaction_id"] + ".jsonl")).read_text()
+    assert event_data.index("snapshots_persisted") < event_data.index("intent:restore:web")
+    assert result["service_result"]["state"] == "healthy"
+
+
+def test_invalid_snapshot_directory_blocks_review_consumption(tmp_path):
+    args, before, running, calls = setup(tmp_path)
+    args["snapshot_root"].chmod(0o755)
+    with pytest.raises(OnboardingError, match="private"):
+        run(args)
+    assert not calls and not list(args["review_receipts"].iterdir())
+
+
+def test_duplicate_snapshot_transaction_id_blocks_review_consumption(tmp_path):
+    args, before, running, calls = setup(tmp_path)
+    txn = args["transaction_id"]
+    (args["snapshot_root"] / (txn + ".json")).write_text("existing evidence")
+    with pytest.raises(OnboardingError, match="already exists"):
+        run(args)
+    assert not calls and not list(args["review_receipts"].iterdir())
+
+
+def test_failed_snapshot_persistence_does_not_mutate_services(tmp_path):
+    args, before, running, calls = setup(tmp_path)
+    # After the receipt is consumed, sabotage only the evidence directory.
+    # Journal events are still durable; the coordinator must not mutate.
+    from onboarding_v2_unit_sandbox import UnitSandboxAdapter
+    original = UnitSandboxAdapter.capture_snapshot
+    def make_readonly(self, name):
+        snap = original(self, name)
+        args["snapshot_root"].chmod(0o755)
+        return snap
+    from unittest.mock import patch
+    with patch.object(UnitSandboxAdapter, "capture_snapshot", make_readonly):
+        outcome = run(args)
+    assert outcome["service_result"]["state"] == "rolled_back"
+    assert outcome["snapshot_persisted"] is False
+    assert all((args["sandbox"] / "units" / unit).read_bytes() == before[name]
+               for name, unit in args["expected_units"].items())
+    assert calls == []
