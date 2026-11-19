@@ -168,11 +168,11 @@ Evidence and instructions:
 - UDA PR #26 production activation remains separate and approval-gated.
 
 ### DEV-020 — V2 manifests for live UDA applications not representable in V1
-Status: 🔵 PLANNED
+Status: 🔨 IN PROGRESS — 11 executable drafts and 6 design-only holds (including ScreenCraft)
 Priority: High
-Branch: to be created per application (draft PRs only)
+Branch: feature/uda-v2-review per executable application; design-review branches for blocked special cases
 Depends on: V2 schema/semantic validator and independent validation tooling in UDA PR #27
-Integration status: authoring not started; production activation prohibited
+Integration status: review-only authoring, independent V2-only acceptance pending; production activation prohibited
 
 Scope:
 - Prepare review-only `uda.v2.yaml` candidates for the 17 live/enabled UDA
@@ -367,6 +367,42 @@ Phase-1 authoring complete in draft form: **11/12 executable manifests**
 and **ScreenCraft design-only review**. DEV-020 overall: **11/17**
 executable candidates; no candidate independently accepted, merged or
 deployed. Existing 20-app acceptance applies only to its pinned commits.
+
+DEV-020 Phase-2 special-case design review — 19 November 2026:
+- [x] Source-backed design-only Camper Power Studio review at
+      `zageabb/camper-power-studio#1` (draft). Its host-inventory web
+      port 5077 differs from local Next dev port 5075, and its wrapper
+      installs dependencies then spawns API/Next processes. Confirm the
+      effective supervisor process graph before assigning V2 ownership.
+- [x] Source-backed DB Migration read-only/migration boundary review
+      at `zageabb/DB_Migration#68` (draft; changelog updated). No generic
+      executable manifest or database-write capability inferred from repo.
+- [x] ShadowPrompt Lab secure exposure and external action review at
+      `zageabb/shadowprompt_lab#1` (draft). Unprotected Flask, potentially
+      sensitive audit/output files and approval-gated email require
+      substantial security gates before UDA publication.
+- [x] Application Home + UDA protected self-upgrade joint ownership
+      design recorded at
+      `docs/v2-dev020-platform-ownership-review.md` on UDA PR #27.
+      Both belong to one existing UDA installation. No duplicate Home
+      lifecycle owner or self-managed bootstrap is authorised.
+- [ ] Before executable V2 manifests for these special cases:
+      independent read-only host ownership/service/volume/identity
+      reconciliation, separate approved runtime graph and backup/restore
+      evidence. Do not loosen deployment or database-write gates.
+- [ ] Run pinned eleven-candidate V2-only canonical schema/semantic/source
+      validation and the complete UDA regression suite, recording results
+      outside GitHub until explicit evidence-publication approval.
+- [ ] Complete the ScreenCraft executable graph only after real pinned
+      PostgreSQL digest, Alembic startup split, persistent volume and
+      trusted UDA identity contract have been reviewed.
+
+**Coverage:** 17/17 registration cases now have at least initial source-backed
+review or design. **Executable draft manifests: 11/17** (no V2-only technical
+acceptance); **design-only safety holds: 6/17** (ScreenCraft plus five
+special ownership/runtime cases). This is NOT deployment readiness.
+The 20 previously accepted V1→V2 conversions remain a separate pinned
+acceptance population.
 
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
