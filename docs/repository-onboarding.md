@@ -32,6 +32,39 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: actual Ubuntu systemd parser acceptance (18 November 2026)
+
+`onboarding_v2_systemd_verify.py` extends the offline rehearsal with a real
+**systemd syntax-validation** gate; it still does not activate services:
+
+- Re-checks an immutable reviewed bundle's application/source identity,
+  individual unit SHA-256 hashes, aggregate digest and exact unit allowlist
+  before writing copies of unit files to a **private temporary** directory.
+- Invokes only `/usr/bin/systemd-analyze verify` through a restricted,
+  no-shell, bounded-output, timeout-limited subprocess. Paths must refer
+  to the exact private workspace; arbitrary `systemctl` commands, unit
+  restarts, SSH, sudo, Caddy, registry and database writes are forbidden.
+- Verifies companion units together so the systemd parser can interpret
+  declared `After` and `Requires` dependencies. Invalid unit text and
+  parser errors do not produce syntax acceptance.
+- Reports only names, hashes, syntax status and a diagnostic count; it
+  never exposes raw unit commands, environment values or potentially
+  sensitive parser output.
+- Always reports `production_activation_allowed: false`. Passing syntax
+  validation is **not** proof of runtime health, working service execution,
+  privilege isolation, restart handling or recovery after host reboot.
+
+**CI evidence:** [V2-003 Systemd Parser Acceptance run
+44247285432](https://github.com/zageabb/universal-deployment-agent/actions/runs/44247285432)
+passed **169 tests each on Python 3.12 and Python 3.13**, including a real
+Ubuntu `systemd-analyze` 259 parser pass on a disposable two-service unit
+graph and all preceding versioning, approval, worker-rehearsal and rollback
+regressions.
+
+Real isolated user-systemd deployment, restart/health, transaction snapshot
+recovery, independent privileged-worker review, and disposable Ubuntu
+end-to-end acceptance remain pending. No production activation is provided.
+
 ## V2-003: integrated offline worker rehearsal (18 November 2026)
 
 `onboarding_v2_worker_rehearsal.py` composes the previously separate
