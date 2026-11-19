@@ -314,7 +314,7 @@ After cloning in the disposable workspace, run from the UDA branch HEAD:
 
 ```bash
 python3 -m pytest -q tests/test_validate_v2_only.py \
-  tests/test_uda_manifest_v2_validate.py
+  tests/test_validate_v2_fleet.py
 python3 -m tools.validate_v2_only \
   --repos-root /path/to/NEW-v2-only-checkouts \
   --uda-root . \
