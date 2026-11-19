@@ -207,7 +207,18 @@ DEV-020 execution update — 19 November 2026:
       mailbox lease/health semantics and production group before acceptance.
 - [ ] Keep Tender Designer PR #23 draft/unmerged, with no migrations, live
       deployment or V2 activation.
-- [ ] Proceed with Lucky Lab, Bank of Mum and Context Studio V2-only drafts.
+- [x] Lucky Lab source reviewed: Compose container, port 5020, SQLite
+      `server-data:/data` persistent mount, Dockerfile and startup sequence.
+- [x] Lucky Lab V2-only manifest and safety review documented on
+      `zageabb/lucky-lab-slot-statistics` draft PR #2 at
+      `cc461730074f1692183f29ed9b93599f790a7839`.
+- [ ] **CRITICAL Lucky Lab blocker:** current `docker-entrypoint.sh` runs
+      `flask db upgrade` and `flask main seed` every start. Split these
+      into separately approved operations with backup/restore evidence
+      before any deployment; V2 may not activate this image as-is.
+- [ ] Run canonical V2 schema/semantic and independent isolated checks on
+      both Tender Designer and Lucky Lab; host verification read-only.
+- [ ] Continue Bank of Mum and Context Studio V2-only drafts.
 
 Phase 1 — draft from existing repository + UDA report evidence (12):
 - Tender Designer — web and mailbox worker; verify worker health.
