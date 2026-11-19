@@ -78,6 +78,22 @@ Phase 2 — special/partial evidence (5):
 - ShadowPrompt Lab — reconcile missing WSGI source/entrypoint before producing
   an executable service declaration.
 
+Ownership and location of V2 manifest work (required workflow):
+- **ChatGPT + GitHub — primary development:** Read the existing V1 manifests,
+  repository build files, source entrypoints and canonical V2 schema. Create
+  V2 manifests in the application repositories on dedicated feature branches,
+  validate them and run independent tests. GitHub remains the source of truth;
+  ChatGPT Desktop is not required to author the manifests.
+- **ChatGPT Desktop — deployment verification:** Compare candidate manifests
+  against `m901-lenovo`'s effective systemd units, Docker configuration,
+  UDA registry and Caddy routing. Collect secret *names*, never secret values.
+  Start with read-only verification. Any state-changing acceptance remains
+  separately approval-gated.
+- **UDA — future activation:** Discover and validate V2 manifests only until
+  the production installer is explicitly approved. Installation, migration
+  and recovery each require explicit production authorisation; manifest
+  existence or successful schema validation never grants execution rights.
+
 Phase 3 — independent validation and host verification:
 - Extend the read-only fleet runner (`tools/validate_v2_fleet.py`) to accept
   these V2-only candidates and compare against recorded live-deployment
