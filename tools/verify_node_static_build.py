@@ -63,7 +63,7 @@ def audit_dist(root: Path, name: str) -> dict:
     index = dist / "index.html"
     if index.is_file() and not index.is_symlink():
         html = index.read_text(encoding="utf-8", errors="replace")
-        local_refs = re.findall(r'(?:src|href)=["' + "'" + r']([^"' + "'" + r']+)["' + "'" + r']', html)
+        local_refs = re.findall(r"""(?:src|href)=["']([^"']+)["']""", html)
         assets = [r for r in local_refs if ("/assets/" in r or r.startswith("./assets/"))]
         if not assets:
             warnings.append("ASSET_REFERENCES: no bundled index asset references discovered")
@@ -77,6 +77,9 @@ def audit_dist(root: Path, name: str) -> dict:
                 rel = asset.split("/assets/", 1)[-1]
                 rel = "assets/" + rel
             rel = rel.split("?", 1)[0].split("#", 1)[0]
+            if ".." in Path(rel).parts or rel.startswith(("/", "\\")):
+                problems.append(f"UNSAFE_ASSET_PATH:{rel[:160]}")
+                continue
             if not (dist / rel).is_file():
                 problems.append(f"MISSING_ASSET:{rel}")
     return {"repository": name, "application": app,
