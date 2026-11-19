@@ -94,8 +94,10 @@ Independent static-artifact audit result (19 November 2026):
       (zero committed output files): Should-Cost Next, DAXBridge and
       Flowchain Studio each require a pinned isolated build, asset inventory
       and safety review.
-- [ ] Collect signed artifact/build acceptance evidence for all six before
-      changing classification, merging manifests or enabling deployment.
+- [x] Collect commit-bound artifact/build acceptance evidence for all six and
+      combine it without changing the conservative source-only reports.
+      Final technical result: **20 PASS / 0 REVIEW / 0 FAIL**; deployment and
+      activation remain explicitly disabled and merge sign-off remains separate.
 
 The operator-provided report and complete JSON evidence are held outside
 GitHub; no evidence attachments were published because separate publication
@@ -116,7 +118,7 @@ approval was not given. These results are recorded as summary only.
       3 allowlisted files / 2 HTML refs, Roundabout Designer 16 / 15,
       CueCraft 1 / 0. All three source-level checks passed.
       This is not equivalent to executing staging or application tests.
-- [ ] Independently execute staging and regression on pinned disposable
+- [x] Independently execute staging and regression on pinned disposable
       checkouts of Wallpaper Studio, Roundabout Designer, CueCraft and UDA.
 - [ ] Inspect deployed URL asset resolution and exact published file inventory;
       compare effective live document root read-only via authorised Desktop.
@@ -139,16 +141,20 @@ approval was not given. These results are recorded as summary only.
 - [x] Add six disposable fixture tests in
       `tests/test_verify_node_static_build.py`; independent execution
       remains pending and no live build results are claimed.
-- [ ] Produce isolated Node builds and run the post-build verifier with
+- [x] Produce isolated Node builds and run the post-build verifier with
       immutable source commits, clean build logs, file hashes and tests.
-- [ ] Generate and review pinned lockfiles for DAXBridge and Flowchain
+- [x] Generate and review pinned lockfiles for DAXBridge and Flowchain
       Studio in disposable development checkouts before any reproducible
       isolated build; keep changes in their own review branches.
-- [ ] Should-Cost Intelligence Next: independently build and audit `dist/`.
-- [ ] DAXBridge: independently build and audit `dist/`.
-- [ ] Flowchain Studio: independently build and audit `dist/`.
-- [ ] Re-run fleet and static audits against pinned repository commits; retain
+- [x] Should-Cost Intelligence Next: independently build and audit `dist/`.
+- [x] DAXBridge: independently build and audit `dist/` (43 tests passed).
+- [x] Flowchain Studio: independently build and audit `dist/` (60 tests passed).
+- [x] Re-run fleet and static audits against pinned repository commits; retain
       evidence and review source-map, asset base-path and secret exclusion.
+- [x] Add commit-bound final evidence aggregation. Source fleet remains
+      **14 PASS / 6 REVIEW / 0 FAIL** by design; verified artifact evidence
+      closes those reviews to **20 PASS / 0 REVIEW / 0 FAIL** without granting
+      deployment, activation or merge authority.
 - [ ] Obtain isolated acceptance and explicit owner sign-off; do not interpret
       manifest PASS or static-tree audit as permission to deploy/merge.
 

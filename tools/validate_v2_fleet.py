@@ -106,7 +106,26 @@ def check_parity(v1: dict, v2: dict) -> list[str]:
         and v2["builds"][0].get("artifact", {}).get("kind") == "static"
         and new_commands == old_commands + [["python3", "tools/uda_stage_static.py"]]
     )
-    if not allowed_staging:
+    reviewed_npm_ci_upgrade = (
+        v1["runtime"]["type"] == "static"
+        and v2.get("static", {}).get("output_dir") == "dist"
+        and len(v2.get("builds", [])) == 1
+        and v2["builds"][0].get("toolchain") == "node"
+        and v2["builds"][0].get("working_dir", ".") == "."
+        and len(old_commands) == len(new_commands)
+        and all(
+            old == new
+            or (
+                old in (
+                    ["npm", "install", "--no-package-lock"],
+                    ["npm", "install", "--package-lock=false"],
+                )
+                and new == ["npm", "ci"]
+            )
+            for old, new in zip(old_commands, new_commands)
+        )
+    )
+    if not allowed_staging and not reviewed_npm_ci_upgrade:
         same(old_commands, new_commands, "build.commands")
     same(set(v1.get("environment", {}).get("required", [])),
          set(v2.get("environment", {}).get("required", [])), "environment.required")

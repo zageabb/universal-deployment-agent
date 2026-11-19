@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import gzip
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -23,19 +24,78 @@ ALLOWED = {".html", ".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".gif",
 DISALLOWED = {".map", ".pem", ".key", ".p12", ".pfx", ".env", ".sqlite", ".db",
               ".yaml", ".yml", ".py", ".ts", ".tsx", ".sh", ".md"}
 SENSITIVE = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}")
+SPECIAL_GZIP = {("DAXBridge", "catalogs/default.tsv.gz")}
+MAX_EXPANDED_GZIP = 8 * 1024 * 1024
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args], text=True, capture_output=True,
+        timeout=20, check=False,
+    )
+
+
+def source_identity(root: Path, problems: list[str], warnings: list[str]) -> dict:
+    """Bind an artifact inventory to an unchanged, committed source tree."""
+    identity = {"source_commit": None, "source_tracked_clean": False}
+    head = _git(root, "rev-parse", "--verify", "HEAD^{commit}")
+    if head.returncode:
+        warnings.append("SOURCE_IDENTITY: Git commit unavailable")
+        return identity
+    identity["source_commit"] = head.stdout.strip()
+
+    diff = _git(root, "diff", "--quiet", "HEAD", "--")
+    if diff.returncode:
+        problems.append("SOURCE_DIRTY: tracked source differs from committed HEAD")
+    else:
+        identity["source_tracked_clean"] = True
+
+    status = _git(root, "status", "--porcelain", "--untracked-files=normal")
+    if status.returncode:
+        problems.append("SOURCE_STATUS: unable to inspect worktree")
+    else:
+        for line in status.stdout.splitlines():
+            if line.startswith("?? ") and line[3:] in ("dist/", "node_modules/"):
+                continue
+            if line:
+                problems.append(f"SOURCE_WORKTREE:{line[:160]}")
+
+    lock_path = next(
+        (path for path in ("package-lock.json", "npm-shrinkwrap.json")
+         if (root / path).is_file() or _git(root, "cat-file", "-e", f"HEAD:{path}").returncode == 0),
+        None,
+    )
+    bound_files = [("package.json", "package_json_sha256")]
+    if lock_path:
+        bound_files.append((lock_path, "package_lock_sha256"))
+    bound_files.append(("uda.v2.yaml", "manifest_sha256"))
+    for path, field in bound_files:
+        current = root / path
+        committed = _git(root, "show", f"HEAD:{path}")
+        if not current.is_file() or committed.returncode:
+            problems.append(f"SOURCE_BINDING: committed {path} required")
+            continue
+        data = current.read_bytes()
+        if data != committed.stdout.encode():
+            problems.append(f"SOURCE_BINDING: {path} differs from HEAD")
+            continue
+        identity[field] = sha256(data).hexdigest()
+    return identity
 
 def audit_dist(root: Path, name: str) -> dict:
     if name not in EXPECTED:
         raise ValueError("Unsupported repository name")
     app, prefix_options = EXPECTED[name]
     problems, warnings, entries = [], [], []
+    identity = source_identity(root, problems, warnings)
     if not (root / "package-lock.json").is_file() and not (root / "npm-shrinkwrap.json").is_file():
         warnings.append("MISSING_LOCKFILE: reviewed reproducible install is required")
     dist = root / "dist"
     if not dist.is_dir() or dist.is_symlink():
         warnings.append("MISSING_BUILD: no completed dist artifact")
-        return {"repository": name, "status": "REVIEW", "errors": problems,
-                "warnings": warnings, "files": entries, "activation_allowed": False}
+        return {"repository": name, "status": "FAIL" if problems else "REVIEW",
+                "errors": problems, "warnings": warnings, "files": entries,
+                "activation_allowed": False, **identity}
     if not (dist / "index.html").is_file() or (dist / "index.html").is_symlink():
         problems.append("MISSING_INDEX: built index.html required")
     for path in sorted(dist.rglob("*")):
@@ -50,14 +110,27 @@ def audit_dist(root: Path, name: str) -> dict:
             problems.append(f"NONREGULAR:{rel}")
             continue
         suffix = path.suffix.lower()
+        special_gzip = (name, rel) in SPECIAL_GZIP
         if any(part.startswith(".") for part in path.relative_to(dist).parts):
             problems.append(f"HIDDEN_FILE:{rel}")
-        if suffix in DISALLOWED or suffix not in ALLOWED:
+        if suffix in DISALLOWED or (suffix not in ALLOWED and not special_gzip):
             problems.append(f"FORBIDDEN_FILE_TYPE:{rel}")
         if path.stat().st_size > 40 * 1024 * 1024:
             warnings.append(f"LARGE_ARTIFACT:{rel}")
         data = path.read_bytes()
-        if SENSITIVE.search(data.decode("utf-8", errors="ignore")):
+        inspected = data
+        if special_gzip:
+            try:
+                with gzip.open(path, "rb") as handle:
+                    inspected = handle.read(MAX_EXPANDED_GZIP + 1)
+                if len(inspected) > MAX_EXPANDED_GZIP:
+                    problems.append(f"EXPANDED_GZIP_TOO_LARGE:{rel}")
+                text = inspected.decode("utf-8")
+                if not text.strip() or not all("\t" in line for line in text.splitlines() if line):
+                    problems.append(f"INVALID_TSV_GZIP:{rel}")
+            except (OSError, UnicodeDecodeError):
+                problems.append(f"INVALID_GZIP:{rel}")
+        if SENSITIVE.search(inspected.decode("utf-8", errors="ignore")):
             problems.append(f"SENSITIVE_CONTENT:{rel}")
         entries.append({"path": rel, "sha256": sha256(data).hexdigest(), "bytes": len(data)})
     index = dist / "index.html"
@@ -85,7 +158,7 @@ def audit_dist(root: Path, name: str) -> dict:
     return {"repository": name, "application": app,
             "status": "FAIL" if problems else "REVIEW" if warnings else "PASS",
             "errors": sorted(set(problems)), "warnings": sorted(set(warnings)),
-            "files": entries, "activation_allowed": False}
+            "files": entries, "activation_allowed": False, **identity}
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
@@ -96,6 +169,7 @@ def main(argv=None) -> int:
     results = [audit_dist(opts.repos_root / name, name) for name in opts.only or NAMES]
     totals = {s: sum(r["status"] == s for r in results) for s in ("PASS", "REVIEW", "FAIL")}
     evidence = {"run_utc": datetime.now(timezone.utc).isoformat(),
+                "evidence_kind": "node-static-artifact-audit-v1",
                 "mode": "read-only-existing-artifact", "npm_executed": False,
                 "production_modified": False, "counts": totals, "results": results,
                 "scope_note": "PASS is artifact inspection only, not build provenance, runtime or deployment sign-off"}

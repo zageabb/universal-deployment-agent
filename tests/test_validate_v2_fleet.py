@@ -108,3 +108,33 @@ def test_staging_requires_exact_reviewed_command():
         "artifact": {"path": "build/uda-public", "kind": "static"},
     }]
     assert "PARITY:static.output_dir" in check_parity(old, new)
+
+
+def test_static_node_install_can_be_hardened_to_npm_ci():
+    old, new = _static_pair()
+    old["runtime"]["working_dir"] = "dist"
+    old["build"] = {"commands": [
+        ["npm", "install", "--no-package-lock"],
+        ["npm", "run", "build"],
+    ]}
+    new["static"]["output_dir"] = "dist"
+    new["builds"] = [{
+        "toolchain": "node", "working_dir": ".",
+        "commands": [["npm", "ci"], ["npm", "run", "build"]],
+    }]
+    assert check_parity(old, new) == []
+
+
+def test_static_node_npm_ci_exception_does_not_allow_other_build_changes():
+    old, new = _static_pair()
+    old["runtime"]["working_dir"] = "dist"
+    old["build"] = {"commands": [
+        ["npm", "install", "--package-lock=false"],
+        ["npm", "run", "build", "--", "--base=/apps/sample/"],
+    ]}
+    new["static"]["output_dir"] = "dist"
+    new["builds"] = [{
+        "toolchain": "node", "working_dir": ".",
+        "commands": [["npm", "ci"], ["npm", "run", "build", "--", "--base=/wrong/"]],
+    }]
+    assert "PARITY:build.commands" in check_parity(old, new)

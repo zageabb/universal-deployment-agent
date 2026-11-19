@@ -165,6 +165,46 @@ Required independent build procedure (outside the UDA production tree):
 5. Check UDA-authenticated subpath routing and live document-root alignment
    with authorised Desktop read-only inspection before any release decision.
 
-No builds were performed when this tooling was authored. The initial
-20-repository fleet evidence (14 PASS, 6 REVIEW) and the six-item static
-audit (0 PASS, 6 REVIEW) remain the verified baseline until rerun.
+No builds were performed when this tooling was authored. That statement is
+historical; the final acceptance procedure below records the later independent
+execution without changing the conservative source-only classifications.
+
+## Final commit-bound acceptance aggregation
+
+The source-only fleet validator intentionally continues to report generated
+artifacts as REVIEW. After every required isolated build/staging run has a
+separate PASS report, combine the evidence without editing either source report:
+
+    python tools/combine_v2_fleet_acceptance.py \
+      --fleet /path/to/evidence/uda-v2-fleet.json \
+      --artifact-evidence /path/to/evidence/uda-v2-static-staging.json \
+      --artifact-evidence /path/to/evidence/uda-v2-node-artifacts.json \
+      --out /path/to/evidence/uda-v2-combined-acceptance.json
+    python -m pytest -q tests/test_combine_v2_fleet_acceptance.py
+
+The combiner accepts only `static-staging-audit-v1` and
+`node-static-artifact-audit-v1` evidence, requires
+`production_modified=false` and `activation_allowed=false`, rejects duplicate
+repositories, and changes a manifest REVIEW to final PASS only when artifact
+PASS is bound to the exact fleet `v2_commit`. Missing or mismatched evidence
+remains REVIEW; failed artifact evidence becomes FAIL. Even a 20 PASS combined
+report keeps deployment and activation disabled and is not merge authority.
+
+Final independent run on 19 November 2026:
+
+- DAXBridge V2 commit `3f849761673d86f006173c3d0af668a352e546e8`:
+  lockfile v3, Node 22/npm 10, zero moderate-or-higher npm audit findings,
+  43 tests passed, production build passed, four public artifact files passed.
+- Flowchain Studio V2 commit `184ba2d6b50244a3c2fdfab8694f52238ef5f5fc`:
+  lockfile v3, Node 22/npm 10, zero moderate-or-higher npm audit findings,
+  60 tests passed, production build passed, six public artifact files passed.
+- Node artifact audit: **3 PASS / 0 REVIEW / 0 FAIL**.
+- Source-only fleet: **14 PASS / 6 REVIEW / 0 FAIL**, as designed.
+- Commit-bound combined acceptance: **20 PASS / 0 REVIEW / 0 FAIL**.
+- Focused regression suite: **29 passed** across fleet, static, Node artifact and
+  combined-evidence tests.
+
+The DAXBridge review also removed an unnecessary Markdown file from the public
+Vite tree. Its required `catalogs/default.tsv.gz` is accepted only at that exact
+path and is size-bounded, decompressed, UTF-8/TSV checked and sensitive-signature
+scanned by the artifact verifier. Arbitrary gzip files remain forbidden.

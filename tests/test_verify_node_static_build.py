@@ -1,5 +1,7 @@
 """Disposable fixture tests for the independent post-build artifact verifier."""
+import gzip
 from pathlib import Path
+import subprocess
 
 from tools.verify_node_static_build import audit_dist
 
@@ -9,6 +11,15 @@ def _fixture(tmp_path: Path, lock=True):
     (root / "dist/assets").mkdir(parents=True)
     if lock:
         (root / "package-lock.json").write_text('{"lockfileVersion":3}')
+    (root / "package.json").write_text('{"name":"daxbridge"}')
+    (root / "uda.v2.yaml").write_text("schema_version: 2\n")
+    subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.name", "Fixture"], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.email", "fixture@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "package.json", "uda.v2.yaml"], check=True)
+    if lock:
+        subprocess.run(["git", "-C", str(root), "add", "package-lock.json"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-m", "fixture"], check=True, capture_output=True)
     (root / "dist/index.html").write_text(
         '<script type="module" src="/apps/daxbridge/assets/main.js"></script>')
     (root / "dist/assets/main.js").write_text('console.log("ready")')
@@ -20,6 +31,8 @@ def test_safe_pinned_artifact_inventory_passes(tmp_path):
     assert report["status"] == "PASS"
     assert report["activation_allowed"] is False
     assert len(report["files"]) == 2
+    assert len(report["source_commit"]) == 40
+    assert report["source_tracked_clean"] is True
 
 
 def test_missing_lockfile_requires_review(tmp_path):
@@ -47,9 +60,11 @@ def test_symlink_asset_rejected(tmp_path):
 
 
 def test_missing_generated_output_requires_review(tmp_path):
-    root = tmp_path / "flowchain_studio"
-    root.mkdir()
-    result = audit_dist(root, "flowchain_studio")
+    root = _fixture(tmp_path)
+    for path in sorted((root / "dist").rglob("*"), reverse=True):
+        path.unlink() if path.is_file() else path.rmdir()
+    (root / "dist").rmdir()
+    result = audit_dist(root, "DAXBridge")
     assert result["status"] == "REVIEW"
     assert result["activation_allowed"] is False
 
@@ -60,3 +75,29 @@ def test_source_map_rejected(tmp_path):
     report = audit_dist(root, "DAXBridge")
     assert report["status"] == "FAIL"
     assert any("FORBIDDEN_FILE_TYPE" in x for x in report["errors"])
+
+
+def test_tracked_source_change_rejected(tmp_path):
+    root = _fixture(tmp_path)
+    (root / "package.json").write_text('{"name":"changed"}')
+    report = audit_dist(root, "DAXBridge")
+    assert report["status"] == "FAIL"
+    assert any("SOURCE_DIRTY" in x for x in report["errors"])
+
+
+def test_required_dax_catalog_is_safely_decompressed_and_inspected(tmp_path):
+    root = _fixture(tmp_path)
+    (root / "dist/catalogs").mkdir()
+    with gzip.open(root / "dist/catalogs/default.tsv.gz", "wb") as handle:
+        handle.write(b"Group\tField\n")
+    report = audit_dist(root, "DAXBridge")
+    assert report["status"] == "PASS"
+
+
+def test_unexpected_gzip_remains_forbidden(tmp_path):
+    root = _fixture(tmp_path)
+    with gzip.open(root / "dist/other.gz", "wb") as handle:
+        handle.write(b"Group\tField\n")
+    report = audit_dist(root, "DAXBridge")
+    assert report["status"] == "FAIL"
+    assert "FORBIDDEN_FILE_TYPE:other.gz" in report["errors"]
