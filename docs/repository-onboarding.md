@@ -32,6 +32,41 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: interrupted transaction recovery preflight (19 November 2026)
+
+`onboarding_v2_recovery_preflight.py` adds private, immutable-once
+**pre-mutation snapshot evidence** and a strictly **read-only** interruption
+review to the v2 service-graph prototype:
+
+- Stores original per-unit bytes and prior running status in a private
+  snapshot file using exclusive-create, fsync and directory fsync. The
+  snapshot is keyed to a UUID transaction, reviewed application, pinned
+  source SHA, unit-bundle digest and explicit service-to-unit mapping.
+- Validates the entire existing SHA-256 chained journal, the exact
+  transaction identity, snapshot hashes, declared service ownership,
+  and pending intent membership before producing an operator checklist.
+- Returns the pending compensation intents in reverse order with explicit
+  service and unit names, and the old running state. It never runs systemctl
+  or a recovery action. A completed healthy/degraded/rolled-back journal
+  produces no recovery steps.
+- Rejects snapshot/journal corruption, wrong bundle or source commit,
+  unknown service names, changed unit mappings, duplicate snapshot IDs,
+  and exposed or symlinked snapshot roots.
+- The result always declares `can_execute: false` and
+  `automatic_replay_allowed: false`. A snapshot hash is **not** a trusted
+  external signature or substitute for independently authenticated approval.
+
+**CI evidence:** [V2-003 Interrupted Recovery Preflight run
+44517881090](https://github.com/zageabb/universal-deployment-agent/actions/runs/44517881090)
+passed **180/180 tests on Python 3.12 and 3.13**, including preceding V1/V2
+approval, renderer, sandbox, journal, systemd parser and rehearsal tests.
+
+**Still pending:** integration of snapshot persistence into the real
+transaction worker **before** unit mutation, durable authorisation and
+source/ownership attestation, safe resume after process or host restart,
+actual privileged worker isolation, and disposable host crash/reboot tests.
+No production deployment or recovery route has been enabled.
+
 ## V2-003: disposable Ubuntu 24.04 real systemd lifecycle acceptance (18 November 2026)
 
 The `tests/integration/v2_systemd/` integration harness now exercises the
