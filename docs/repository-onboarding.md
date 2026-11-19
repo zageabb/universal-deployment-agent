@@ -32,6 +32,67 @@ tests. The specification is frozen for application authors but remains
 subject to CI/review before merging into the standard repository.
 
 
+## V2-003: disposable Ubuntu 22.04 and 24.04 real systemd acceptance (19 November 2026)
+
+The `tests/integration/v2_systemd/` harness tests real systemd inside a
+**GitHub-hosted, ephemeral, privileged Docker container**. CI now uses a
+two-version matrix with the same fixture and evidence assertions:
+
+- Ubuntu **22.04**, matching `m901-lenovo` (systemd 249 family)
+- Ubuntu **24.04**, maintaining forward compatibility
+
+Each matrix job builds an OS-specific image using the `UBUNTU_VERSION` build
+argument, runs only two fixed `uda-v2-test-*` units in a network-disabled
+container without host mounts, and verifies dependent service startup, HTTP
+and worker heartbeat health, degraded-worker classification, a deliberately
+failed upgrade, and exact rollback of previous unit bytes and running states.
+The test refuses normal host execution: it requires the explicit
+`UDA_V2_DISPOSABLE_CONTAINER=1` flag, a Docker marker, systemd PID 1 and one
+of the two allowed Ubuntu versions. The workflow checks both the reported OS
+version and every acceptance result field.
+
+**Verified matrix CI:** [run 44551281269](https://github.com/zageabb/universal-deployment-agent/actions/runs/44551281269)
+completed **successfully** on both Ubuntu 22.04 and 24.04. Evidence artifacts
+are `uda-v2-disposable-systemd-22.04-evidence` and
+`uda-v2-disposable-systemd-24.04-evidence`, with per-job logs. The Docker
+`--privileged` flag is permitted **only in ephemeral CI**; never point this
+workflow at `m901-lenovo` or its production Docker daemon.
+
+### Phase 2 host maintenance isolation gate — not yet approved
+
+The live `m901-lenovo` deployment environment is not this disposable CI
+container. Its `deployment-agent.timer` fetches and deploys updates every
+five minutes, while `uda-proxy-refresh.timer` may regenerate the Caddy
+configuration every two minutes. The former currently encounters a repeated
+`db-migration` test failure, so shared lock contention is possible.
+
+Before any *separately approved* host-local test:
+1. Record both timer and service states, pending runs, affected application
+   revisions, and the existing deployment lock; preserve a baseline of the
+   UDA registration and proxy health.
+2. Choose a maintenance window and explicitly approve the state-changing
+   isolation. Stop the deployment timer; verify the deployment oneshot and
+   lock holder have fully exited. If the test touches UDA registration or
+   proxy/Caddy configuration, isolate the proxy-refresh timer too.
+3. Use pinned commits, distinct private checkout/state/lock paths, dedicated
+   temporary units, unused loopback port, and **no edits to SheetBridge,
+   db-migration, generated Caddyfiles or production UDA configuration**.
+4. Test only with the reviewed, trusted host acceptance procedure; do not
+   bypass the disposable harness's host refusal guard.
+5. Restore every timer to its recorded prior state, verify next-run times,
+   confirm SheetBridge HTTP 200/SSO, UDA registration and proxy health, and
+   check that no test units or files remain.
+
+The recurring `db-migration` HTTP-500/expected-400 regression needs repair
+or explicit exclusion from a maintenance test path. The unrelated indexing
+service failure should be recorded but is not a direct UDA dependency.
+
+**Still outstanding:** trusted source-to-host deployment adapter, real
+operator approval for activation, crash/reboot recovery and privilege
+isolation. Syntax and disposable runtime CI passing do **not** authorise
+live deployment; production activation remains disabled and all v2 PRs
+remain draft/unmerged.
+
 ## V2-003: actual Ubuntu systemd parser acceptance (18 November 2026)
 
 `onboarding_v2_systemd_verify.py` extends the offline rehearsal with a real

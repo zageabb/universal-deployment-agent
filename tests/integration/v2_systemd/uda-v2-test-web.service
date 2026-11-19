@@ -1,0 +1,17 @@
+[Unit]
+Description=UDA V2 disposable integration web
+After=basic.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/python3 /opt/uda-v2-disposable/web.py
+Restart=no
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
