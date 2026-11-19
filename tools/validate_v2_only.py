@@ -26,6 +26,22 @@ REPOS = (
 )
 REF = "feature/uda-v2-review"
 
+# Explicit unresolved source/host gates. These cannot be cleared by a
+# successful schema parse or by source-only checks.
+REVIEW_GATES = {
+    "tender_designer": ("MAILBOX_SERVICE_OWNERSHIP", "PERSISTENT_SQLITE_BACKUP"),
+    "lucky-lab-slot-statistics": ("STARTUP_MIGRATION_AND_SEED", "SQLITE_BIND_BACKUP"),
+    "Bank_of_mum": ("STARTUP_SCHEMA_AND_LEDGER_MUTATIONS", "PROXY_ROUTE_REVIEW"),
+    "context-studio": ("STARTUP_DB_MIGRATIONS", "VINEXT_UBUNTU_RUNTIME"),
+    "research-core": ("ISOLATED_WHEEL_TEST", "CONSUMER_PIN_REVIEW"),
+    "SideCar": ("LIVE_VOLUME_ID_AND_BACKUP", "WEBSOCKET_AND_SECRET_TRUST"),
+    "NetworkBridge": ("STARTUP_SQLITE_SCHEMA_WRITES", "ROUTER_DISCOVERY_PERMISSIONS"),
+    "Sheetbridge": ("UDA_ASSERTION_TRUST", "OPTIONAL_FORMS_SQLITE_STORAGE"),
+    "LedgerOne": ("ACCOUNTING_BOOTSTRAP_AND_MIGRATIONS", "PRODUCTION_WSGI_REVIEW"),
+    "bottle_factory_game": ("NPM_LOCKFILE_MISSING", "LEGACY_UNDERSCORE_ROUTE"),
+    "should-cost-intelligence": ("STARTUP_SCHEMA_WRITES", "PRICING_EVIDENCE_BACKUP"),
+}
+
 
 def inspect(repo: Path, schema: dict, semantic_validate) -> dict:
     result = {"repository": f"zageabb/{repo.name}", "status": "FAIL",
@@ -80,6 +96,7 @@ def inspect(repo: Path, schema: dict, semantic_validate) -> dict:
                 bd = ctr["build"]
                 if not exists(bd["dockerfile"]):
                     result["errors"].append(f"SOURCE:missing Dockerfile {bd['dockerfile']}")
+        result["warnings"].extend(f"REVIEW_GATE:{code}" for code in REVIEW_GATES.get(repo.name, ()))
         # No host/persistence proof exists in a Git object. Review is required.
         result["warnings"].append("REVIEW:effective host, persistence, security, and runtime acceptance pending")
         if doc.get("databases") or doc.get("containers"):
