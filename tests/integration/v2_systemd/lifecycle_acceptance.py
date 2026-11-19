@@ -92,7 +92,8 @@ def sha(data):
 def main():
     guard()
     evidence = {
-        "ubuntu": "24.04",
+        "ubuntu": next(version for version in ("22.04", "24.04")
+                       if f'VERSION_ID="{version}"' in Path("/etc/os-release").read_text()),
         "environment": "docker-only-systemd-pid1",
         "units": list(UNITS),
         "production_activation_allowed": False,
