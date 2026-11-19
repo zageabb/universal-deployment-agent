@@ -122,6 +122,14 @@ approval was not given. These results are recorded as summary only.
 - [ ] CueCraft: verify single-file HTML staging and browser functionality.
 - [ ] Roundabout Designer: audit root output; establish allowlisted document root.
 - [ ] CueCraft: audit root output; establish allowlisted document root.
+- [x] Inspect Node build reproducibility prerequisites: Should-Cost Next has
+      `package-lock.json`, but DAXBridge and Flowchain Studio have no
+      npm lockfile on their current V2 branches (source check 19 Nov 2026).
+- [x] Add read-only source warning for missing npm lockfiles, and verify
+      declared Python staging build scripts exist in Git trees.
+- [ ] Generate and review pinned lockfiles for DAXBridge and Flowchain
+      Studio in disposable development checkouts before any reproducible
+      isolated build; keep changes in their own review branches.
 - [ ] Should-Cost Intelligence Next: independently build and audit `dist/`.
 - [ ] DAXBridge: independently build and audit `dist/`.
 - [ ] Flowchain Studio: independently build and audit `dist/`.
