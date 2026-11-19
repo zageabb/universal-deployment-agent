@@ -297,3 +297,35 @@ def test_disabled_scheduled_job_cannot_be_run(tmp_path):
         response = client.post("/applications/example/scheduled-jobs/cleanup/run", headers=headers, data=data)
     assert response.status_code == 403
     run.assert_not_called()
+
+
+def test_manual_update_launch_failure_is_reported_without_500(tmp_path):
+    client, headers, data = service_client(tmp_path)
+    with patch("dashboard.subprocess.run", side_effect=FileNotFoundError("missing executable")) as run:
+        response = client.post("/applications/example/update", headers=headers, data=data)
+    assert response.status_code == 302
+    assert "update+failed" in response.location
+    run.assert_called_once()
+
+
+def test_manual_update_timeout_is_reported_without_500(tmp_path):
+    import subprocess
+    client, headers, data = service_client(tmp_path)
+    with patch("dashboard.subprocess.run", side_effect=subprocess.TimeoutExpired(["deploy_agent.py"], 600)):
+        response = client.post("/applications/example/update", headers=headers, data=data)
+    assert response.status_code == 302
+    assert "update+failed" in response.location
+
+
+def test_archive_proxy_refresh_unavailable_preserves_registry_change_and_warns(tmp_path):
+    import json
+    client, headers, data = service_client(tmp_path, proxy_enabled=True)
+    def command_run(command, **kwargs):
+        if command[-1] == "uda-proxy-refresh.service":
+            raise FileNotFoundError("systemctl unavailable")
+        return Mock(returncode=0, stdout="", stderr="")
+    with patch("dashboard.reconcile_scheduled_jobs"), patch("dashboard.subprocess.run", side_effect=command_run):
+        response = client.post("/applications/example/enabled", headers=headers, data=data | {"enabled": "false"})
+    assert response.status_code == 302
+    assert "proxy+refresh+needs+attention" in response.location
+    assert json.loads(client.application.config["DEPLOY_CONFIG"].read_text())["applications"][0]["enabled"] is False
