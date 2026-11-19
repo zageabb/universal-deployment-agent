@@ -128,8 +128,17 @@ def check_source(repo: Path, commit: str, v1: dict, v2: dict) -> list[str]:
                     path = argv[i+1] if wd == "." else f"{wd}/{argv[i+1]}"
                     if not exists(path):
                         issues.append(f"SOURCE:missing requirements {path}")
-            if argv and argv[0] == "npm" and not exists("package.json" if wd == "." else f"{wd}/package.json"):
-                issues.append("SOURCE:npm command without package.json")
+            if argv and argv[0] in ("python", "python3") and len(argv) > 1 and argv[1].endswith(".py"):
+                script = argv[1] if wd == "." else f"{wd}/{argv[1]}"
+                if not exists(script):
+                    issues.append(f"SOURCE:missing build script {script}")
+            if argv and argv[0] == "npm":
+                package = "package.json" if wd == "." else f"{wd}/package.json"
+                if not exists(package):
+                    issues.append("SOURCE:npm command without package.json")
+                locks = ("package-lock.json", "npm-shrinkwrap.json")
+                if not any(exists(lock if wd == "." else f"{wd}/{lock}") for lock in locks):
+                    issues.append("REVIEW:Node build lacks a pinned npm lockfile")
     for service in v2.get("services", []):
         wd = service.get("working_dir", ".")
         for token in service["entrypoint"][1:]:
