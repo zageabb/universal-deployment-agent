@@ -5,7 +5,7 @@ No module from this script is imported by UDA. Refuses host execution unless:
 - explicit UDA_V2_DISPOSABLE_CONTAINER=1
 - Docker marker /.dockerenv
 - systemd is PID 1
-- Ubuntu 24.04 base
+- Ubuntu 22.04 or 24.04 base
 
 Only two hard-coded, test-prefixed systemd units are ever touched. The
 acceptance result covers startup, dependency ordering, web/worker health,
