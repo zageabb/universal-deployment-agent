@@ -20,7 +20,7 @@ MAX_SIZE = 5 * 1024 * 1024
 MAX_RECORD = 16 * 1024
 ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 LABEL = re.compile(
-    r"^(?:lock_acquired|snapshot:[a-z0-9-]+|preflight_complete|"
+    r"^(?:lock_acquired|snapshot:[a-z0-9-]+|snapshots_persisted|preflight_complete|"
     r"intent:(?:stop|restore):[a-z0-9-]+|"
     r"configured:[a-z0-9-]+|started:[a-z0-9-]+|"
     r"healthy:[a-z0-9-]+|degraded:[a-z0-9-]+|"
