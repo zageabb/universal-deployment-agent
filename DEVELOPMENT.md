@@ -310,6 +310,35 @@ DEV-020 authoring now: **7 of 17 executable candidates**, plus
 **1 design-only blocked case** (ScreenCraft). None has completed
 independent V2-only acceptance. No production changes executed.
 
+DEV-020 continuation — 19 November 2026 (SheetBridge and LedgerOne):
+- [x] Draft source-backed SheetBridge V2 service/build/SSO manifest at
+      `zageabb/Sheetbridge#30`, commit
+      `81e65df3178a0a5d0ab2d12f561a63342c3a4e4c`.
+      FastAPI loopback port 5100, Vite npm lockfile, protected UDA group
+      and proxy-secret reference; optional SQLite form storage remains
+      unenabled and requires separate backup review.
+- [x] Draft LedgerOne V2 Flask service manifest at `zageabb/LedgerOne#54`,
+      commit `2d453a82cd27235307c5d90826367b176cc42eb5`.
+      The source development launcher and port must be reconciled with
+      actual production WSGI, database and accounting-document storage.
+- [ ] **LedgerOne blocker:** app creation can auto-create schema and seed
+      administrator/organisation. Confirm production settings, independent
+      backups, accounting/audit integrity and explicitly governed migrations;
+      never substitute development passwords or secret defaults.
+- [ ] **SheetBridge gate:** verify actual Caddy assertion + SSO identity,
+      group, effective PYTHONPATH and frontend release path. Determine if
+      SQLite form storage is active before any stateful deployment.
+- [x] Extend `tools/validate_v2_only.py` registry to nine review-only
+      executable V2 candidates (still no V1 parity or host mutation).
+- [ ] Independently execute canonical schema/semantic checks for all nine
+      candidates using pinned checkouts; source-only review is not PASS.
+- [ ] Continue with remaining 3 Phase-1 apps and the 5 special/partial
+      evidence cases, retaining ScreenCraft design-only hold.
+
+DEV-020 authoring: **9 of 17 executable V2 manifests** plus
+**1 design-only blocked case** (ScreenCraft). No new candidate accepted,
+merged or deployed.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
