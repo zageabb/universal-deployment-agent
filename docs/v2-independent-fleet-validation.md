@@ -213,3 +213,47 @@ The DAXBridge review also removed an unnecessary Markdown file from the public
 Vite tree. Its required `catalogs/default.tsv.gz` is accepted only at that exact
 path and is size-bounded, decompressed, UTF-8/TSV checked and sensitive-signature
 scanned by the artifact verifier. Arbitrary gzip files remain forbidden.
+
+## DEV-020 — V2-only candidates without a V1 manifest
+
+The six initial source-backed DEV-020 candidates use
+`feature/uda-v2-review` in their application repositories:
+
+- `tender_designer` (web + mailbox)
+- `lucky-lab-slot-statistics` (Docker + persistent SQLite)
+- `Bank_of_mum` (FastAPI + Next.js)
+- `context-studio` (FastAPI + Vinext frontend)
+- `research-core` (Python library, no listener)
+- `SideCar` (Docker + named SQLite/attachment volume)
+
+These **must not** be assessed using V1 parity. Use the separate immutable,
+offline source/schema/semantic inspection tool:
+
+```bash
+python -m tools.validate_v2_only \
+  --repos-root /path/to/disposable-repository-checkouts \
+  --out /path/to/evidence/uda-v2-only-review.json
+python -m pytest -q tests/test_validate_v2_only.py
+```
+
+The tool resolves the candidate branch to a commit and SHA-256, validates
+against the canonical UDA V2 JSON Schema and semantic graph checker, checks
+Git-tracked build files and entrypoints, requires explicit approval and
+auto-update disabled, and **always** leaves the manifest at REVIEW until
+separate host/runtime/security/data acceptance. An exit code of 1 means
+REVIEW, 2 means FAIL. It does not execute any commands from the manifest,
+build containers, touch the UDA registry or download repositories.
+
+The candidate repo's `docs/uda-v2-review.md` records the still-open
+application-specific gates. Important blockers include existing automatic
+SQLite schema/data writes on startup (Lucky Lab, Bank of Mum, Context Studio),
+unverified host/Next/Vinext service alignment, Docker volume ownership
+(SideCar), mailbox owner/secret-name reconciliation (Tender Designer), and
+library wheel/consumer pin verification (Research Core).
+
+**Do not attach operator evidence to public GitHub PR comments unless
+separate publication approval is given.** Production deployment, V2
+activation, database-write grants, migration and rollback each require
+distinct explicit authorization. The previously accepted 20-app combined
+technical result is unaffected; adding new tooling to PR #27 requires a fresh
+independent regression and the corresponding GitHub CI check.
