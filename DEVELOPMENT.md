@@ -104,13 +104,18 @@ approval was not given. These results are recorded as summary only.
 - [x] Implement an exact-file allowlisted staging script on the three
       static-root application V2 branches, with V2 output_dir changed to
       `build/uda-public`; original V1 manifests remain intact.
-- [x] Add four offline staging regression tests per app (source test files
+- [x] Add five offline staging regression tests per app (source test files
       committed; independent execution and evidence **pending**).
 - [x] Harden Roundabout Designer `deploy/serve.sh` to reject an unstaged
       document root, and serve staged public files rather than repository root.
 - [x] Extend UDA fleet parity to permit only the exact reviewed static staging
       command/output/artifact pattern, with three new negative/positive tests
       committed (independent execution pending).
+- [x] Independently compare staged script allowlists with committed HTML
+      resource references and V2 policy declarations: Wallpaper Studio
+      3 allowlisted files / 2 HTML refs, Roundabout Designer 16 / 15,
+      CueCraft 1 / 0. All three source-level checks passed.
+      This is not equivalent to executing staging or application tests.
 - [ ] Independently execute staging and regression on pinned disposable
       checkouts of Wallpaper Studio, Roundabout Designer, CueCraft and UDA.
 - [ ] Inspect deployed URL asset resolution and exact published file inventory;
