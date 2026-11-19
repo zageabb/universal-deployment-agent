@@ -12,6 +12,7 @@ on:
       - feature/archive-restore
       - feature/deployment-reporting
       - feature/repository-onboarding
+      - feature/uda-v2-systemd-crash-acceptance
   workflow_dispatch:
 
 permissions:
