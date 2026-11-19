@@ -278,7 +278,7 @@ DEV-020 continuation — 19 November 2026:
 - [ ] Re-run all independent UDA regressions and CI on the changed PR #27
       head; its earlier 518-pass baseline does not cover these new changes.
 
-Current DEV-020 authoring: **6 of 17 applications drafted**, all review-only;
+Historical 19 November DEV-020 checkpoint: **6 of 17 applications drafted** at that point;
 none accepted, merged or deployed.
 
 DEV-020 continuation — 19 November 2026 (next increment):
@@ -306,7 +306,7 @@ DEV-020 continuation — 19 November 2026 (next increment):
 - [ ] Follow up with additional source-backed V2-only drafts, keeping
       production activation and merges separately approval-gated.
 
-DEV-020 authoring now: **7 of 17 executable candidates**, plus
+Historical 19 November checkpoint: **7 of 17 executable candidates**, plus
 **1 design-only blocked case** (ScreenCraft). None has completed
 independent V2-only acceptance. No production changes executed.
 
@@ -336,7 +336,7 @@ DEV-020 continuation — 19 November 2026 (SheetBridge and LedgerOne):
       Factory and Should-Cost); ScreenCraft remains design-only blocked.
 - [ ] Proceed with 5 special/partial evidence cases after source checks.
 
-DEV-020 authoring: **9 of 17 executable V2 manifests** plus
+Historical 19 November checkpoint: **9 of 17 executable V2 manifests** plus
 **1 design-only blocked case** (ScreenCraft). No new candidate accepted,
 merged or deployed.
 
@@ -363,7 +363,7 @@ DEV-020 Phase-1 authoring checkpoint — 19 November 2026:
 - [ ] Proceed to five DEV-020 Phase-2 special cases only after reviewing
       ownership, database and runtime evidence for each.
 
-Phase-1 authoring complete in draft form: **11/12 executable manifests**
+Historical Phase-1 milestone: **11/12 executable manifests**
 and **ScreenCraft design-only review**. DEV-020 overall: **11/17**
 executable candidates; no candidate independently accepted, merged or
 deployed. Existing 20-app acceptance applies only to its pinned commits.
