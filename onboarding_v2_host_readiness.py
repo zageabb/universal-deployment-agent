@@ -37,7 +37,7 @@ def _read_status(unit: str, runner) -> dict:
         if sep and key in {"LoadState", "ActiveState", "SubState",
                            "UnitFileState", "NextElapseUSecRealtime"}:
             parsed[key] = value[:150]
-    if not {"LoadState", "ActiveState"}.issubset(parsed):
+    if not {"LoadState", "ActiveState", "SubState", "UnitFileState"}.issubset(parsed):
         return {"unit": unit, "state": "unknown", "inspection_error": True}
     return {
         "unit": unit, "state": parsed["ActiveState"],
@@ -63,6 +63,10 @@ def inspect_host(*, runner=subprocess.run,
             items[u]["inspection_error"] for u in TIMERS) else None,
         "service_inspection_incomplete" if any(
             items[u]["inspection_error"] for u in SERVICES) else None,
+        "systemd_unit_not_loaded" if any(
+            items[u].get("load_state") != "loaded" for u in ALLOWED) else None,
+        "systemd_unit_failed" if any(
+            items[u]["state"] == "failed" for u in ALLOWED) else None,
         "production_deployment_timer_active" if items[TIMERS[0]]["state"] == "active" else None,
         "production_proxy_timer_active" if items[TIMERS[1]]["state"] == "active" else None,
         "deployment_oneshot_active" if items[SERVICES[0]]["state"] in
