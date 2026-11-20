@@ -19,6 +19,29 @@ install -m 0755 "$SOURCE_DIR/proxy_config.py" "$DATA_DIR/proxy_config.py"
 install -m 0755 "$SOURCE_DIR/proxy_migration_agent.py" "$DATA_DIR/proxy_migration_agent.py"
 install -m 0755 "$SOURCE_DIR/router_mapping.py" "$DATA_DIR/router_mapping.py"
 install -m 0644 "$SOURCE_DIR/ui_groups.py" "$DATA_DIR/ui_groups.py"
+# Keep the installed non-Git runtime in sync with the source modules used by
+# dashboard.py and deploy_agent.py. Do not enable V2 installation by copying
+# modules: review-only V2 endpoints retain their independent approval gates.
+for module in \
+  approval_centre.py approval_identity.py deployment_reporting.py \
+  onboarding.py onboarding_adapter.py onboarding_build.py onboarding_install.py \
+  onboarding_journal.py onboarding_preflight.py onboarding_private.py \
+  onboarding_recovery.py onboarding_registry.py onboarding_release.py \
+  onboarding_transaction.py onboarding_v2.py onboarding_v2_approval.py \
+  onboarding_v2_host_readiness.py onboarding_v2_multiservice.py \
+  onboarding_v2_recovery_journal.py onboarding_v2_recovery_preflight.py \
+  onboarding_v2_runtime_profiles.py onboarding_v2_systemd_verify.py \
+  onboarding_v2_ubuntu_preflight.py onboarding_v2_unit_renderer.py \
+  onboarding_v2_unit_sandbox.py onboarding_v2_worker_rehearsal.py \
+  onboarding_worker_policy.py uda_manifest_v2_validate.py
+do
+  install -m 0644 "$SOURCE_DIR/$module" "$DATA_DIR/$module"
+done
+mkdir -p "$DATA_DIR/schemas"
+install -m 0644 "$SOURCE_DIR/schemas/uda-manifest-v1.schema.json" \
+  "$SOURCE_DIR/schemas/uda-manifest-v2.schema.json" "$DATA_DIR/schemas/"
+install -m 0644 "$SOURCE_DIR/templates/onboarding.html" \
+  "$SOURCE_DIR/templates/approvals.html" "$DATA_DIR/templates/"
 mkdir -p "$DATA_DIR/templates"
 install -m 0644 "$SOURCE_DIR/templates/dashboard.html" "$DATA_DIR/templates/dashboard.html"
 install -m 0644 "$SOURCE_DIR/templates/home.html" "$DATA_DIR/templates/home.html"
