@@ -20,6 +20,7 @@ def client_for(tmp_path):
     cfg.write_text(json.dumps({
         "dashboard_token": "secret",
         "applications": [{"name": "example", "enabled": False, "branch": "main",
+                          "kind": "library", "update_commands": [["python3", "-V"]],
                           "repo_path": str(tmp_path), "auto_deploy": False}],
         "approval_centre_store": str(tmp_path / "review.sqlite3"),
         "approval_reviewer_accounts": [
