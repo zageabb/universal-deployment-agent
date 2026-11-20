@@ -151,3 +151,14 @@ def test_review_decision_does_not_clear_static_deployment_gates(tmp_path):
     html = client.get("/approvals", headers=ADMIN).data
     assert b"DEPENDENCY_AUDIT_REMEDIATION" in html
     assert b"LEGACY_UNDERSCORE_ROUTE" in html
+
+
+def test_legacy_registered_name_with_underscore_can_be_reviewed(tmp_path):
+    ident = create_request(
+        tmp_path / "approvals.sqlite3", application="Bank_of_mum",
+        action="database-migration", scope="read-only migration design review",
+        source_sha=SHA, reason="Required independent migration approval")
+    requests, events = overview(tmp_path / "approvals.sqlite3")
+    assert requests[0]["id"] == ident
+    assert requests[0]["application"] == "Bank_of_mum"
+    assert len(events) == 1
