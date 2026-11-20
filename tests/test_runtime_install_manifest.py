@@ -46,6 +46,8 @@ def test_installer_includes_approval_and_v2_schema_assets():
         "templates/approvals.html", "templates/onboarding.html",
         "schemas/uda-manifest-v1.schema.json",
         "schemas/uda-manifest-v2.schema.json",
+        "tools/validate_v2_only.py", "tools/v2_design_holds.py",
+        "tools/validate_v2_fleet.py",
     }
     assert required <= assets
 
@@ -60,3 +62,10 @@ def test_installer_creates_templates_directory_before_copying_views():
     script = (ROOT / "install.sh").read_text()
     assert script.index('mkdir -p "$DATA_DIR/templates"') < script.index(
         'install -m 0644 "$SOURCE_DIR/templates/onboarding.html"')
+
+def test_dashboard_helper_imports_are_packaged():
+    script = (ROOT / "install.sh").read_text()
+    for helper in ("validate_v2_only.py", "v2_design_holds.py",
+                   "validate_v2_fleet.py"):
+        assert '"$SOURCE_DIR/tools/' + helper + '"' in script
+    assert 'mkdir -p "$DATA_DIR/tools"' in script
