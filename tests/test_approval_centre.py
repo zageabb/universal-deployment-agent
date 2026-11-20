@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 import dashboard
+from werkzeug.security import generate_password_hash
 from approval_centre import ApprovalError, create_request, decide, overview
 
 SHA = "a" * 40
@@ -21,6 +22,12 @@ def client_for(tmp_path):
         "applications": [{"name": "example", "enabled": False, "branch": "main",
                           "repo_path": str(tmp_path), "auto_deploy": False}],
         "approval_centre_store": str(tmp_path / "review.sqlite3"),
+        "approval_reviewer_accounts": [
+            {"username": "reviewer01", "role": "reviewer",
+             "password_hash": generate_password_hash("review-pass-for-fixture")},
+            {"username": "approver01", "role": "approver",
+             "password_hash": generate_password_hash("approver-pass-for-fixture")},
+        ],
     }))
     client = dashboard.create_app(cfg).test_client()
     return client, {"csrf_token": client.application.config["CSRF_TOKEN"]}
@@ -90,7 +97,9 @@ def test_dashboard_approval_routes_are_authenticated_and_csrf_protected(tmp_path
 def test_dashboard_approve_and_revoke_do_not_execute_services(tmp_path):
     client, csrf = client_for(tmp_path)
     request_data = {
-        **csrf, "application": "example", "action": "database-write",
+        **csrf, "reviewer_username": "reviewer01",
+        "reviewer_password": "review-pass-for-fixture",
+        "application": "example", "action": "database-write",
         "scope": "synthetic staging records", "source_sha": SHA,
         "reason": "Read-only synthetic test and signed review reference",
         "ttl_hours": "24",
@@ -102,20 +111,24 @@ def test_dashboard_approve_and_revoke_do_not_execute_services(tmp_path):
         records, _ = overview(store)
         ident = records[0]["id"]
         approve = client.post(f"/approvals/{ident}/decision", headers=ADMIN,
-                              data={**csrf, "decision": "approved",
+                              data={**csrf, "reviewer_username": "approver01",
+                                    "reviewer_password": "approver-pass-for-fixture", "decision": "approved",
                                     "reason": "Synthetic review only, no execution"})
         assert approve.status_code == 302
         revoke = client.post(f"/approvals/{ident}/decision", headers=ADMIN,
-                             data={**csrf, "decision": "revoked",
+                             data={**csrf, "reviewer_username": "approver01",
+                                   "reviewer_password": "approver-pass-for-fixture", "decision": "revoked",
                                    "reason": "Synthetic review revoked explicitly"})
         assert revoke.status_code == 302
         run.assert_not_called()
     assert overview(store)[0][0]["status"] == "revoked"
+    assert overview(store)[0][0]["decided_by"] == "approver01"
 
 
 def test_unknown_app_and_invalid_source_sha_cannot_be_requested(tmp_path):
     client, csrf = client_for(tmp_path)
-    request = {**csrf, "application": "missing", "action": "deploy",
+    request = {**csrf, "reviewer_username": "reviewer01",
+               "reviewer_password": "review-pass-for-fixture", "application": "missing", "action": "deploy",
                "scope": "staging only", "source_sha": SHA,
                "reason": "Review reason longer than ten characters"}
     assert client.post("/approvals/request", headers=ADMIN, data=request).status_code == 400
@@ -209,3 +222,39 @@ def test_group_readable_approval_store_is_rejected(tmp_path):
     store.chmod(0o644)
     with pytest.raises(ApprovalError, match="private"):
         overview(store)
+
+
+def test_named_reviewer_permission_and_no_shared_admin_only_write(tmp_path):
+    client, csrf = client_for(tmp_path)
+    body = {**csrf, "application": "example", "action": "deploy",
+            "scope": "isolated code review only", "source_sha": SHA,
+            "reason": "Independent operator identity fixture"}
+    assert client.post("/approvals/request", headers=ADMIN, data=body).status_code == 403
+    body.update(reviewer_username="reviewer01", reviewer_password="review-pass-for-fixture")
+    assert client.post("/approvals/request", headers=ADMIN, data=body).status_code == 302
+    store = tmp_path / "review.sqlite3"
+    requests, audit = overview(store)
+    assert audit[0]["actor"] == "reviewer01"
+    ident = requests[0]["id"]
+    decision = {**csrf, "decision": "approved", "reason": "Review evidence checked",
+                "reviewer_username": "reviewer01",
+                "reviewer_password": "review-pass-for-fixture"}
+    assert client.post(f"/approvals/{ident}/decision", headers=ADMIN,
+                       data=decision).status_code == 403
+    assert overview(store)[0][0]["status"] == "pending"
+    decision.update(reviewer_username="approver01",
+                    reviewer_password="approver-pass-for-fixture")
+    assert client.post(f"/approvals/{ident}/decision", headers=ADMIN,
+                       data=decision).status_code == 302
+    assert overview(store)[0][0]["decided_by"] == "approver01"
+
+
+def test_legacy_twenty_conversion_cohort_visible_without_claiming_pass(tmp_path):
+    from tools.validate_v2_fleet import REPOS
+    client, _ = client_for(tmp_path)
+    html = client.get("/approvals", headers=ADMIN).data
+    assert len(REPOS) == 20
+    assert b"Earlier V1" in html
+    for name in REPOS:
+        assert name.encode() in html
+    assert b"REVIEW INVENTORY" in html
