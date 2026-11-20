@@ -55,6 +55,34 @@ behaviour must be reviewed in the approved maintenance window,
 especially any local unit drop-ins not included in the source template.
 Preserve the exact dashboard `0.0.0.0:5030` binding as requested.
 
+## Disposable installed-runtime smoke (new acceptance gate)
+
+The `tests/test_disposable_installed_runtime.py` suite creates a temporary
+**non-Git** runtime from the explicit source references and fixed module list
+in `install.sh`. It **does not execute `install.sh`** or invoke systemd,
+Caddy, Docker, a deployed application, or any production environment.
+A child Python process with isolated import search loads the copied
+dashboard/agent, verifies the bundled V2 schema, renders the dashboard,
+V1 onboarding and Approval Centre views using a synthetic private config,
+and checks that an unauthorised Approval Centre POST fails closed.
+
+From a clean, isolated UDA source test checkout, with its development
+dependencies already installed:
+
+```bash
+sh -n install.sh
+python -m pytest -q tests/test_runtime_install_manifest.py \
+  tests/test_disposable_installed_runtime.py
+python -m pytest -q
+```
+
+Record the **exact `git rev-parse HEAD`** and final pytest counts. The child
+uses only a disposable config containing a fixed non-production test value.
+It must not be pointed at the real UDA config or running service.
+This tests module and template packaging but does **not** prove that a
+production `install.sh` run will be atomic or preserve live systemd
+unit drop-ins, or that live SSO/Caddy/health will survive a release.
+
 ## Phase 1: read-only operator evidence collection (safe now)
 
 Run as **zageabb** on the real host; no `sudo`, no use of the test account.
