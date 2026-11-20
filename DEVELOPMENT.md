@@ -610,6 +610,37 @@ DEV-021 — User-approved four-point Approval Centre follow-up (20 November 2026
       then review identity key custody, operator audit, HTTPS transport
       and deployment-readiness; keep PR #27 draft and unmerged.
 
+DEV-021 — Four-point Approval Centre follow-up verification (20 November 2026):
+- [x] Deliver 20 earlier conversion inventory entries (from original
+      `tools.validate_v2_fleet.REPOS`) alongside 11 V2-only candidates
+      and 6 special design holds; the 20 are historical review metadata,
+      not new live deployment PASS results.
+- [x] Add `approval_identity.py` with separate named/re-authenticated
+      hashed-password roles: reviewer can create, approver can decide/
+      revoke. Shared Basic dashboard token alone cannot approve.
+      The protected registry config holds individual password hashes.
+- [x] Add SQLite audit UPDATE/DELETE rejection triggers and preserve
+      private store permissions; log named actor for application review.
+      This is NOT cryptographic filesystem tamper-proof evidence.
+- [x] Publish independent, signer-owned token revocation architecture in
+      `docs/v2-trusted-revocation-design.md`; no token signer/revoker
+      was coupled to the dashboard and no execution API was created.
+- [x] Independent stdlib SQLite backend reconstruction with new triggers
+      passed **9/9** targeted tests in disposable local Python.
+- [x] Add targeted Flask fixtures for named roles, 20-repository inventory
+      and audit immutability; fix fixture to satisfy load_config's required
+      application schema and fix the pre-existing gate test to re-authenticate.
+- [x] Add `tools/test_approval_centre_independent.sh`, a clean-branch,
+      source-pinned, evidence-writing runner for targeted Flask/dashboard
+      checks plus full pytest without using GitHub Actions.
+- [ ] **Full Flask and complete UDA integration acceptance NOT RUN**:
+      current container lacks Flask/Werkzeug; network/package index
+      unavailable. Run the committed independent runner on a suitable
+      nonproduction machine. Review actual commit/run log before merge.
+- [ ] Stronger independent audit authenticity, robust HTTPS-only credential
+      transport, and trusted signer revocation checkpoint enforcement
+      remain release-security design gates. PR #27 stays draft.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
