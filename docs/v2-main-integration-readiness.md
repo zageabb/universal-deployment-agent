@@ -4,6 +4,8 @@
 **Scope:** [PR #26](https://github.com/zageabb/universal-deployment-agent/pull/26)
 from `feature/uda-v2-process-crash-recovery` to `main`.
 
+**Release handover:** See [PR #26 production evidence and rollback checklist](v2-pr26-production-handover.md), including the important distinction between the installed non-Git UDA files and the separate source checkout. This is a read-only preparation record, not approval to merge or deploy.
+
 ## Decision
 
 **Feature-stack integration: ACCEPTED.** PR #9 and PRs #12–#25 are merged
