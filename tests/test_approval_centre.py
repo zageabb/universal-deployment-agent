@@ -159,7 +159,9 @@ def test_review_decision_does_not_clear_static_deployment_gates(tmp_path):
         scope="review-only staging approval", source_sha=SHA,
         reason="Synthetic proof of review state separation")
     response = client.post(f"/approvals/{ident}/decision", headers=ADMIN,
-                           data={**csrf, "decision": "approved",
+                           data={**csrf, "reviewer_username": "approver01",
+                                 "reviewer_password": "approver-pass-for-fixture",
+                                 "decision": "approved",
                                  "reason": "Review record only, not activation"})
     assert response.status_code == 302
     html = client.get("/approvals", headers=ADMIN).data
