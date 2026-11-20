@@ -641,6 +641,28 @@ DEV-021 — Four-point Approval Centre follow-up verification (20 November 2026)
       transport, and trusted signer revocation checkpoint enforcement
       remain release-security design gates. PR #27 stays draft.
 
+DEV-021 — Post-acceptance security preflight, 20 November 2026:
+- [x] Operator supplied independent acceptance from `m901-lenovo` for
+      exact head `859619e0d9a1d08d52907f92f14c610b6d3f1995`:
+      targeted Flask/dashboard **38/38 PASS** (5.73s);
+      complete UDA regression **550/550 PASS** (41.59s);
+      both runner exit codes zero. Evidence recorded as PR #27 comment.
+- [x] Confirmed effective dashboard service from user-supplied
+      `systemctl --user show` uses `--host 0.0.0.0 --port 5030`.
+      Operator explicitly instructed: **leave binding unchanged**.
+      No unit edit, restart, firewall or Caddy modification was made.
+- [x] Add `tools/approval_store_preflight.py` — explicit-path,
+      read-only SQLite file owner/mode, trigger/schema/integrity
+      verification; never export review contents or create a store.
+      Add six isolated fixture tests and include in targeted runner.
+- [ ] Run independent acceptance again on this **later source commit**
+      (the 38+550 counts belong strictly to `859619e`). The newly
+      added six tests are committed but have not been executed on Ubuntu.
+- [ ] Verify transport safety and network reachability *without*
+      changing the binding, approval DB backup/restore, individual
+      reviewer credential custody and protected storage owner.
+- [ ] Review merge dependency stack; keep draft PR #27, do not deploy.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
