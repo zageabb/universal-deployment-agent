@@ -40,9 +40,9 @@ done
 mkdir -p "$DATA_DIR/schemas"
 install -m 0644 "$SOURCE_DIR/schemas/uda-manifest-v1.schema.json" \
   "$SOURCE_DIR/schemas/uda-manifest-v2.schema.json" "$DATA_DIR/schemas/"
+mkdir -p "$DATA_DIR/templates"
 install -m 0644 "$SOURCE_DIR/templates/onboarding.html" \
   "$SOURCE_DIR/templates/approvals.html" "$DATA_DIR/templates/"
-mkdir -p "$DATA_DIR/templates"
 install -m 0644 "$SOURCE_DIR/templates/dashboard.html" "$DATA_DIR/templates/dashboard.html"
 install -m 0644 "$SOURCE_DIR/templates/home.html" "$DATA_DIR/templates/home.html"
 install -m 0644 "$SOURCE_DIR/templates/portal_form.html" "$DATA_DIR/templates/portal_form.html"
