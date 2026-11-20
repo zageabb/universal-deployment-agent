@@ -16,6 +16,14 @@
   <div><strong>{{ revoked|length }}</strong><div class="muted">Revoked</div></div>
   <div><strong>{{ requests|length }}</strong><div class="muted">Total review requests shown</div></div>
 </section>
+<section class="card"><h2>Outstanding V2 requirements</h2>
+<p class="muted">Source-backed, read-only DEV-020 review inventory for eleven applications. These are review requirements, not automatically created/approved action requests. Existing installations remain unaffected.</p>
+<div class="scroll"><table><thead><tr><th>Application repository</th><th>Unresolved acceptance gates</th><th>Disposition</th></tr></thead><tbody>
+{% for entry in known_v2_gates %}<tr><td><strong>{{ entry.repository }}</strong></td>
+<td>{% for gate in entry.gates %}<div><code>{{ gate }}</code></div>{% endfor %}</td>
+<td><span class="pill pending">REVIEW</span><div class="muted">Independent evidence required</div></td></tr>
+{% endfor %}
+</tbody></table></div></section>
 <section class="card"><h2>Request review</h2>
 <p class="muted">Create a narrowly scoped, commit-pinned review record. Required approvals are not automatically inferred from GitHub or existing manifests in this first increment.</p>
 <form method="post" action="{{ url_for('approvals_request') }}">
