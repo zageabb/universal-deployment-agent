@@ -663,6 +663,29 @@ DEV-021 — Post-acceptance security preflight, 20 November 2026:
       reviewer credential custody and protected storage owner.
 - [ ] Review merge dependency stack; keep draft PR #27, do not deploy.
 
+DEV-021 — Approval Centre backup/restore rehearsal (20 November 2026):
+- [x] Operator explicitly confirmed the second independent runner's
+      `commit=` matched `8b7b74071b72fcbd7543521025d6421698e9942a`
+      and both targeted/full exit codes were zero; this was recorded
+      on PR #27 as operator-provided independent acceptance evidence.
+- [x] Add `tools/approval_store_backup_drill.py` for *explicit*
+      read-only-source SQLite online backup into a new private 0600
+      file, plus independently validated disposable restored copy;
+      never overwrite any existing source or destination. Backups
+      contain sensitive records and require a private 0700 directory.
+- [x] Add six fixture-based tests for snapshot fidelity, audit
+      preservation, refuse overwrite, private output directory,
+      symlink refusal, absent source and WAL writer compatibility.
+- [x] Include rehearsal fixtures in `test_approval_centre_independent.sh`;
+      document deliberate, opt-in use in `docs/v2-approval-centre.md`.
+- [ ] **Independent tests for the newly committed rehearsal changes
+      have NOT run yet.** 38/38 and 550/550 apply to the previously
+      tested commits, not this new head. Rerun against exact SHA.
+- [ ] Actual live review-store location, host transport, external
+      backup retention and owner controls still need acceptance.
+      Existing `0.0.0.0:5030` binding stays unchanged by request.
+- [ ] PR #27 remains draft, unmerged, with no production change.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
