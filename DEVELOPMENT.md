@@ -490,6 +490,26 @@ DEV-020 Bottle Factory security follow-up — 20 November 2026:
 - [ ] Verify combined UDA PR #27 latest-head tests and GitHub CI;
       prior success is commit-specific, not current-head evidence.
 
+DEV-020 Bottle Factory Vite 6 trial automation — 20 November 2026:
+- [x] Added `scripts/trial-vite6.sh` to Bottle Factory draft PR #9,
+      providing opt-in disposable Vite 6.4.6 dependency resolution,
+      exact lockfile/proposed diff capture, `npm ci`, tests,
+      canonical-prefix static build, artifact checker, all/dev-free npm
+      audits and resolved-dependency inventory.
+- [x] Added three no-network fail-closed guard fixtures for omitted,
+      existing and unsafe result directories; test execution still pending.
+- [x] Documented the trial and evidence-publication boundary in
+      `zageabb/bottle_factory_game/docs/uda-v2-review.md`.
+- [ ] Run the trial independently in a network-capable, unprivileged
+      disposable environment. Current ChatGPT runtime has no GitHub/npm
+      DNS and no cached Vite 6.4.6; **no successful upgrade run exists**.
+- [ ] Re-review proposed package and lockfile changes, moderate/high
+      audit advisories, browser gameplay, static security and base path.
+      Only then commit a verified dependency upgrade to PR #9.
+- [ ] Preserve Bottle Factory V2 REVIEW gates: dependency audit remediation,
+      legacy underscore path transition and independent host acceptance.
+      No build, migration, deployment or live proxy changes authorised.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
