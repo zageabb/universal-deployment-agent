@@ -7,6 +7,7 @@ record; execution requires the existing independent authority and gates.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from contextlib import closing
 import os
 from pathlib import Path
 import re
@@ -41,8 +42,21 @@ def _store(path: Path) -> sqlite3.Connection:
     path = path.expanduser()
     if not path.is_absolute() or path.is_symlink() or not path.parent.is_dir():
         raise ApprovalError("Approval store must be an absolute non-symlink path in an existing directory")
-    if path.exists() and (not path.is_file() or path.stat().st_mode & 0o077):
-        raise ApprovalError("Approval store must be a private regular file")
+    if path.exists():
+        if not path.is_file() or path.stat().st_mode & 0o077:
+            raise ApprovalError("Approval store must be a private regular file")
+    else:
+        # sqlite3.connect() otherwise inherits process umask and can create
+        # world-readable approval records on common 022 hosts.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            fd = os.open(path, flags, 0o600)
+        except FileExistsError:
+            raise ApprovalError("Approval store changed while opening") from None
+        else:
+            os.close(fd)
     conn = sqlite3.connect(path, timeout=5)
     if path.stat().st_mode & 0o077:
         conn.close()
@@ -76,7 +90,7 @@ def _details(request: sqlite3.Row | dict, *, now: datetime) -> dict:
 
 
 def overview(path: Path) -> tuple[list[dict], list[dict]]:
-    with _store(path) as conn:
+    with closing(_store(path)) as conn:
         requests = [_details(item, now=now_utc()) for item in conn.execute(
             "SELECT * FROM requests ORDER BY created_at DESC, id DESC LIMIT 1000")]
         audit = [dict(item) for item in conn.execute(
@@ -95,7 +109,7 @@ def create_request(path: Path, *, application: str, action: str, scope: str,
         raise ApprovalError("A scoped, reasoned, commit-pinned request and 1-168h expiry are required")
     now = now_utc()
     ident = uuid.uuid4().hex
-    with _store(path) as conn:
+    with closing(_store(path)) as conn, conn:
         conn.execute("INSERT INTO requests VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (
             ident, application, action, scope.strip(), source_sha,
             reason.strip(), "pending", _utc(now),
@@ -112,7 +126,7 @@ def decide(path: Path, ident: str, *, decision: str, reason: str,
     if len(reason.strip()) < 10 or len(reason) > MAX_REASON:
         raise ApprovalError("A decision reason of at least 10 characters is required")
     now = now_utc()
-    with _store(path) as conn:
+    with closing(_store(path)) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
         record = conn.execute("SELECT * FROM requests WHERE id=?", (ident,)).fetchone()
         if not record:
