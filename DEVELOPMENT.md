@@ -464,6 +464,32 @@ DEV-020 Bottle Factory follow-up — 20 November 2026:
 - [ ] Current Bottle Factory acceptance remains REVIEW, not FAIL or PASS:
       source and lockfile checks clear, but security and URL/host gates remain.
 
+DEV-020 Bottle Factory security follow-up — 20 November 2026:
+- [x] Re-confirm draft `zageabb/bottle_factory_game#9` lockfile head
+      `fc5db025` before changes; independent operator tests passed,
+      but npm audit reported one high and one moderate vulnerability.
+- [x] Check upstream advisories: esbuild GHSA-67mh-4wv8-2f99
+      patches at >=0.25.0; launch-editor/Vite
+      GHSA-587h-7wmj-h5pm has a Vite 6.4.4 backport. Vite 6.4 is
+      still a supported security maintenance line as of review date.
+- [x] Add Bottle Factory offline `scripts/check-v2-static-artifacts.mjs`
+      verifying canonical V2 asset URL, required file presence, excluded
+      source maps and restricted publication contents, plus 3 offline
+      fixture tests; update Actions to `npm ci` and build with the
+      canonical V2 prefix. **New checks not yet independently executed.**
+- [x] Update Bottle Factory `docs/uda-v2-review.md` to distinguish
+      resolved lockfile from open security issue; document disposable
+      Vite 6.4.6 candidate upgrade and full `npm ci` / tests / build /
+      static audit / `npm audit` requirements. No dependency upgrade
+      applied, no override/--force, no production activation.
+- [ ] Independently run new static-artifact fixtures and a disposable
+      Vite 6.4.x migration trial. Confirm clean audit and browser/gameplay
+      at `/apps/bottle-factory-game/` before changing lockfile again.
+- [ ] Continue to hold `DEPENDENCY_AUDIT_REMEDIATION` and
+      `LEGACY_UNDERSCORE_ROUTE` in UDA validator until evidence clears.
+- [ ] Verify combined UDA PR #27 latest-head tests and GitHub CI;
+      prior success is commit-specific, not current-head evidence.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
