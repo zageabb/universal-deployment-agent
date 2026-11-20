@@ -8,8 +8,8 @@ issuance, secret changes or systemd activation.
 The existing authenticated UDA dashboard has an **Approvals** navigation link
 to `GET /approvals`. The page displays:
 
-- the current DEV-020 V2-only **known review gates** for eleven application
-  manifests from `tools.validate_v2_only.REVIEW_GATES` (read-only source
+- the current DEV-020 V2-only **known review gates** for eleven executable
+  application manifests, plus six special **design-only** cases from `tools.validate_v2_only.REVIEW_GATES` (read-only source
   inventory, **not** authoritative live host status);
 - pending, approved, revoked and expired review requests;
 - a form for administrators to create a **registered-application** request
@@ -59,11 +59,12 @@ to this SQLite approval bit. The known V2 acceptance gates stay visible
 regardless of review decisions, until independently verified and the
 source-tracked gate list is updated.
 
-The known-gates section currently covers the eleven V2-only application
-drafts. It does not yet dynamically discover every gate in existing V1/V2
-deployments, the six special design-only holds, or connected applications.
-Those should be added later through a *read-only* unified source of truth,
-not by guessing or auto-approving them.
+The known-gates section now covers eleven V2-only executable manifest drafts
+and six design-only holds (ScreenCraft, Camper Power Studio, DB Migration,
+ShadowPrompt Lab, protected UDA self-upgrade and Application Home). It does
+not yet dynamically discover every gate in the earlier twenty V1/V2
+conversions, connected applications, or live host approval authority. These
+remain source-tracked review metadata, not real-time host gate status.
 
 ## Independent test plan
 
@@ -92,3 +93,16 @@ have passed**.
    authority before claiming *operational* revocation.
 5. Keep PR #27 draft and do not install or enable until explicit
    deployment-owner approval.
+
+## Independent backend reproduction — 20 November 2026
+
+An isolated copy of the `approval_centre.py` backend fetched from PR #27
+was reconstructed locally with Python 3.13.5 and SQLite. Eight tests passed:
+request/approve/revoke lifecycle, denial, expiration, bad source SHA,
+legacy underscores, five simultaneous conflicting approval attempts,
+private file permissions and symlink rejection. Concurrency generated
+only one successful approval and one `approved` audit event. This was
+**not** a full cloned-PR Flask integration, pytest suite or production
+storage acceptance. Separate PR tests now cover the same concurrency
+and the six design-only hold sources; these new GitHub-head tests have
+not been independently executed in this session.
