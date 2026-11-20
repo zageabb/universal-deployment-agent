@@ -1,0 +1,65 @@
+name: V2-003 Disposable Systemd SIGKILL Recovery
+on:
+  push:
+    branches: [feature/uda-v2-systemd-crash-acceptance]
+  pull_request:
+    branches: [feature/uda-v2-process-crash-recovery]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-systemd-crash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu-version: ['22.04', '24.04']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Ubuntu ${{ matrix.ubuntu-version }} ephemeral systemd test image
+        run: |
+          docker build --build-arg UBUNTU_VERSION=${{ matrix.ubuntu-version }} \
+            -t uda-v2-crash:${{ github.sha }}-${{ matrix.ubuntu-version }} \
+            tests/integration/v2_systemd
+      - name: Start networkless disposable systemd PID1 (no host mounts)
+        run: |
+          docker run -d --name uda-v2-crash-systemd \
+            --privileged --cgroupns=private --network none \
+            --tmpfs /run --tmpfs /run/lock \
+            uda-v2-crash:${{ github.sha }}-${{ matrix.ubuntu-version }}
+          for i in $(seq 1 60); do
+            if docker exec uda-v2-crash-systemd systemctl list-units --no-pager >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          docker logs uda-v2-crash-systemd
+          exit 1
+      - name: Copy only fixed test and UDA snapshot/recovery review modules
+        run: |
+          docker exec uda-v2-crash-systemd mkdir -p /opt/uda-v2-disposable /opt/uda-v2-source/schemas
+          docker cp tests/integration/v2_systemd/. uda-v2-crash-systemd:/opt/uda-v2-disposable/
+          for path in onboarding.py ui_groups.py onboarding_v2_approval.py onboarding_v2_recovery_journal.py onboarding_v2_recovery_preflight.py; do
+            docker cp "$path" uda-v2-crash-systemd:/opt/uda-v2-source/"$path"
+          done
+          docker cp schemas/uda-manifest-v1.schema.json uda-v2-crash-systemd:/opt/uda-v2-source/schemas/uda-manifest-v1.schema.json
+      - name: Real systemd SIGKILL, restart inspection and explicit test rollback
+        run: |
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-crash-systemd \
+            /opt/uda-v2-test-venv/bin/python /opt/uda-v2-disposable/crash_acceptance.py
+          docker exec uda-v2-crash-systemd /usr/bin/python3 -c \
+            'import json; e=json.load(open("/opt/uda-v2-disposable/systemd-crash-evidence.json")); assert e["ubuntu"]=="${{ matrix.ubuntu-version }}"; assert e["production_activation_allowed"] is False; assert all(e[k] is True for k in ("systemd_pid1", "sigkill_confirmed", "journal_survived", "pre_mutation_snapshot_survived", "manual_plan_reopened", "no_automatic_replay", "restored_previous_bytes", "restored_previous_running_state"))'
+      - name: Capture version-specific evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/uda-v2-crash-evidence
+          docker cp uda-v2-crash-systemd:/opt/uda-v2-disposable/systemd-crash-evidence.json /tmp/uda-v2-crash-evidence/acceptance.json || true
+          docker logs uda-v2-crash-systemd > /tmp/uda-v2-crash-evidence/container.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: uda-v2-systemd-crash-${{ matrix.ubuntu-version }}-evidence
+          path: /tmp/uda-v2-crash-evidence/
+          retention-days: 7
+      - name: Remove disposable container
+        if: always()
+        run: docker rm -f uda-v2-crash-systemd || true

@@ -20,6 +20,7 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit
 
 from ui_groups import DEFAULT_GROUP, clean_group_name
+from deployment_reporting import write_attestation
 
 VERSION = "1.6.0"
 
@@ -408,6 +409,12 @@ def deploy_application(app: dict[str, Any], dry_run: bool, logger: logging.Logge
                 raise DeployError(f"{original}; rollback failed: {recovery}") from original
         raise
     result = {"name": name, "status": "deployed", "from": previous, "to": state["remote"]}
+    if service and app.get("deployed_sha_file"):
+        try:
+            write_attestation(app, state["remote"])
+        except ValueError as exc:
+            logger.error("%s deployed successfully but attestation failed: %s", name, exc)
+            result["attestation_error"] = str(exc)
     result["diagnostics"] = diagnostics(app, repo)
     return result
 
