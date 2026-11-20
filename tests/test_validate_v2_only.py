@@ -194,3 +194,32 @@ def test_lockless_npm_ci_cannot_be_treated_as_ready(tmp_path):
     result = inspect(path, SCHEMA, lambda value: None)
     assert result["status"] == "REVIEW"
     assert "REVIEW:cannot run npm ci without a tracked lockfile in ." in result["warnings"]
+
+
+
+def test_bottle_factory_lockfile_gate_is_derived_from_git_not_stale_metadata():
+    from tools.validate_v2_only import REVIEW_GATES
+
+    gates = REVIEW_GATES["bottle_factory_game"]
+    assert "NPM_LOCKFILE_MISSING" not in gates
+    assert "LEGACY_UNDERSCORE_ROUTE" in gates
+    assert "DEPENDENCY_AUDIT_REMEDIATION" in gates
+
+
+def test_tracked_npm_lockfile_clears_missing_lockfile_warning(tmp_path):
+    path = fixture(tmp_path, commands=[["npm", "ci"]])
+    (path / "package.json").write_text('{"name":"fixture","version":"1.0.0"}')
+    (path / "package-lock.json").write_text(
+        '{"name":"fixture","version":"1.0.0","lockfileVersion":3,"packages":{}}'
+    )
+    subprocess.run(["git", "-C", str(path), "add",
+                    "package.json", "package-lock.json"], check=True)
+    subprocess.run(["git", "-C", str(path), "commit", "-m", "tracked-lock"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(path), "branch", "-f",
+                    "feature/uda-v2-review", "HEAD"], check=True)
+    result = inspect(path, SCHEMA, lambda value: None)
+    assert result["status"] == "REVIEW"  # host acceptance still required
+    assert not any("missing npm lockfile" in warning
+                   or "cannot run npm ci without" in warning
+                   for warning in result["warnings"])
