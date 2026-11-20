@@ -139,6 +139,36 @@ If there is no actual approval database yet, leave it uncreated and use
 the six isolated fixture tests instead. Never point the preflight at
 the real application database or a privileged production secret store.
 
+### Backup/restore rehearsal (new, review-only)
+
+`tools/approval_store_backup_drill.py` performs a **consistent SQLite online
+backup** from a source opened in read-only mode, then restores a separate
+**disposable new** SQLite copy. The code never overwrites any existing
+destination or the source database. Both target directories must already
+exist and be private (0700); output files are created 0600. The tool
+checks schema, protected audit triggers and SQLite integrity after copying.
+It compares backup and restored snapshot digests. It logs only SHA-256 and
+non-sensitive status; **the backup files contain the full sensitive approval
+history** and must not be committed to Git or attached to a public PR.
+
+```bash
+# For a synthetic fixture database, or only after real host approval.
+# Use actual absolute paths; keep output outside any source checkout.
+mkdir -m 700 "$HOME/uda-approval-drill-private"
+python3 tools/approval_store_backup_drill.py \
+  --source /absolute/existing/approvals.sqlite3 \
+  --backup "$HOME/uda-approval-drill-private/backup.sqlite3" \
+  --restore-test "$HOME/uda-approval-drill-private/restored.sqlite3"
+```
+
+Do not run on a live store until its correct source path/owner and policy
+have been verified; the preflight is optional when there is no review DB.
+Never treat this rehearsal as automatic production backup scheduling,
+retention, offsite protection or a fully audited recovery plan.
+Six new fixture-based tests exercise the isolated copy/restore workflow,
+WAL writer compatibility and failure protections. These new tests need a
+separate independent runner execution on the latest code commit.
+
 ### Explicit network-binding hold
 
 The operator requested that the existing dashboard **remain bound to
