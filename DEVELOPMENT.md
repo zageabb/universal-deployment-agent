@@ -527,6 +527,35 @@ DEV-020 Bottle Factory independent static fixture regression — 20 November 202
       upgrade before removing `DEPENDENCY_AUDIT_REMEDIATION` or
       `LEGACY_UNDERSCORE_ROUTE` from the UDA V2 acceptance gates.
 
+DEV-021 — UDA V2 Approval Centre initial implementation (20 November 2026):
+- [x] Add `approval_centre.py`: persistent private SQLite review request
+      register and audit events, exact source SHA, 1–168-hour expiry,
+      create/approve/deny/revoke transitions, no command execution.
+- [x] Add `/approvals` page, registered-app request and CSRF-protected
+      decision routes to existing admin-authenticated `dashboard.py`;
+      add dashboard navigation and dedicated accessible review/audit tables.
+- [x] Display the eleven V2-only source-backed `REVIEW_GATES` visibly
+      without treating review approval as validation or clearing holds.
+- [x] Add `tests/test_approval_centre.py` including CRUD transitions,
+      expiration, file permissions, admin authentication, CSRF, static
+      gate preservation, underscore legacy names and no-service-execution
+      fixture. Tests committed; **full Flask/pytest run not yet executed**.
+- [x] Document trust model and staged acceptance in
+      `docs/v2-approval-centre.md`. This is an administrative review
+      record, NOT a signer or revocation authority for existing V2 tokens.
+- [ ] Independently run the new Approval Centre tests and full UDA
+      regression suite on this exact PR #27 head, with relevant dependencies.
+- [ ] Implement independent per-person identity/role attribution,
+      sealed durable audit and stronger multiple-process concurrency if
+      required by deployment security review.
+- [ ] Provide a read-only unified gate feed for the earlier twenty
+      V1→V2 conversions and six special design-only cases; current
+      source-backed gate list covers only eleven V2-only drafts.
+- [ ] Separately design trusted, cryptographic token revocation enforcement.
+      This UI must never grant execution rights based on a SQLite bit.
+- [ ] Approve protected production storage/backup/role ownership and
+      deploy through normal release gates; draft feature not activated.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
