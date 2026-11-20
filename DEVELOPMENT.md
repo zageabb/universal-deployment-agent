@@ -420,6 +420,25 @@ special ownership/runtime cases). This is NOT deployment readiness.
 The 20 previously accepted V1→V2 conversions remain a separate pinned
 acceptance population.
 
+DEV-020 validator continuation — 20 November 2026:
+- [x] Verified UDA PR #27 draft and cleanly mergeable at previous
+      `eb1b7bd` before changes; GitHub recovery workflow success on
+      that commit does **not** establish eleven-app validator acceptance.
+- [x] Improve `tools/validate_v2_only.py` to stop and return FAIL for
+      schema-invalid nested YAML without dereferencing malformed nodes.
+- [x] Explicitly hold `npm ci` candidates with missing committed npm
+      lockfiles at REVIEW (no build invocation).
+- [x] Add two disposable Git regression fixtures covering malformed YAML
+      and lockless `npm ci` source references.
+- [ ] Run the updated V2-only test fixtures and the complete UDA regression
+      suite independently on the current UDA HEAD. No new test-pass result
+      is claimed merely because test files were committed.
+- [ ] Run canonical V2 schema/semantic/source checks on eleven pinned app
+      checkouts, retain private reports, and fix findings on draft branches.
+- [ ] Preserve explicit production owner approval and release gates;
+      do not activate UDA V2 while data, router, SSO and lifecycle
+      reconciliations remain open.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
