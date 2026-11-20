@@ -122,5 +122,32 @@ def test_unknown_app_and_invalid_source_sha_cannot_be_requested(tmp_path):
     request["application"] = "example"
     request["source_sha"] = "main"
     assert client.post("/approvals/request", headers=ADMIN, data=request).status_code == 400
-    assert overview(tmp_path / "review.sqlite3")[0] == [] if (
-        tmp_path / "review.sqlite3").exists() else True
+    store = tmp_path / "review.sqlite3"
+    if store.exists():
+        assert overview(store)[0] == []
+
+
+def test_approval_page_displays_unsatisfied_review_gates(tmp_path):
+    client, csrf = client_for(tmp_path)
+    response = client.get("/approvals", headers=ADMIN)
+    assert response.status_code == 200
+    assert b"Outstanding V2 requirements" in response.data
+    assert b"DEPENDENCY_AUDIT_REMEDIATION" in response.data
+    assert b"DB_MAINTENANCE_APPROVAL_AND_RESTORE" in response.data
+    assert b"Approval is not execution permission" in response.data
+
+
+def test_review_decision_does_not_clear_static_deployment_gates(tmp_path):
+    client, csrf = client_for(tmp_path)
+    ident = create_request(
+        tmp_path / "review.sqlite3",
+        application="example", action="deploy",
+        scope="review-only staging approval", source_sha=SHA,
+        reason="Synthetic proof of review state separation")
+    response = client.post(f"/approvals/{ident}/decision", headers=ADMIN,
+                           data={**csrf, "decision": "approved",
+                                 "reason": "Review record only, not activation"})
+    assert response.status_code == 302
+    html = client.get("/approvals", headers=ADMIN).data
+    assert b"DEPENDENCY_AUDIT_REMEDIATION" in html
+    assert b"LEGACY_UNDERSCORE_ROUTE" in html
