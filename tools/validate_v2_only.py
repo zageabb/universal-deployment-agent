@@ -30,7 +30,7 @@ REF = "feature/uda-v2-review"
 # successful schema parse or by source-only checks.
 REVIEW_GATES = {
     "tender_designer": ("MAILBOX_SERVICE_OWNERSHIP", "PERSISTENT_SQLITE_BACKUP"),
-    "lucky-lab-slot-statistics": ("STARTUP_MIGRATION_AND_SEED", "SQLITE_BIND_BACKUP"),
+    "lucky-lab-slot-statistics": ("DB_MAINTENANCE_APPROVAL_AND_RESTORE", "SQLITE_BIND_BACKUP"),
     "Bank_of_mum": ("STARTUP_SCHEMA_AND_LEDGER_MUTATIONS", "PROXY_ROUTE_REVIEW"),
     "context-studio": ("STARTUP_DB_MIGRATIONS", "VINEXT_UBUNTU_RUNTIME"),
     "research-core": ("ISOLATED_WHEEL_TEST", "CONSUMER_PIN_REVIEW"),
