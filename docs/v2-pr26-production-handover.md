@@ -117,6 +117,47 @@ and installed-file revision from an approved installation record. Do not
 paste `config.json`, environment files, access tokens, passwords or
 protected SQLite files into GitHub comments.
 
+## Read-only installed-file evidence command
+
+Run from the **development checkout**, where the new helper exists, on
+`m901-lenovo`. The command reads only a fixed list of installed runtime
+source files, hashes those files, and stats the protected config without
+opening or hashing the config. It does **not** inspect arbitrary files
+in the runtime tree, run the installer, back up files, change permissions,
+stop timers, or interact with Caddy/systemd:
+
+```bash
+cd ~/uda-integration-testing/uda-test
+python3 tools/v2_release_evidence.py > /tmp/uda-v2-runtime-evidence.json
+echo "inspection exit code: $?"
+```
+
+The report may return exit code 1 for review-required issues; it is not
+proof of a broken active installation. In particular, the previously
+observed installed runtime directory had mode `0775` and thus **may
+produce `runtime_directory_writable_by_others`**. Inspect the directory's
+ownership and group membership separately before recommending a change.
+Do not auto-`chmod` on production as part of this phase.
+
+File digests and status can be attached to a private change record after
+checking its access controls. Do not attach protected config or SQLite
+contents. Source-vs-installed hash differences are expected before an
+upgrade; they are **not** rollback snapshots or proof of release success.
+
+For isolated tests on the review branch, run:
+
+```bash
+python -m pytest -q tests/test_v2_release_evidence.py
+python -m pytest -q
+```
+
+This helper explicitly reports `backup_verified=false`,
+`rollback_verified=false`, and `production_upgrade_authorized=false`
+under all circumstances. A successful inspection cannot grant any
+release approval. An accountable operator must separately preserve a
+known-good installed-file backup, configuration/registry backup, and
+prove a supported restore path.
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
