@@ -108,6 +108,49 @@ with installed development requirements in an isolated environment. Existing
 GitHub Actions are billing-blocked; **test files committed is not proof they
 have passed**.
 
+## Independent acceptance update and optional storage preflight — 20 November 2026
+
+On `m901-lenovo` the operator ran
+`tools/test_approval_centre_independent.sh` on clean, isolated checkout
+**`859619e0d9a1d08d52907f92f14c610b6d3f1995`**.
+The operator supplied these results:
+
+- Approval Centre and dashboard: **38 passed in 5.73 seconds**.
+- Full UDA pytest regression: **550 passed in 41.59 seconds**.
+- Runner: `targeted_exit=0`; `full_exit=0`.
+
+This establishes independent functional regression acceptance for that SHA.
+**Later changes must be retested**; the test counts above are not a pass
+on any later commit. PR #27 remains draft; security/host readiness is distinct.
+
+The new `tools/approval_store_preflight.py` inspects only an existing
+SQLite review store in read-only mode. It checks file mode, local owner,
+audit triggers, expected tables and SQLite integrity without exporting
+request or audit rows or modifying schema. It is optional and **not**
+needed if the Approval Centre has never been enabled (no store exists).
+
+```bash
+# On the server with access to the EXISTING review DB; do not pass config.json
+# or secrets. Only use after the exact review store path is verified.
+python3 tools/approval_store_preflight.py --store /absolute/path/to/approvals.sqlite3
+```
+
+If there is no actual approval database yet, leave it uncreated and use
+the six isolated fixture tests instead. Never point the preflight at
+the real application database or a privileged production secret store.
+
+### Explicit network-binding hold
+
+The operator requested that the existing dashboard **remain bound to
+`0.0.0.0:5030` for now**. The reviewed effective user-level
+systemd `ExecStart` confirms this binding; no service, firewall or Caddy
+change is authorised here. The direct-port reachability, TLS termination,
+firewall and route authentication have not yet been independently verified.
+This is an explicit **transport-security review gate**, not a reason to
+invent HTTPS evidence or silently change the dashboard binding.
+Do not enable approval password submission on a remotely reachable
+plaintext HTTP path until transport security is independently accepted.
+
 ## Next release gates
 
 1. Run complete independent UDA test suite and explicit Approval Centre
