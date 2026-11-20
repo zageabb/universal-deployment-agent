@@ -20,11 +20,32 @@ to `GET /approvals`. The page displays:
 - a persistent, append-only-through-the-UI audit history including UTC time,
   request ID, action, actor and reason.
 
-The dashboard's existing HTTP Basic **admin** identity is the only account
-permitted to access or mutate records. The audit actor is currently recorded
-as `admin`; it does **not** attribute decisions to distinct human users
-sharing that credential. Per-user UDA identity and RBAC are a separate
-hardening milestone, not provided by this increment.
+The dashboard's existing HTTP Basic **admin** credential still gates
+page access. In addition, every **write** to the Approval Centre now
+requires separate named reviewer reauthentication using the
+`approval_reviewer_accounts` protected dashboard configuration. Individual
+entries must have `username`, `role` (`reviewer` or `approver`)
+and `password_hash` generated using
+`werkzeug.security.generate_password_hash`. A reviewer can submit
+requests; only an approver can approve, deny or revoke. If no accounts
+are configured, the centre is read-only (writes fail closed).
+
+Example shape (hash and identity placeholders, never plaintext):
+```json
+{
+  "approval_reviewer_accounts": [
+    {"username": "operator-1", "role": "reviewer", "password_hash": "<werkzeug-hash>"},
+    {"username": "approver-1", "role": "approver", "password_hash": "<werkzeug-hash>"}
+  ]
+}
+```
+Do not copy example placeholders into a live config. Keep real values in
+the protected host configuration, not source control. Require HTTPS for
+password-bearing POST requests; never store, log or display form passwords.
+Identity attribution is to configured credentials, not external SSO identity
+proof. Anyone sharing a named credential is still indistinguishable.
+Future integration with the portal's personal identity store should occur
+only after the UDA Home/dashboard trust boundary has been reviewed.
 
 ## Persistence
 
@@ -61,9 +82,10 @@ source-tracked gate list is updated.
 
 The known-gates section now covers eleven V2-only executable manifest drafts
 and six design-only holds (ScreenCraft, Camper Power Studio, DB Migration,
-ShadowPrompt Lab, protected UDA self-upgrade and Application Home). It does
-not yet dynamically discover every gate in the earlier twenty V1/V2
-conversions, connected applications, or live host approval authority. These
+ShadowPrompt Lab, protected UDA self-upgrade and Application Home). It additionally lists the twenty historic V1→V2 conversion repositories
+from the immutable Git parity validator as a read-only review inventory.
+It does not infer current per-application acceptance from that source list
+and does not dynamically discover connected applications or live host approval authority. These
 remain source-tracked review metadata, not real-time host gate status.
 
 ## Independent test plan
@@ -106,3 +128,23 @@ only one successful approval and one `approved` audit event. This was
 storage acceptance. Separate PR tests now cover the same concurrency
 and the six design-only hold sources; these new GitHub-head tests have
 not been independently executed in this session.
+
+## Stronger audit protection
+
+The review audit table now has SQLite triggers that reject direct UPDATE
+and DELETE operations, supplementing private 0600 file creation and
+transactional request/decision plus audit writes. The audit attribution
+includes the reauthenticated named reviewer/approver username. These are
+**ordinary application-level protections**: a filesystem administrator
+or SQLite database owner can still drop triggers or modify the file.
+Cryptographic tamper evidence, backup/restore integrity and external
+read-only checkpoints remain production hardening gates. Do not claim
+append-only durability against a privileged host compromise.
+
+## Trusted revocation authority
+
+See `docs/v2-trusted-revocation-design.md`. It proposes a separately
+signed, externally checkpointed revocation ledger checked by the trusted
+attestation verifier. This is a **design only**, not implemented token
+revocation. An Approval Centre revoke event does not invalidate any
+previously signed or consumed token.
