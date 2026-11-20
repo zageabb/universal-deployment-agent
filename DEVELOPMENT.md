@@ -439,6 +439,31 @@ DEV-020 validator continuation — 20 November 2026:
       do not activate UDA V2 while data, router, SSO and lifecycle
       reconciliations remain open.
 
+DEV-020 Bottle Factory follow-up — 20 November 2026:
+- [x] Bottle Factory `zageabb/bottle_factory_game#9` independently
+      reported commit `fc5db0258102729e3b03798541c0fabe4a4f6e3c` with
+      tracked npm lockfile v3 (SHA-256
+      `9927bc1c0b10dec745fdb88b624fcdc69d0ce6d817bfe150d74141906528b9e0`).
+      Operator reported `npm ci`, 21/21 tests and Vite production build PASS,
+      and 20/20 independent V2-only validator regressions PASS.
+- [x] Remove stale static `NPM_LOCKFILE_MISSING` warning from UDA
+      `REVIEW_GATES`. Missing lockfiles are determined dynamically from
+      the pinned Git tree. Add a regression checking a committed lockfile
+      does not emit a missing-lockfile warning.
+- [ ] **Security release gate:** operator's `npm audit` identified
+      1 moderate + 1 high Vite/esbuild advisory. Investigate
+      `GHSA-67mh-4wv8-2f99` and `GHSA-587h-7wmj-h5pm`,
+      assess runtime-vs-development exposure, and test a controlled
+      compatible upgrade without automatically applying Vite 8.3.8.
+- [ ] Keep `LEGACY_UNDERSCORE_ROUTE` gate: deployed
+      `/apps/bottle_factory_game/` differs from proposed canonical
+      `/apps/bottle-factory-game/`; approve alias or asset/base migration
+      separately before any activation.
+- [ ] Rerun new UDA regression additions on current PR #27 head;
+      the reported 20/20 result predates these additional test changes.
+- [ ] Current Bottle Factory acceptance remains REVIEW, not FAIL or PASS:
+      source and lockfile checks clear, but security and URL/host gates remain.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
