@@ -91,9 +91,14 @@ remain source-tracked review metadata, not real-time host gate status.
 ## Independent test plan
 
 ```bash
-python -m pytest -q tests/test_approval_centre.py tests/test_dashboard.py
-python -m pytest -q
+# From a clean, disposable checkout of feature/uda-v2-independent-validation:
+# Choose a new private output directory outside the repository.
+bash tools/test_approval_centre_independent.sh /path/to/NEW-private-uda-approval-evidence
 ```
+The runner records the exact Git commit, Python version, targeted dashboard
+tests and full UDA pytest output, and rejects overwrite/nonreview branches.
+It never deploys. Make sure the isolated environment has the normal UDA
+development dependencies installed.
 
 Tests include create/approve/deny/revoke and audit-event ordering, expiry,
 private SQLite permissions, unknown application and invalid source commit
@@ -148,3 +153,14 @@ signed, externally checkpointed revocation ledger checked by the trusted
 attestation verifier. This is a **design only**, not implemented token
 revocation. An Approval Centre revoke event does not invalidate any
 previously signed or consumed token.
+
+### Current integration execution limit
+
+The present ChatGPT container has Python/pytest/sqlite3 but lacks Flask and
+Werkzeug, and cannot install them from the package index. **Flask/dashboard
+integration is still NOT independently passed** in the current environment.
+A disposable backend reconstruction including SQL audit triggers passed
+9/9 tests, but is not the same as running the actual GitHub PR head.
+Do not merge/deploy based solely on these backend tests. Use the independent
+runner above on a development machine with dependencies available and attach
+the logs/evidence to PR #27 for review.
