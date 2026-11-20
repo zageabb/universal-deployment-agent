@@ -52,11 +52,16 @@ def inspect(repo: Path, schema: dict, semantic_validate) -> dict:
         issues = sorted(Draft202012Validator(schema).iter_errors(doc),
                         key=lambda item: (str(item.json_path), item.message))
         result["errors"].extend(f"SCHEMA:{item.json_path}:{item.message}" for item in issues)
-        if not issues:
-            try:
-                semantic_validate(doc)
-            except ValueError as exc:
-                result["errors"].append(f"SEMANTIC:{exc}")
+        if issues:
+            # Never inspect nested mappings/argv from a schema-invalid
+            # document: malformed YAML can contain scalars or arrays here.
+            # The schema failures are sufficient to block the candidate.
+            result["status"] = "FAIL"
+            return result
+        try:
+            semantic_validate(doc)
+        except ValueError as exc:
+            result["errors"].append(f"SEMANTIC:{exc}")
         if doc.get("source", {}).get("repository", "").casefold() != result["repository"].casefold():
             result["errors"].append("SOURCE:repository identity mismatch")
         if doc.get("deployment", {}).get("approval") != "explicit" or doc.get("deployment", {}).get("auto_update") is not False:
@@ -96,6 +101,18 @@ def inspect(repo: Path, schema: dict, semantic_validate) -> dict:
                 bd = ctr["build"]
                 if not exists(bd["dockerfile"]):
                     result["errors"].append(f"SOURCE:missing Dockerfile {bd['dockerfile']}")
+        # Do not silently accept a local build or static candidate whose
+        # external publication source tree cannot be traced to tracked files.
+        for build in doc.get("builds", []):
+            for cmd in build.get("commands", []):
+                # npm ci is reproducible only when the lockfile is tracked.
+                if len(cmd) >= 2 and cmd[:2] == ["npm", "ci"]:
+                    wd = build.get("working_dir", ".")
+                    prefix = "" if wd == "." else wd + "/"
+                    if not any(exists(prefix + lock) for lock in
+                               ("package-lock.json", "npm-shrinkwrap.json")):
+                        result["warnings"].append(
+                            f"REVIEW:cannot run npm ci without a tracked lockfile in {wd}")
         result["warnings"].extend(f"REVIEW_GATE:{code}" for code in REVIEW_GATES.get(repo.name, ()))
         # No host/persistence proof exists in a Git object. Review is required.
         result["warnings"].append("REVIEW:effective host, persistence, security, and runtime acceptance pending")
