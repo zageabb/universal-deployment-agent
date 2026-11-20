@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UDA Approval Centre</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#172b2a;background:#f4f7f5}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1350px;margin:auto;padding:28px}header{display:flex;justify-content:space-between;gap:16px;align-items:center}a{color:#17633b}.card{background:white;border:1px solid #dce5e2;border-radius:12px;padding:18px;margin-top:18px}h1{margin:0}h2{margin-top:0;font-size:19px}.muted{color:#647572}.alert{padding:12px;background:#fff1cd;border-radius:8px;margin-top:16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.field{display:grid;gap:5px}label{font-weight:650;font-size:13px}input,select,textarea{width:100%;padding:9px;border:1px solid #b8cbc5;border-radius:8px;font:inherit}textarea{min-height:72px}button{background:#123f38;color:white;border:0;border-radius:8px;padding:9px 12px;cursor:pointer;font:inherit;font-weight:700}button.revoke,button.deny{background:#90352e}button:disabled{background:#acb9b4}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;border-bottom:1px solid #dce5e2;padding:10px;vertical-align:top;overflow-wrap:anywhere}th{color:#647572}code{font-size:12px}.scroll{overflow-x:auto}.actions{display:flex;gap:6px;flex-wrap:wrap;align-items:end}.actions input{max-width:300px}.pill{background:#e9eeec;border-radius:24px;padding:3px 8px;text-transform:capitalize;display:inline-block}.pending{background:#fff1cd}.approved{background:#d9f3e5}.revoked,.denied,.expired{background:#f8dddd}.stats{display:flex;gap:14px;flex-wrap:wrap}.stats strong{font-size:22px}@media(max-width:700px){.wrap{padding:15px}header{align-items:start;flex-direction:column}}
+</style></head><body><main class="wrap">
+<header><div><div class="muted">UNIVERSAL DEPLOYMENT AGENT · V2</div><h1>Approval Centre</h1></div><a href="{{ url_for('index') }}">Back to dashboard</a></header>
+<div class="alert"><strong>Review only.</strong> {{ notice }} Approval is not execution permission, and revocation does not undo completed work.</div>
+{% if message %}<div class="alert">{{ message }}</div>{% endif %}
+{% set pending = requests|selectattr('effective_status','equalto','pending')|list %}
+{% set approved = requests|selectattr('effective_status','equalto','approved')|list %}
+{% set revoked = requests|selectattr('effective_status','equalto','revoked')|list %}
+<section class="card stats" aria-label="Approval counts">
+  <div><strong>{{ pending|length }}</strong><div class="muted">Pending</div></div>
+  <div><strong>{{ approved|length }}</strong><div class="muted">Approved (unexpired)</div></div>
+  <div><strong>{{ revoked|length }}</strong><div class="muted">Revoked</div></div>
+  <div><strong>{{ requests|length }}</strong><div class="muted">Total review requests shown</div></div>
+</section>
+<section class="card"><h2>Outstanding V2 requirements</h2>
+<p class="muted">Source-backed, read-only DEV-020 review inventory for eleven executable manifest drafts. These are review requirements, not automatically created/approved action requests. Existing installations remain unaffected.</p>
+<div class="scroll"><table><thead><tr><th>Application repository</th><th>Unresolved acceptance gates</th><th>Disposition</th></tr></thead><tbody>
+{% for entry in known_v2_gates %}<tr><td><strong>{{ entry.repository }}</strong></td>
+<td>{% for gate in entry.gates %}<div><code>{{ gate }}</code></div>{% endfor %}</td>
+<td><span class="pill pending">REVIEW</span><div class="muted">Independent evidence required</div></td></tr>
+{% endfor %}
+</tbody></table></div></section>
+<section class="card"><h2>Special design-only holds (6)</h2>
+<p class="muted">These applications require architecture, ownership or migration design approval before an executable V2 graph can be accepted. They are not deployable manifests. Approving a review record does not clear these holds.</p>
+<div class="scroll"><table><thead><tr><th>Application</th><th>Outstanding requirements</th><th>Review source</th><th>Status</th></tr></thead><tbody>
+{% for item in design_only_holds %}
+<tr><td><strong>{{ item.application }}</strong><div class="muted">{{ item.repository }}</div></td>
+<td>{% for gate in item.gates %}<div><code>{{ gate }}</code></div>{% endfor %}</td>
+<td>{{ item.reference }}</td><td><span class="pill pending">DESIGN ONLY</span></td></tr>
+{% endfor %}</tbody></table></div></section>
+<section class="card"><h2>Earlier V1 → V2 conversions ({{ legacy_v1_v2_conversions|length }})</h2>
+<p class="muted">Read-only original conversion cohort. These applications have a separate immutable-Git parity validator; appearance here does not mean the current source commit, runtime build or production host is accepted.</p>
+<div class="scroll"><table><thead><tr><th>Repository</th><th>Review evidence required</th><th>Status</th></tr></thead><tbody>
+{% for name in legacy_v1_v2_conversions %}
+<tr><td><strong>{{ name }}</strong></td><td>Current V1/V2 Git parity; canonical schema/semantic validation; build and effective host acceptance</td><td><span class="pill pending">REVIEW INVENTORY</span></td></tr>
+{% endfor %}
+</tbody></table></div></section>
+<section class="card"><h2>Request review</h2>
+<p class="muted">Create a narrowly scoped, commit-pinned review record. All changes require a configured individual reviewer or approver identity. Required approvals are not automatically inferred from GitHub or existing manifests in this first increment.</p>
+<form method="post" action="{{ url_for('approvals_request') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="grid">
+<div class="field"><label for="app">Registered application</label><select id="app" name="application" required>{% for app in apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}</select></div>
+<div class="field"><label for="kind">Action</label><select id="kind" name="action" required>{% for action in action_types %}<option value="{{ action }}">{{ action|replace('-',' ')|title }}</option>{% endfor %}</select></div>
+<div class="field"><label for="sha">Full reviewed source commit (40 hex)</label><input id="sha" name="source_sha" pattern="[0-9a-f]{40}" minlength="40" maxlength="40" required></div>
+<div class="field"><label for="ttl">Expiry (hours)</label><input id="ttl" type="number" name="ttl_hours" min="1" max="168" value="24" required></div>
+</div>
+<div class="field"><label for="scope">Exact operation / scope</label><input id="scope" name="scope" maxlength="160" required></div>
+<div class="field"><label for="why">Reason and evidence reference (not secrets)</label><textarea id="why" name="reason" minlength="10" maxlength="1500" required></textarea></div>
+<div class="grid">
+<div class="field"><label for="who">Named reviewer identity</label><input id="who" name="reviewer_username" autocomplete="username" required></div>
+<div class="field"><label for="password">Reviewer password (not saved)</label><input id="password" type="password" name="reviewer_password" autocomplete="current-password" required></div>
+</div>
+<p><button type="submit" {% if not apps %}disabled{% endif %}>Create pending review</button></p>
+</form></section>
+<section class="card"><h2>Approval requests</h2><div class="scroll"><table>
+<thead><tr><th>Application &amp; action</th><th>Scope &amp; evidence</th><th>Status</th><th>Expiry</th><th>Decision</th></tr></thead><tbody>
+{% for item in requests %}
+<tr><td><strong>{{ item.application }}</strong><div>{{ item.action|replace('-',' ')|title }}</div><code>{{ item.id[:12] }}</code></td>
+<td>{{ item.scope }}<div class="muted">{{ item.reason }}</div><code title="{{ item.source_sha }}">{{ item.source_sha[:12] }}</code></td>
+<td><span class="pill {{ item.effective_status }}">{{ item.effective_status }}</span><div class="muted">{{ item.decided_by or '' }}</div></td>
+<td>{{ item.expires_at }}</td>
+<td>
+{% if item.effective_status == 'pending' or item.effective_status == 'approved' %}
+<form method="post" action="{{ url_for('approvals_decide', ident=item.id) }}" onsubmit="return confirm('Record this review decision? This does not execute an operation.')">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="actions"><label for="decision-{{ item.id }}">Decision</label>
+<select id="decision-{{ item.id }}" name="decision" required>
+{% if item.effective_status == 'pending' %}<option value="approved">Approve review</option><option value="denied">Deny</option>{% else %}<option value="revoked">Revoke</option>{% endif %}
+</select><input name="reason" minlength="10" maxlength="1500" placeholder="Decision reason (required)" required>
+<input name="reviewer_username" autocomplete="username" placeholder="Named approver" required><input type="password" name="reviewer_password" autocomplete="current-password" placeholder="Approver password" required><button type="submit">Record</button></div></form>
+{% else %}<span class="muted">No available transition</span>{% endif %}
+{% if item.decision_reason %}<div class="muted">{{ item.decision_reason }}</div>{% endif %}
+</td></tr>
+{% else %}<tr><td colspan="5">No review requests recorded.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="card"><h2>Audit history</h2><p class="muted">Append-only application-level review events, not proof of execution.</p><div class="scroll"><table><thead><tr><th>Time (UTC)</th><th>Request</th><th>Event</th><th>Actor</th><th>Reason</th></tr></thead><tbody>
+{% for event in events %}<tr><td>{{ event.at }}</td><td><code>{{ event.request_id[:12] }}</code></td><td>{{ event.event }}</td><td>{{ event.actor }}</td><td>{{ event.reason }}</td></tr>{% else %}<tr><td colspan="5">No events.</td></tr>{% endfor %}
+</tbody></table></div></section>
+</main></body></html>

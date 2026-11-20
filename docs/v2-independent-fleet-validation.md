@@ -1,0 +1,388 @@
+# Independent UDA V2 fleet acceptance (20 V1 conversions)
+
+Status: read-only manifest validation; no deployment approval.
+
+The CLI is independent of GitHub Actions, ForgeBridge, MCP and production systemd/Caddy. It uses the official UDA V2 JSON Schema and semantic validator. It only reads immutable Git objects in existing local checkouts. It does NOT run build commands, installs, systemctl, Docker or migrations.
+
+## Preparation
+
+Use a disposable development workstation or isolated directory, NOT the production checkout. Have Python, Git, PyYAML and jsonschema installed in an isolated virtual environment.
+
+Place all 20 repositories as direct subdirectories under one repos-root, using the exact names in tools/validate_v2_fleet.py. Both refs must be present in each local Git repository:
+
+- feature/uda-manifest-v1: root uda.yaml
+- feature/uda-manifest-v2-review: uda.v2.yaml
+
+For an explicit disposable fetch into a NEW directory, use: bash tools/prepare_v2_fleet_workspace.sh /path/to/new-fleet-clones . This is a separate network-writing preparation step; the validator itself is offline. Check repository access before running it. GitHub Actions is not needed. For the GitHub repository Internet_pricing, name its local destination directory internet_pricing for compatibility with the fleet inventory. Never embed GitHub credentials in the report.
+
+## Execute
+
+From an isolated checkout of this UDA branch:
+
+    python3 -m venv /tmp/uda-v2-fleet-venv
+    /tmp/uda-v2-fleet-venv/bin/python -m pip install -r requirements.txt pytest
+    /tmp/uda-v2-fleet-venv/bin/python tools/validate_v2_fleet.py --repos-root /path/to/clones --uda-root . --out /path/to/evidence/uda-v2-fleet.json
+    /tmp/uda-v2-fleet-venv/bin/python -m pytest -q tests/test_validate_v2_fleet.py
+
+Option --only Notes can be repeated to select a subset. The runner never checks out, fetches or updates refs. It resolves immutable commit SHAs and stores the source manifest SHA-256 digests.
+
+Exit code 0 = all PASS; 1 = REVIEW without FAIL; 2 = at least one FAIL. Missing objects, malformed YAML and semantic/schema violations fail closed.
+
+## Covered gates
+
+1. YAML parse and Draft202012Validator shape validation.
+2. Official UDA V2 semantic graph validation.
+3. V1 parity: name, branch, proxy/authentication, build argv, service entrypoint, port, health, environment names and rollback declaration.
+4. Explicit approval and disabled auto_update.
+5. Static source checks of declared build paths, requirements files, npm package files and Python script entrypoints.
+6. JSON report with per-repo result, pinned Git commits and manifest digests.
+
+Source inspection does not prove application startup, installed dependencies, compiled assets, safe DB migrations, service ownership, production rollback or health. Static root publication and not-yet-built static artifacts require further manual REVIEW. Build/runtime tests must run separately in a disposable sandbox and must never execute untrusted YAML argv as part of this read-only validator.
+
+V2 files remain named uda.v2.yaml, not uda.yaml. This avoids activating V2 accidentally. Each V2 PR targets its existing V1 feature branch. Neither the V1 nor V2 manifest PRs may be merged based solely on this acceptance report. UDA PR #26 retains a separate production-host approval gate.
+
+Retain JSON evidence, runner commit, UDA schema/semantic validator commit, and independent build reports. Redact local path/username details before sharing. Never publish secret values or upload reports to GitHub without separate approval.
+
+## Follow-on static artifact acceptance (six REVIEW results, 19 November 2026)
+
+The independent fleet evidence reports 14 PASS, 6 REVIEW, 0 FAIL and four passing
+runner tests. The six REVIEW entries are expected: Wallpaper Studio, Roundabout
+Designer and CueCraft use repository-root static publication; Should-Cost Next,
+DAXBridge and Flowchain Studio require generated dist builds.
+
+Use the extra **read-only** Git-object audit (no scripts are executed):
+
+    python tools/validate_static_artifacts.py \
+      --repos-root /path/to/disposable/repositories \
+      --out /path/to/evidence/uda-v2-static-artifacts.json
+    python -m pytest -q tests/test_validate_static_artifacts.py
+
+The audit resolves immutable commits, enumerates tracked output paths and flags
+configuration/source files, hidden/sensitive directories and symlinks. A repository-root
+publication remains REVIEW **even when only apparently safe tracked files exist**:
+untracked files and the Git directory must not be exposed by a live web-server document
+root. For generated `dist/`, a Git-tree review does not prove a successful build.
+
+Required separate acceptance:
+1. Root-published apps: in a disposable checkout build a *new* allowlisted
+   publication directory containing only explicitly approved web assets; inspect
+   relative URLs, file list, symlink policy, headers and deny access to
+   .git/.env/source/config/backup paths. Compare the intended runtime document
+   root to the isolated staging directory before approving a manifest change.
+2. Generated apps: pin commits, use an isolated unprivileged build sandbox with
+   no production environment/credentials, and run the repository's reviewed
+   install/build commands (not arbitrary argv loaded from a manifest). Confirm
+   build exit 0, dist/index.html, asset hashes and that dist contains no source
+   maps, credentials, backend data, symlinks or unexpected files. Record Node,
+   npm, lockfile version, command, hashes, logs and dependency review.
+3. Execute application tests only within that sandbox, not as evidence of
+   production runtime. Verify routed /apps/<slug>/ assets and UDA login/SSO
+   separately under approved controlled acceptance.
+4. Attach explicit per-application evidence and owner sign-off before changing
+   REVIEW status. Never adjust status based solely on the audit script output.
+
+**Important:** this audit is intentionally conservative: its output will not
+turn REVIEW to PASS automatically. It only identifies evidence and concrete
+risks, while the existing fleet JSON report remains the manifest-gate baseline.
+
+## Review-only allowlisted static publication implementation (19 November 2026)
+
+The following three **V2 feature branches** now include a fail-closed
+`tools/uda_stage_static.py` and `tests/test_uda_stage_static.py`:
+
+- `zageabb/wallpaper` — `index.html`, `styles.css`, `app.js`
+- `zageabb/roundabout_designer` — `index.html`, `src/styles.css`
+  and the 14 JavaScript modules explicitly loaded by `index.html`
+- `zageabb/CueCraft` — standalone `index.html` only
+
+Each V2 manifest now declares a reviewed static build command and
+`build/uda-public` output with atomic-symlink publication; original
+V1 `uda.yaml` files are untouched. The staging implementation:
+- Refuses an existing output destination rather than deleting contents;
+- Copies only fixed allowlisted regular files, preserving paths;
+- Rejects symlink input/parents, missing/oversized files and missing HTML
+  local asset references;
+- Never places reports, secrets, build scripts or repository metadata into
+  the public artifact;
+- Emits file hashes and sizes to stdout, outside the public directory;
+- Is **not** automatically executed by the read-only fleet/audit utilities.
+
+For independent acceptance, operate on a fresh disposable clone pinned
+to the V2 candidate commit, never the production checkout:
+
+    python3 -m unittest discover -s tests -p test_uda_stage_static.py -v
+    python3 tools/uda_stage_static.py
+
+Capture the resulting file inventory/hashes and prove no file outside the
+fixed allowlist is present in `build/uda-public`. Verify HTML/CSS asset
+references and served `/apps/<slug>/` routes in a separate unprivileged
+localhost test. Roundabout Designer's `deploy/serve.sh` now refuses to
+serve unless this staged index exists. Confirm the effective UDA/Caddy
+document-root before accepting any release.
+
+The fleet parity validator recognises **only** this exact staging command
+and output/artifact declaration as an intentional V1-to-V2 change;
+arbitrary path or build changes remain errors. Staged artifacts are not
+committed to Git; a source-tree-only audit remains REVIEW until independent
+execution, publication boundary and runtime evidence are supplied.
+
+**Status:** implementation committed; staging regression execution,
+isolated artifact inspection and production-owner acceptance **not yet
+verified**. No V2 activation or manifest merge is permitted.
+
+## Generated Node static artifacts — next independent acceptance gate
+
+The initial GitHub source review found `package-lock.json` on
+Should-Cost Intelligence Next, but **no recognised npm lockfile** on
+DAXBridge or Flowchain Studio. Do not treat `npm install` without a
+reviewed lockfile as reproducible release-build evidence. Generate and review
+the missing lockfiles on separate development branches before acceptance.
+
+After an authorised operator has completed each **isolated, unprivileged**
+Node build from a pinned Git commit, inspect its resulting `dist/` tree:
+
+    python tools/verify_node_static_build.py \
+      --repos-root /path/to/disposable-built-repositories \
+      --out /path/to/evidence/uda-v2-node-artifacts.json
+    python -m pytest -q tests/test_verify_node_static_build.py
+
+The tool never invokes npm or executes bundle contents. It records file
+SHA-256 digests and checks for missing `index.html`, missing assets, wrong
+`/apps/<slug>/` base paths, symlinks, forbidden file types/source maps,
+private-key/AWS-key signatures and missing lockfiles. A PASS is restricted
+to **static artifact inspection** and must not be called runtime health,
+build-provenance or production acceptance.
+
+Required independent build procedure (outside the UDA production tree):
+1. Pin the target V2 candidate commit and preserve source cleanliness.
+2. Verify the reviewed Node/npm versions and npm lockfile. Refuse unpinned
+   dependencies; review license/security concerns separately.
+3. In a disposable unprivileged sandbox with no production secrets/DB/ports,
+   use the reviewed repository build commands; record their exact command,
+   exit status and stderr/stdout without secret values.
+4. Verify the expected `dist/` tree using the read-only inspector above;
+   exercise the application's test suite separately.
+5. Check UDA-authenticated subpath routing and live document-root alignment
+   with authorised Desktop read-only inspection before any release decision.
+
+No builds were performed when this tooling was authored. That statement is
+historical; the final acceptance procedure below records the later independent
+execution without changing the conservative source-only classifications.
+
+## Final commit-bound acceptance aggregation
+
+The source-only fleet validator intentionally continues to report generated
+artifacts as REVIEW. After every required isolated build/staging run has a
+separate PASS report, combine the evidence without editing either source report:
+
+    python tools/combine_v2_fleet_acceptance.py \
+      --fleet /path/to/evidence/uda-v2-fleet.json \
+      --artifact-evidence /path/to/evidence/uda-v2-static-staging.json \
+      --artifact-evidence /path/to/evidence/uda-v2-node-artifacts.json \
+      --out /path/to/evidence/uda-v2-combined-acceptance.json
+    python -m pytest -q tests/test_combine_v2_fleet_acceptance.py
+
+The combiner accepts only `static-staging-audit-v1` and
+`node-static-artifact-audit-v1` evidence, requires
+`production_modified=false` and `activation_allowed=false`, rejects duplicate
+repositories, and changes a manifest REVIEW to final PASS only when artifact
+PASS is bound to the exact fleet `v2_commit`. Missing or mismatched evidence
+remains REVIEW; failed artifact evidence becomes FAIL. Even a 20 PASS combined
+report keeps deployment and activation disabled and is not merge authority.
+
+Final independent run on 19 November 2026:
+
+- DAXBridge V2 commit `3f849761673d86f006173c3d0af668a352e546e8`:
+  lockfile v3, Node 22/npm 10, zero moderate-or-higher npm audit findings,
+  43 tests passed, production build passed, four public artifact files passed.
+- Flowchain Studio V2 commit `184ba2d6b50244a3c2fdfab8694f52238ef5f5fc`:
+  lockfile v3, Node 22/npm 10, zero moderate-or-higher npm audit findings,
+  60 tests passed, production build passed, six public artifact files passed.
+- Node artifact audit: **3 PASS / 0 REVIEW / 0 FAIL**.
+- Source-only fleet: **14 PASS / 6 REVIEW / 0 FAIL**, as designed.
+- Commit-bound combined acceptance: **20 PASS / 0 REVIEW / 0 FAIL**.
+- Focused regression suite: **29 passed** across fleet, static, Node artifact and
+  combined-evidence tests.
+- UDA PR #27 CI passed on Ubuntu 22.04 and 24.04. Flowchain Studio PR #3 CI
+  passed. DAXBridge PR #5's GitHub-hosted job did not start: GitHub reported an
+  account payment/spending-limit failure before any workflow step. Its 43-test
+  independent run and build passed, but the repository CI check remains an
+  external release blocker until billing is restored and the workflow reruns.
+
+The DAXBridge review also removed an unnecessary Markdown file from the public
+Vite tree. Its required `catalogs/default.tsv.gz` is accepted only at that exact
+path and is size-bounded, decompressed, UTF-8/TSV checked and sensitive-signature
+scanned by the artifact verifier. Arbitrary gzip files remain forbidden.
+
+## DEV-020 — V2-only candidates without a V1 manifest
+
+The eleven initial source-backed DEV-020 candidates use
+`feature/uda-v2-review` in their application repositories:
+
+- `tender_designer` (web + mailbox)
+- `lucky-lab-slot-statistics` (Docker + persistent SQLite)
+- `Bank_of_mum` (FastAPI + Next.js)
+- `context-studio` (FastAPI + Vinext frontend)
+- `research-core` (Python library, no listener)
+- `SideCar` (Docker + named SQLite/attachment volume)
+- `NetworkBridge` (FastAPI, independent worker and Vite build; SQLite initialization review)
+- `Sheetbridge` (FastAPI/Vite; protected UDA assertion; optional form SQLite)
+- `LedgerOne` (Flask accounting service; source development launcher review)
+- `bottle_factory_game` (static Vite build; missing npm lockfile and legacy underscore path)
+- `should-cost-intelligence` (Flask and source-time database schema setup; evidence storage review)
+
+Prepare a **new disposable workspace** in a development environment,
+not the production UDA checkout. Network cloning is a separate, explicit
+operator action; the validator itself is offline:
+
+```bash
+bash tools/prepare_v2_only_workspace.sh /path/to/NEW-v2-only-checkouts
+python -m pytest -q tests/test_validate_v2_only.py
+python -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+The preparation script refuses an existing output directory, clones only
+the eleven specified review branches and does **not** run their code.
+Review branch HEAD commits in the JSON before comparing source to live
+host. All credentials are supplied by the operator's normal Git
+authentication, never embedded in output or GitHub PR comments.
+
+These **must not** be assessed using V1 parity. Use the separate immutable,
+offline source/schema/semantic inspection tool:
+
+```bash
+python -m tools.validate_v2_only \
+  --repos-root /path/to/disposable-repository-checkouts \
+  --out /path/to/evidence/uda-v2-only-review.json
+python -m pytest -q tests/test_validate_v2_only.py
+```
+
+The tool resolves the candidate branch to a commit and SHA-256, validates
+against the canonical UDA V2 JSON Schema and semantic graph checker, checks
+Git-tracked build files and entrypoints, requires explicit approval and
+auto-update disabled, and **always** leaves the manifest at REVIEW until
+separate host/runtime/security/data acceptance. An exit code of 1 means
+REVIEW, 2 means FAIL. It does not execute any commands from the manifest,
+build containers, touch the UDA registry or download repositories.
+
+The candidate repo's `docs/uda-v2-review.md` records the still-open
+application-specific gates. Important blockers include existing automatic
+SQLite schema/data writes on startup (Lucky Lab, Bank of Mum, Context Studio),
+unverified host/Next/Vinext service alignment, Docker volume ownership
+(SideCar), mailbox owner/secret-name reconciliation (Tender Designer), and
+library wheel/consumer pin verification (Research Core).
+
+**Do not attach operator evidence to public GitHub PR comments unless
+separate publication approval is given.** Production deployment, V2
+activation, database-write grants, migration and rollback each require
+distinct explicit authorization. The previously accepted 20-app combined
+technical result is unaffected; adding new tooling to PR #27 requires a fresh
+independent regression and the corresponding GitHub CI check.
+
+## ScreenCraft V2-only design hold
+
+`zageabb/ScreenCraft` draft PR #38 contains `docs/UDA_V2_DESIGN_REVIEW.md`
+only. This is **not** an executable V2 manifest and is intentionally not
+included in the V2-only validator fleet. It must first resolve the
+non-digest-pinned PostgreSQL image, automatic Alembic startup migration,
+real Docker volume ownership and authenticated UDA identity/header trust
+contract. Do not supply an invented image digest, run migrations or change
+production Compose/Caddy in order to make the candidate pass.
+
+## DEV-020 source-shape progress and mandatory second-stage validation
+
+On 19 November 2026, a GitHub-read-only structural inspection against the
+then-current V2 JSON Schema found **no shape errors in the eleven review
+manifests**. This inspection was **not** the full Python canonical semantic
+execution, source-tree validation or app runtime acceptance. Three semantic
+contract gaps were corrected on their draft heads: research-core now declares
+its isolated wheel verification policy, and Lucky Lab and SideCar persistent
+volumes now name a lifecycle owner.
+
+The V2-only read-only validator now emits specific `REVIEW_GATE:<CODE>`
+warnings for all eleven applications, in addition to generic host and data
+acceptance warnings. The gates cover startup database operations, data
+preservation, runtime fidelity, library consumers, UDA/SSO proxy trust,
+router/discovery privileges, static route migration and missing lockfiles.
+**A schema success never lifts these gates.** Do not alter the validator to
+turn a source-only REVIEW into a production acceptance PASS.
+
+After cloning in the disposable workspace, run from the UDA branch HEAD:
+
+```bash
+python3 -m pytest -q tests/test_validate_v2_only.py \
+  tests/test_validate_v2_fleet.py
+python3 -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+Exit status 1 means the eleven candidates remain REVIEW; exit status 2
+means FAIL and requires correction. The operator should retain tested
+Git SHA-256/manifest hashes, per-repository failures and regression counts,
+plus separate disposable build/host read-only evidence. No deployment,
+production write, manifest execution or PR-evidence publication is implied.
+The earlier 518-pass UDA regression baseline predates the new PR #27 code
+and must not be cited as a pass at the latest branch head.
+
+## Validator fail-closed hardening — 20 November 2026
+
+The V2-only source inspector now stops at `FAIL` when JSON Schema finds
+malformed nested data, before traversing source, application, build or
+deployment mappings. Previously such malformed YAML could raise an
+unhandled `AttributeError` instead of recording a schema failure. It
+also explicitly records a `REVIEW:cannot run npm ci without a tracked
+lockfile` warning when a candidate declares `npm ci` but no corresponding
+lockfile exists in the immutable Git tree.
+
+Two new disposable Git fixtures cover those conditions, in addition to
+the existing explicit-risk and canonical semantic fixtures. These are
+review-only code changes; **do not interpret a committed fixture as an
+executed passing test**. The operator must rerun:
+
+```bash
+python3 -m pytest -q tests/test_validate_v2_only.py tests/test_validate_v2_fleet.py
+python3 -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+If a schema error is reported, correct the corresponding application draft
+branch and run the inspector again on newly resolved Git commits. Missing
+npm lockfiles, unresolved migrations and runtime/volume safety gates remain
+REVIEW and cannot become runtime PASS from source inspection alone.
+
+## Bottle Factory lockfile verified — 20 November 2026
+
+Operator independently validated Bottle Factory PR #9 at
+`fc5db0258102729e3b03798541c0fabe4a4f6e3c`, reporting
+`npm ci` PASS, `npm test` 21/21 PASS, `npm run build` PASS,
+and previously 20/20 UDA V2-only validator regressions PASS.
+The tracked `package-lock.json` is v3; the operator reported SHA-256
+`9927bc1c0b10dec745fdb88b624fcdc69d0ce6d817bfe150d74141906528b9e0`.
+This is operator-reported independent evidence; reports remain local and
+have not been attached to GitHub.
+
+UDA's former hardcoded `NPM_LOCKFILE_MISSING` risk code was stale.
+Lockfile presence is now checked from the pinned Git tree by the existing
+dynamic `npm ci` inspector; a missing lockfile must still produce a
+review warning. The app-specific remaining risk codes are
+`LEGACY_UNDERSCORE_ROUTE` and `DEPENDENCY_AUDIT_REMEDIATION`.
+
+The operator's `npm audit` reported one moderate and one high finding
+affecting Vite/esbuild. Audit remediation requires a separately reviewed
+compatible upgrade and a repeated independent audit, tests, build, and
+static/public artifact check. Do not silently adopt a breaking major
+Vite upgrade or mark the security review complete merely because the
+npm lockfile is present. No runtime dependency/production exposure
+has been proven or dismissed by this evidence.
+
+The extra UDA tests added after the prior 20/20 validator result have
+not yet been independently executed at the current PR #27 head.
+`REVIEW` remains mandatory until the URL-migration, security and
+host reconciliation gates have separate evidence.

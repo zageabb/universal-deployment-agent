@@ -21,6 +21,11 @@ from deployment_reporting import inventory, inventory_item
 from onboarding import inspect_repo, OnboardingError
 from onboarding_v2 import preview_v2
 from onboarding_install import prepare_plan, issue_ticket, approved_stage
+from approval_centre import ACTIONS as APPROVAL_ACTIONS, ApprovalError, create_request, decide, overview, read_only_approval_notice
+from approval_identity import reviewer_for_action, ReviewerAuthError
+from tools.validate_v2_only import REVIEW_GATES as V2_REVIEW_GATES
+from tools.v2_design_holds import DESIGN_ONLY_HOLDS
+from tools.validate_v2_fleet import REPOS as V1_V2_FLEET
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -281,6 +286,79 @@ def create_app(config_path: Path) -> Flask:
         mutate_config(mutate)
         label = selected_group or "same as UDA group"
         return redirect(url_for("manage_groups", message=f"{name} portal group set to {label}"))
+
+    def approval_store() -> Path:
+        cfg = config()
+        configured = cfg.get("approval_centre_store")
+        return (Path(configured).expanduser() if configured
+                else Path(app.config["DEPLOY_CONFIG"]).resolve().parent / "approvals.sqlite3")
+
+    @app.get("/approvals")
+    def approvals_index():
+        try:
+            requests, events = overview(approval_store())
+        except Exception as exc:
+            # Don't expose storage details or accidentally turn errors into
+            # permission to proceed. Existing dashboard stays available.
+            app.logger.error("Approval Centre unavailable: %s", type(exc).__name__)
+            abort(503, "Approval Centre storage unavailable")
+        return render_template(
+            "approvals.html", requests=requests, events=events,
+            apps=sorted((item["name"] for item in config()["applications"])),
+            action_types=sorted(APPROVAL_ACTIONS),
+            design_only_holds=DESIGN_ONLY_HOLDS,
+            legacy_v1_v2_conversions=V1_V2_FLEET,
+            known_v2_gates=sorted(
+                ({"repository": name, "gates": gates}
+                 for name, gates in V2_REVIEW_GATES.items()),
+                key=lambda row: row["repository"].casefold(),
+            ),
+            csrf_token=app.config["CSRF_TOKEN"],
+            notice=read_only_approval_notice(),
+            message=request.args.get("message"),
+        )
+
+    @app.post("/approvals/request")
+    def approvals_request():
+        application = request.form.get("application", "")
+        if application not in {item["name"] for item in config()["applications"]}:
+            abort(400, "Only registered applications may request approval")
+        try:
+            reviewer = reviewer_for_action(
+                config(), request.form.get("reviewer_username", ""),
+                request.form.get("reviewer_password", ""))
+            ttl_hours = int(request.form.get("ttl_hours", "24"))
+            ident = create_request(
+                approval_store(), application=application,
+                action=request.form.get("action", ""),
+                scope=request.form.get("scope", ""),
+                source_sha=request.form.get("source_sha", ""),
+                reason=request.form.get("reason", ""),
+                ttl_hours=ttl_hours, actor=reviewer,
+            )
+        except ReviewerAuthError:
+            abort(403, "Named reviewer authentication required")
+        except (ValueError, ApprovalError) as exc:
+            abort(400, str(exc))
+        except Exception:
+            abort(503, "Approval Centre storage unavailable")
+        return redirect(url_for("approvals_index", message="Review request recorded: " + ident[:8]))
+
+    @app.post("/approvals/<ident>/decision")
+    def approvals_decide(ident: str):
+        try:
+            reviewer = reviewer_for_action(
+                config(), request.form.get("reviewer_username", ""),
+                request.form.get("reviewer_password", ""), decision=True)
+            decide(approval_store(), ident, decision=request.form.get("decision", ""),
+                   reason=request.form.get("reason", ""), actor=reviewer)
+        except ReviewerAuthError:
+            abort(403, "Named approver authentication required")
+        except ApprovalError as exc:
+            abort(409, str(exc))
+        except (OSError, Exception):
+            abort(503, "Approval Centre storage unavailable")
+        return redirect(url_for("approvals_index", message="Review decision recorded"))
 
     @app.get("/onboarding")
     def onboarding_form():
