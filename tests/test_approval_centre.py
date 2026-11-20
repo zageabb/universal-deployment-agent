@@ -258,3 +258,31 @@ def test_legacy_twenty_conversion_cohort_visible_without_claiming_pass(tmp_path)
     for name in REPOS:
         assert name.encode() in html
     assert b"REVIEW INVENTORY" in html
+
+
+def test_audit_events_are_immutable_under_ordinary_sqlite_commands(tmp_path):
+    import sqlite3
+    store = tmp_path / "approvals.sqlite3"
+    ident = create_request(store, application="example", action="deploy",
+                           scope="disposable review only", source_sha=SHA,
+                           reason="Audit immutability test, no executor")
+    with sqlite3.connect(store) as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="append only"):
+            conn.execute("UPDATE audit SET actor='forged' WHERE request_id=?", (ident,))
+        with pytest.raises(sqlite3.IntegrityError, match="append only"):
+            conn.execute("DELETE FROM audit WHERE request_id=?", (ident,))
+    assert overview(store)[1][0]["actor"] == "admin"
+
+
+def test_named_reviewer_rejects_missing_role_and_wrong_password():
+    from approval_identity import reviewer_for_action, ReviewerAuthError
+    from werkzeug.security import generate_password_hash
+    cfg = {"approval_reviewer_accounts": [
+        {"username": "reviewer1", "role": "reviewer",
+         "password_hash": generate_password_hash("known-test-password")},
+    ]}
+    with pytest.raises(ReviewerAuthError):
+        reviewer_for_action(cfg, "reviewer1", "wrong")
+    with pytest.raises(ReviewerAuthError):
+        reviewer_for_action(cfg, "reviewer1", "known-test-password", decision=True)
+    assert reviewer_for_action(cfg, "reviewer1", "known-test-password") == "reviewer1"
