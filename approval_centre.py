@@ -83,7 +83,7 @@ def _store(path: Path) -> sqlite3.Connection:
 def _details(request: sqlite3.Row | dict, *, now: datetime) -> dict:
     value = dict(request)
     value["effective_status"] = (
-        "expired" if value["status"] == "approved"
+        "expired" if value["status"] in {"pending", "approved"}
         and datetime.fromisoformat(value["expires_at"]) <= now else value["status"]
     )
     return value
