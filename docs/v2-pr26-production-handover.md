@@ -267,6 +267,40 @@ of writers and their state stores, and validation of the final archive.
 The tool deliberately always reports `application_wide_consistency_verified:
 false`. Do not declare the main release gate passed solely on this tool.
 
+## Archived systemd symlink classification (read-only)
+
+A separate helper, `tools/v2_symlink_rehearsal.py`, validates the
+existing snapshot SHA-256 and inspects symbolic-link metadata within the
+archive. It never extracts or recreates links, resolves targets on the
+live host, enables a unit, or runs systemd. It classifies each link as
+an internal regular-file/directory target, a link-to-link target, a
+missing internal target, an outside-archive relative target, an
+absolute target or an invalid target. External/absolute or missing
+targets require **operator review**; not all are automatically defective,
+since systemd can validly use external symlink targets.
+
+From the isolated UDA source checkout, run the tests first:
+
+```bash
+python -m pytest -q tests/test_v2_symlink_rehearsal.py
+python -m pytest -q
+```
+
+Only after these tests pass, inspect the **existing** verified snapshot
+without modifying it:
+
+```bash
+python3 tools/v2_symlink_rehearsal.py \
+  --snapshot-dir /media/t/uda-release/snapshots/uda-20261120T224219Z
+```
+
+The JSON output includes a count by classification and a filename-only
+review list. The helper never prints symlink target values. Even a
+`status: PASS` means the archive could be audited safely; it does **not**
+mean systemd enablement or full rollback has been restored. A later
+maintenance-window restoration must account for systemd units, drop-ins
+and timer states, retaining the documented `0.0.0.0:5030` binding.
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
