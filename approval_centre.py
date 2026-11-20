@@ -14,7 +14,7 @@ import re
 import sqlite3
 import uuid
 
-APP = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+APP = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
 SHA = re.compile(r"^[0-9a-f]{40}$")
 ACTIONS = {
     "deploy", "database-migration", "database-write", "restore",
