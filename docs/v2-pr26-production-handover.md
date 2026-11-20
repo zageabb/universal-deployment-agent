@@ -28,6 +28,33 @@ on this source was operator-reported **562 passed in 41.90s**.
   poller can mutate live state. Existing V2 review/approval is **not**
   an activation ticket, and V2 signed revocation is still design-only.
 
+## Installer completeness blocker discovered and corrected in review branch
+
+The production unit invokes a **copied-file** runtime under
+`~/.local/share/deployment-agent`, not a Git checkout. The original
+`install.sh` copied `dashboard.py` and `deploy_agent.py` but did **not**
+install the newly introduced `approval_*`, `onboarding_*`,
+`deployment_reporting.py`, JSON schemas, new HTML templates or the
+three V2 inventory helpers imported from `tools/`. This would risk
+`ModuleNotFoundError` or missing-template failures after installing PR #26.
+
+The review branch now includes the missing runtime modules and assets in
+`install.sh` and a static install-manifest test in
+`tests/test_runtime_install_manifest.py`. **This is a source fix,
+not a live installation**, and does not repair or overwrite any installed
+runtime. The original successful 562-case regression was on a prior
+commit; rerun targeted install-manifest tests and the full suite against the
+new final PR SHA before release acceptance.
+
+The installer itself has operational side effects: recreates/updates its
+virtual environment, writes installed files and user systemd units, runs
+`daemon-reload` and enables/starts selected units. **Do not execute
+`install.sh` merely to check its completeness**, and do not assume it is
+an atomic installer/rollback procedure. Its existing unit enable/start
+behaviour must be reviewed in the approved maintenance window,
+especially any local unit drop-ins not included in the source template.
+Preserve the exact dashboard `0.0.0.0:5030` binding as requested.
+
 ## Phase 1: read-only operator evidence collection (safe now)
 
 Run as **zageabb** on the real host; no `sudo`, no use of the test account.
