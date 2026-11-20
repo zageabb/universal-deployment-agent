@@ -211,6 +211,62 @@ a real rollback procedure is demonstrated. **Neither this document nor
 the previously reported 44 GB available on the root filesystem confirms
 the capacity or protection of `/media/t/`.**
 
+## Protected V1 snapshot and disposable restore tool — independent tests pending
+
+A new operator-invoked tool, `tools/v2_snapshot_rehearsal.py`, is available
+on the review branch. It has two explicit actions:
+
+- `snapshot` writes a timestamped owner-private archive and SHA-256
+  manifest inside `/media/t/uda-release/snapshots/`, after confirming the
+  exact mountpoint is mounted, every workspace directory has mode 0700 and
+  the caller owns it. It copies the installed non-Git runtime, full UDA
+  configuration and state directories, and the user systemd directory
+  (including current UDA overrides and symlinks). The nonempty
+  `identity.db` is copied through SQLite's online backup API with
+  `quick_check` on the copy. The empty `identity.sqlite3` is preserved
+  as an empty file.
+- `rehearse --snapshot-dir /media/t/uda-release/snapshots/uda-YYYYMMDDTHHMMSSZ`
+  checks the archive hash, safely extracts **regular files/directories**
+  into a disposable private directory under `restore-rehearsals/`, verifies
+  critical installed config/override files and SQLite integrity, and removes
+  the disposable directory. Archive symlink targets are **recorded as
+  metadata and not recreated**. This is not proof of full systemd restore,
+  environment-file loading or end-to-end live recovery.
+
+**Run in the independent checkout first (no production snapshot):**
+
+```bash
+cd ~/uda-integration-testing/uda-test
+git pull --ff-only
+git rev-parse HEAD
+python -m pytest -q tests/test_v2_snapshot_rehearsal.py
+python -m pytest -q
+```
+
+**Only after tests pass, and after the snapshot scope/security has been
+reviewed**, an authorised operator may create the owner-private
+pre-upgrade snapshot, which writes **only** to `/media/t/uda-release/`
+and reads the live source paths without restarting/stopping services:
+
+```bash
+python3 tools/v2_snapshot_rehearsal.py snapshot
+```
+
+The printed snapshot path can be passed to `rehearse --snapshot-dir`;
+do not choose arbitrary tarballs or extract into production directories.
+The source tree is never modified. No secrets, archives, identity database
+copies or systemd override contents should be attached to GitHub.
+
+**Consistency limitation:** although `identity.db` uses SQLite's online
+backup API, copying other live files (config JSON, status JSON, other
+application backup/state files) is not a filesystem-wide atomic snapshot.
+Any other SQLite databases nested within the captured directories are not
+individually processed. A fully consistent production rollback point
+still requires separately approved maintenance/quiescence, an inventory
+of writers and their state stores, and validation of the final archive.
+The tool deliberately always reports `application_wide_consistency_verified:
+false`. Do not declare the main release gate passed solely on this tool.
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
