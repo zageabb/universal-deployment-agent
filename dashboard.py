@@ -23,6 +23,7 @@ from onboarding_v2 import preview_v2
 from onboarding_install import prepare_plan, issue_ticket, approved_stage
 from approval_centre import ACTIONS as APPROVAL_ACTIONS, ApprovalError, create_request, decide, overview, read_only_approval_notice
 from tools.validate_v2_only import REVIEW_GATES as V2_REVIEW_GATES
+from tools.v2_design_holds import DESIGN_ONLY_HOLDS
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -303,6 +304,7 @@ def create_app(config_path: Path) -> Flask:
             "approvals.html", requests=requests, events=events,
             apps=sorted((item["name"] for item in config()["applications"])),
             action_types=sorted(APPROVAL_ACTIONS),
+            design_only_holds=DESIGN_ONLY_HOLDS,
             known_v2_gates=sorted(
                 ({"repository": name, "gates": gates}
                  for name, gates in V2_REVIEW_GATES.items()),
