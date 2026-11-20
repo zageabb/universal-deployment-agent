@@ -32,8 +32,15 @@
 <td>{% for gate in item.gates %}<div><code>{{ gate }}</code></div>{% endfor %}</td>
 <td>{{ item.reference }}</td><td><span class="pill pending">DESIGN ONLY</span></td></tr>
 {% endfor %}</tbody></table></div></section>
+<section class="card"><h2>Earlier V1 → V2 conversions ({{ legacy_v1_v2_conversions|length }})</h2>
+<p class="muted">Read-only original conversion cohort. These applications have a separate immutable-Git parity validator; appearance here does not mean the current source commit, runtime build or production host is accepted.</p>
+<div class="scroll"><table><thead><tr><th>Repository</th><th>Review evidence required</th><th>Status</th></tr></thead><tbody>
+{% for name in legacy_v1_v2_conversions %}
+<tr><td><strong>{{ name }}</strong></td><td>Current V1/V2 Git parity; canonical schema/semantic validation; build and effective host acceptance</td><td><span class="pill pending">REVIEW INVENTORY</span></td></tr>
+{% endfor %}
+</tbody></table></div></section>
 <section class="card"><h2>Request review</h2>
-<p class="muted">Create a narrowly scoped, commit-pinned review record. Required approvals are not automatically inferred from GitHub or existing manifests in this first increment.</p>
+<p class="muted">Create a narrowly scoped, commit-pinned review record. All changes require a configured individual reviewer or approver identity. Required approvals are not automatically inferred from GitHub or existing manifests in this first increment.</p>
 <form method="post" action="{{ url_for('approvals_request') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 <div class="grid">
@@ -44,6 +51,10 @@
 </div>
 <div class="field"><label for="scope">Exact operation / scope</label><input id="scope" name="scope" maxlength="160" required></div>
 <div class="field"><label for="why">Reason and evidence reference (not secrets)</label><textarea id="why" name="reason" minlength="10" maxlength="1500" required></textarea></div>
+<div class="grid">
+<div class="field"><label for="who">Named reviewer identity</label><input id="who" name="reviewer_username" autocomplete="username" required></div>
+<div class="field"><label for="password">Reviewer password (not saved)</label><input id="password" type="password" name="reviewer_password" autocomplete="current-password" required></div>
+</div>
 <p><button type="submit" {% if not apps %}disabled{% endif %}>Create pending review</button></p>
 </form></section>
 <section class="card"><h2>Approval requests</h2><div class="scroll"><table>
@@ -61,7 +72,7 @@
 <select id="decision-{{ item.id }}" name="decision" required>
 {% if item.effective_status == 'pending' %}<option value="approved">Approve review</option><option value="denied">Deny</option>{% else %}<option value="revoked">Revoke</option>{% endif %}
 </select><input name="reason" minlength="10" maxlength="1500" placeholder="Decision reason (required)" required>
-<button type="submit">Record</button></div></form>
+<input name="reviewer_username" autocomplete="username" placeholder="Named approver" required><input type="password" name="reviewer_password" autocomplete="current-password" placeholder="Approver password" required><button type="submit">Record</button></div></form>
 {% else %}<span class="muted">No available transition</span>{% endif %}
 {% if item.decision_reason %}<div class="muted">{{ item.decision_reason }}</div>{% endif %}
 </td></tr>
