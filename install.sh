@@ -37,6 +37,12 @@ for module in \
 do
   install -m 0644 "$SOURCE_DIR/$module" "$DATA_DIR/$module"
 done
+# Dashboard inventory imports these source-only review modules at runtime.
+# They remain inspection-only; no validator commands are executed by install.
+mkdir -p "$DATA_DIR/tools"
+install -m 0644 "$SOURCE_DIR/tools/validate_v2_only.py" \
+  "$SOURCE_DIR/tools/v2_design_holds.py" \
+  "$SOURCE_DIR/tools/validate_v2_fleet.py" "$DATA_DIR/tools/"
 mkdir -p "$DATA_DIR/schemas"
 install -m 0644 "$SOURCE_DIR/schemas/uda-manifest-v1.schema.json" \
   "$SOURCE_DIR/schemas/uda-manifest-v2.schema.json" "$DATA_DIR/schemas/"
