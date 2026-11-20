@@ -510,6 +510,23 @@ DEV-020 Bottle Factory Vite 6 trial automation — 20 November 2026:
       legacy underscore path transition and independent host acceptance.
       No build, migration, deployment or live proxy changes authorised.
 
+DEV-020 Bottle Factory independent static fixture regression — 20 November 2026:
+- [x] Run an isolated local source reconstruction of Bottle Factory V2
+      static-artifact checker and eight fixture tests (Node 22.16.0):
+      **8 passed, 0 failed**; no npm packages or network required.
+- [x] Extend draft `zageabb/bottle_factory_game#9` checker to inspect
+      single/double/unquoted HTML src/href, malformed percent encoding,
+      traversal/backslashes and symlinked publication roots.
+- [x] Correct GitHub-transfer escaping drift in the HTML regex and
+      backslash guard at `7804060c`; document its difference from the
+      isolated reconstruction. Do not conflate local fixture tests with
+      full GitHub-head package install/build evidence.
+- [ ] Run independent `npm ci`, 21 gameplay tests, static build and npm
+      audit on exact PR head in network-capable isolated environment.
+- [ ] Reconcile old underscore proxy URL and complete Vite 6.4 security
+      upgrade before removing `DEPENDENCY_AUDIT_REMEDIATION` or
+      `LEGACY_UNDERSCORE_ROUTE` from the UDA V2 acceptance gates.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
