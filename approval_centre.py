@@ -76,6 +76,10 @@ def _store(path: Path) -> sqlite3.Connection:
             request_id TEXT NOT NULL, event TEXT NOT NULL,
             actor TEXT NOT NULL, at TEXT NOT NULL, reason TEXT NOT NULL
         );
+        CREATE TRIGGER IF NOT EXISTS audit_no_update
+        BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, 'audit history is append only'); END;
+        CREATE TRIGGER IF NOT EXISTS audit_no_delete
+        BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'audit history is append only'); END;
     """)
     return conn
 
