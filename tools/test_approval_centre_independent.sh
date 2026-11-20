@@ -37,7 +37,7 @@ python3 --version > "$dest/python-version.txt" 2>&1
 cd "$repo"
 # Tests must use tmp_path; no production deployment/host service permissions.
 set +e
-python3 -m pytest -q tests/test_approval_centre.py tests/test_dashboard.py \
+python3 -m pytest -q tests/test_approval_centre.py tests/test_approval_store_preflight.py tests/test_dashboard.py \
   > "$dest/approval-and-dashboard.log" 2>&1
 targeted=$?
 python3 -m pytest -q > "$dest/full-uda-regression.log" 2>&1
