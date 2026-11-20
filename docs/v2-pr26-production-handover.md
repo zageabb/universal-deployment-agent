@@ -158,6 +158,59 @@ release approval. An accountable operator must separately preserve a
 known-good installed-file backup, configuration/registry backup, and
 prove a supported restore path.
 
+## Backup and disposable restore location: `/media/t/`
+
+The operator proposed `/media/t/` as the location with more free storage.
+Treat this as a **candidate mount**, not a confirmed secure backup location.
+Create a dedicated directory under the mount **only after** verifying its
+mount status, filesystem, available capacity, ownership and access-control
+behaviour. Never silently fall back to writing below an unmounted
+`/media/t` directory on the root filesystem.
+
+Read-only preflight:
+
+```bash
+findmnt --target /media/t -o TARGET,SOURCE,FSTYPE,OPTIONS
+df -hT /media/t
+stat -c '%U %G %a %n' /media/t
+findmnt --mountpoint /media/t -n -o TARGET
+```
+
+The **last command must identify `/media/t` as an actual mountpoint**.
+If it doesn't, stop; do not create an archive there. Note that some
+filesystems (for example exFAT or NTFS) cannot enforce Unix owner-only
+permissions using normal `chmod` semantics. Where this is the case,
+protected UDA configuration/registry backup requires authenticated
+encryption with separately safeguarded keys, or an owner-private backup
+destination on a Unix-permission-capable filesystem.
+
+The proposed layout, **once preflight and access controls are accepted**, is:
+
+```text
+/media/t/uda-release/
+  snapshots/          # protected, versioned, timestamped rollback archives
+  restore-rehearsals/ # disposable extraction/restore checks, never live paths
+  evidence/           # no secrets; hashes and signed release records only
+```
+
+A backup should include the installed **non-Git** UDA tree and the protected
+configuration, relevant state/SQLite databases and actual user systemd units
+and drop-ins. Confirm the source inventory first; `71M + 2.2M + 352K`
+is a rough minimum, **not** proof that all state was captured. Consider
+snapshot consistency if a live process is writing to a SQLite or JSON state
+file. Do not copy live SQLite with `cp` as a claimed consistent snapshot;
+use its backup API/appropriate operational method or a quiesced window.
+Do not publish any archive, token, registry, SQLite backup or encryption key
+in GitHub.
+
+In the separately approved maintenance window, create the verified backup,
+record file/manifest digests, extract into a **disposable** directory under
+`restore-rehearsals/`, and validate file ownership/modes and application
+imports without starting production units. Only afterwards decide whether
+a real rollback procedure is demonstrated. **Neither this document nor
+the previously reported 44 GB available on the root filesystem confirms
+the capacity or protection of `/media/t/`.**
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
