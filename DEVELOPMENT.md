@@ -556,6 +556,28 @@ DEV-021 — UDA V2 Approval Centre initial implementation (20 November 2026):
 - [ ] Approve protected production storage/backup/role ownership and
       deploy through normal release gates; draft feature not activated.
 
+DEV-021 Approval Centre independent backend check and full DEV-020 inventory — 20 November 2026:
+- [x] Independently reconstruct Approval Centre backend from PR #27 in a
+      disposable Python 3.13.5 workspace: **8/8 passed** on SQLite;
+      lifecycle, deny, revoke, expiry, invalid commit, underscore legacy
+      name, 5-way concurrent decision (only one success), private
+      permissions and symlink rejection.
+- [x] Add `tools/v2_design_holds.py` for six special design-only cases:
+      ScreenCraft, Camper Power Studio, DB Migration, ShadowPrompt Lab,
+      protected UDA self-upgrade and Application Home.
+- [x] Add read-only section to Approval Centre so DEV-020 shows
+      **11 executable manifest review candidates + 6 design-only holds**.
+      Source metadata is not live host state or a deployment authority.
+- [x] Add PR regression tests for concurrent approval, SQLite privacy,
+      6/6 design holds and UI visibility; execution of these *new*
+      full-repository tests remains pending.
+- [ ] Run full dashboard Flask integration + UDA suite on checked-out
+      PR #27 head with installed dependencies; GitHub Actions billing
+      blocker still prevents treating CI as execution evidence.
+- [ ] Map twenty earlier V1→V2 conversions and live approvals into a
+      read-only unified inventory without allowing a UI review record
+      to bypass trusted signed execution authority.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
