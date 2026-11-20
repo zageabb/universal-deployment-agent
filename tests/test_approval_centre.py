@@ -162,3 +162,50 @@ def test_legacy_registered_name_with_underscore_can_be_reviewed(tmp_path):
     assert requests[0]["id"] == ident
     assert requests[0]["application"] == "Bank_of_mum"
     assert len(events) == 1
+
+
+def test_special_design_only_requirements_are_visible(tmp_path):
+    from tools.v2_design_holds import DESIGN_ONLY_HOLDS
+    assert len(DESIGN_ONLY_HOLDS) == 6
+    assert len({entry["application"] for entry in DESIGN_ONLY_HOLDS}) == 6
+    client, _ = client_for(tmp_path)
+    page = client.get("/approvals", headers=ADMIN)
+    assert page.status_code == 200
+    assert b"Special design-only holds (6)" in page.data
+    for entry in DESIGN_ONLY_HOLDS:
+        assert entry["application"].encode() in page.data
+        for gate in entry["gates"]:
+            assert gate.encode() in page.data
+
+
+def test_concurrent_approval_only_one_transition_commits(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    store = tmp_path / "approvals.sqlite3"
+    ident = create_request(
+        store, application="example", action="service-change",
+        scope="isolated service review", source_sha=SHA,
+        reason="Concurrency proof without any real executor")
+
+    def approve(_):
+        try:
+            decide(store, ident, decision="approved",
+                   reason="Concurrent review approval attempt")
+            return True
+        except ApprovalError:
+            return False
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        outcomes = list(pool.map(approve, range(5)))
+    assert sum(outcomes) == 1
+    assert [event["event"] for event in overview(store)[1]].count("approved") == 1
+
+
+def test_group_readable_approval_store_is_rejected(tmp_path):
+    store = tmp_path / "approvals.sqlite3"
+    create_request(
+        store, application="example", action="proxy-route",
+        scope="read-only route review", source_sha=SHA,
+        reason="Check storage confidentiality restrictions")
+    store.chmod(0o644)
+    with pytest.raises(ApprovalError, match="private"):
+        overview(store)
