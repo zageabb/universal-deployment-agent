@@ -578,6 +578,38 @@ DEV-021 Approval Centre independent backend check and full DEV-020 inventory —
       read-only unified inventory without allowing a UI review record
       to bypass trusted signed execution authority.
 
+DEV-021 — User-approved four-point Approval Centre follow-up (20 November 2026):
+- [x] Add the original 20 V1→V2 conversion repository names from
+      `tools.validate_v2_fleet.REPOS` to Approval Centre as a distinct
+      read-only historical cohort; do NOT label them current deployment PASS.
+      Combined metadata covers 11 executable V2-only drafts, 6 special
+      design-only holds and 20 earlier conversion repositories.
+- [x] Require separately configured named reviewer credentials with
+      Werkzeug password hashes for all review-record writes.
+      `reviewer` may request; `approver` may decide/revoke;
+      no configured accounts -> read-only writes denied.
+      Shared dashboard Basic admin still gates all page access.
+- [x] Record actor username in the audit and reject ordinary SQLite
+      audit UPDATE/DELETE with two triggers. This does **not** provide
+      cryptographic tamper proof against privileged file owners.
+- [x] Publish `docs/v2-trusted-revocation-design.md` for
+      independent signer-controlled revocations with digest/nonce,
+      signed revocation ledger, external checkpoint, offline fail-closed
+      verification and one-use receipt concurrency. DESIGN ONLY:
+      dashboard review records never invalidate signed tokens or grant
+      execution.
+- [x] Reconstruct Approval Centre core and new audit triggers in a
+      disposable Python 3.13 test environment: **9 passed, 0 failed**.
+      No production files or services accessed.
+- [ ] **Flask dashboard integration + full repository regression still
+      blocked in the current sandbox**: Flask/Werkzeug are not installed
+      and package/network retrieval is unavailable. New integration
+      fixtures are committed to `tests/test_approval_centre.py`,
+      not executed on exact GitHub PR head. Do not mark acceptance green.
+- [ ] Independent integration on a network-capable isolated UDA checkout,
+      then review identity key custody, operator audit, HTTPS transport
+      and deployment-readiness; keep PR #27 draft and unmerged.
+
 Phase 2 — special/partial evidence (5):
 - Camper Power Studio — compare host-only supervisor wrapper and both processes;
   do not invent service entrypoints.
