@@ -223,3 +223,12 @@ def test_tracked_npm_lockfile_clears_missing_lockfile_warning(tmp_path):
     assert not any("missing npm lockfile" in warning
                    or "cannot run npm ci without" in warning
                    for warning in result["warnings"])
+
+
+def test_lucky_lab_lifecycle_review_gate_tracks_real_remaining_risks():
+    from tools.validate_v2_only import REVIEW_GATES
+
+    gates = REVIEW_GATES["lucky-lab-slot-statistics"]
+    assert "STARTUP_MIGRATION_AND_SEED" not in gates
+    assert "DB_MAINTENANCE_APPROVAL_AND_RESTORE" in gates
+    assert "SQLITE_BIND_BACKUP" in gates
