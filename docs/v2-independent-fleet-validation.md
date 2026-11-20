@@ -328,3 +328,31 @@ plus separate disposable build/host read-only evidence. No deployment,
 production write, manifest execution or PR-evidence publication is implied.
 The earlier 518-pass UDA regression baseline predates the new PR #27 code
 and must not be cited as a pass at the latest branch head.
+
+## Validator fail-closed hardening — 20 November 2026
+
+The V2-only source inspector now stops at `FAIL` when JSON Schema finds
+malformed nested data, before traversing source, application, build or
+deployment mappings. Previously such malformed YAML could raise an
+unhandled `AttributeError` instead of recording a schema failure. It
+also explicitly records a `REVIEW:cannot run npm ci without a tracked
+lockfile` warning when a candidate declares `npm ci` but no corresponding
+lockfile exists in the immutable Git tree.
+
+Two new disposable Git fixtures cover those conditions, in addition to
+the existing explicit-risk and canonical semantic fixtures. These are
+review-only code changes; **do not interpret a committed fixture as an
+executed passing test**. The operator must rerun:
+
+```bash
+python3 -m pytest -q tests/test_validate_v2_only.py tests/test_validate_v2_fleet.py
+python3 -m tools.validate_v2_only \
+  --repos-root /path/to/NEW-v2-only-checkouts \
+  --uda-root . \
+  --out /path/to/private-evidence/uda-v2-only-review.json
+```
+
+If a schema error is reported, correct the corresponding application draft
+branch and run the inspector again on newly resolved Git commits. Missing
+npm lockfiles, unresolved migrations and runtime/volume safety gates remain
+REVIEW and cannot become runtime PASS from source inspection alone.
