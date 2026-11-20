@@ -22,6 +22,7 @@ from onboarding import inspect_repo, OnboardingError
 from onboarding_v2 import preview_v2
 from onboarding_install import prepare_plan, issue_ticket, approved_stage
 from approval_centre import ACTIONS as APPROVAL_ACTIONS, ApprovalError, create_request, decide, overview, read_only_approval_notice
+from tools.validate_v2_only import REVIEW_GATES as V2_REVIEW_GATES
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -293,7 +294,7 @@ def create_app(config_path: Path) -> Flask:
     def approvals_index():
         try:
             requests, events = overview(approval_store())
-        except (ApprovalError, OSError, Exception) as exc:
+        except Exception as exc:
             # Don't expose storage details or accidentally turn errors into
             # permission to proceed. Existing dashboard stays available.
             app.logger.error("Approval Centre unavailable: %s", type(exc).__name__)
@@ -302,6 +303,11 @@ def create_app(config_path: Path) -> Flask:
             "approvals.html", requests=requests, events=events,
             apps=sorted((item["name"] for item in config()["applications"])),
             action_types=sorted(APPROVAL_ACTIONS),
+            known_v2_gates=sorted(
+                ({"repository": name, "gates": gates}
+                 for name, gates in V2_REVIEW_GATES.items()),
+                key=lambda row: row["repository"].casefold(),
+            ),
             csrf_token=app.config["CSRF_TOKEN"],
             notice=read_only_approval_notice(),
             message=request.args.get("message"),
@@ -324,7 +330,7 @@ def create_app(config_path: Path) -> Flask:
             )
         except (ValueError, ApprovalError) as exc:
             abort(400, str(exc))
-        except (OSError, Exception):
+        except Exception:
             abort(503, "Approval Centre storage unavailable")
         return redirect(url_for("approvals_index", message="Review request recorded: " + ident[:8]))
 
