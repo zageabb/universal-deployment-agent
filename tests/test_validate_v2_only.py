@@ -153,3 +153,44 @@ def test_report_retains_concrete_review_gates_even_after_source_checks(tmp_path)
     assert not result["errors"]
     for code in REVIEW_GATES["research-core"]:
         assert "REVIEW_GATE:" + code in result["warnings"]
+
+
+def test_invalid_manifest_shape_fails_closed_without_nested_inspection(tmp_path):
+    path = fixture(tmp_path)
+    # Alter the committed fixture branch to a syntactically valid YAML scalar
+    # where a nested object is required. The validator must return FAIL, not
+    # propagate AttributeError while trying doc.get(...).get(...).
+    manifest_path = path / "uda.v2.yaml"
+    doc = yaml.safe_load(manifest_path.read_text())
+    doc["source"] = "not-an-object"
+    doc["application"] = "not-an-object"
+    manifest_path.write_text(yaml.safe_dump(doc))
+    subprocess.run(["git", "-C", str(path), "add", "uda.v2.yaml"], check=True)
+    subprocess.run(["git", "-C", str(path), "commit", "-m", "bad-shape"], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(path), "branch", "-f",
+                    "feature/uda-v2-review", "HEAD"], check=True)
+    strict_schema = {
+        **SCHEMA,
+        "properties": {
+            **SCHEMA["properties"],
+            "application": {"type": "object"},
+            "source": {"type": "object"},
+        },
+    }
+    result = inspect(path, strict_schema, lambda value: None)
+    assert result["status"] == "FAIL"
+    assert any(error.startswith("SCHEMA:") for error in result["errors"])
+
+
+def test_lockless_npm_ci_cannot_be_treated_as_ready(tmp_path):
+    path = fixture(tmp_path, commands=[["npm", "ci"]])
+    (path / "package.json").write_text('{"name":"fixture","version":"1.0.0"}')
+    subprocess.run(["git", "-C", str(path), "add", "package.json"], check=True)
+    subprocess.run(["git", "-C", str(path), "commit", "-m", "package-without-lock"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(path), "branch", "-f",
+                    "feature/uda-v2-review", "HEAD"], check=True)
+    result = inspect(path, SCHEMA, lambda value: None)
+    assert result["status"] == "REVIEW"
+    assert "REVIEW:cannot run npm ci without a tracked lockfile in ." in result["warnings"]
