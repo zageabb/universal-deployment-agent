@@ -356,3 +356,33 @@ If a schema error is reported, correct the corresponding application draft
 branch and run the inspector again on newly resolved Git commits. Missing
 npm lockfiles, unresolved migrations and runtime/volume safety gates remain
 REVIEW and cannot become runtime PASS from source inspection alone.
+
+## Bottle Factory lockfile verified — 20 November 2026
+
+Operator independently validated Bottle Factory PR #9 at
+`fc5db0258102729e3b03798541c0fabe4a4f6e3c`, reporting
+`npm ci` PASS, `npm test` 21/21 PASS, `npm run build` PASS,
+and previously 20/20 UDA V2-only validator regressions PASS.
+The tracked `package-lock.json` is v3; the operator reported SHA-256
+`9927bc1c0b10dec745fdb88b624fcdc69d0ce6d817bfe150d74141906528b9e0`.
+This is operator-reported independent evidence; reports remain local and
+have not been attached to GitHub.
+
+UDA's former hardcoded `NPM_LOCKFILE_MISSING` risk code was stale.
+Lockfile presence is now checked from the pinned Git tree by the existing
+dynamic `npm ci` inspector; a missing lockfile must still produce a
+review warning. The app-specific remaining risk codes are
+`LEGACY_UNDERSCORE_ROUTE` and `DEPENDENCY_AUDIT_REMEDIATION`.
+
+The operator's `npm audit` reported one moderate and one high finding
+affecting Vite/esbuild. Audit remediation requires a separately reviewed
+compatible upgrade and a repeated independent audit, tests, build, and
+static/public artifact check. Do not silently adopt a breaking major
+Vite upgrade or mark the security review complete merely because the
+npm lockfile is present. No runtime dependency/production exposure
+has been proven or dismissed by this evidence.
+
+The extra UDA tests added after the prior 20/20 validator result have
+not yet been independently executed at the current PR #27 head.
+`REVIEW` remains mandatory until the URL-migration, security and
+host reconciliation gates have separate evidence.
