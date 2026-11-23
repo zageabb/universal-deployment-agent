@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import subprocess
+import sys
 from pathlib import Path
 import tarfile
 
@@ -106,3 +108,21 @@ def test_duplicate_archive_member_is_rejected(tmp_path):
     }))
     with pytest.raises(SnapshotError, match="Duplicate"):
         audit(snapshot)
+
+
+def test_direct_script_cli_runs_from_repository_root(tmp_path):
+    snapshot = archive_with_links(tmp_path, [
+        ("systemd-user/timers.target.wants/deployment-agent.timer",
+         "../deployment-agent.timer"),
+    ])
+    root = Path(__file__).resolve().parents[1]
+    run = subprocess.run(
+        [sys.executable, "tools/v2_symlink_rehearsal.py",
+         "--snapshot-dir", str(snapshot)],
+        cwd=root, capture_output=True, text=True, timeout=20, check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    result = json.loads(run.stdout)
+    assert result["archive_checksum_ok"] is True
+    assert result["classification"]["internal_regular_target"] == 1
+    assert result["production_upgrade_authorized"] is False
