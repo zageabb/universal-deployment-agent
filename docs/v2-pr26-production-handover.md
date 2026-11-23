@@ -342,6 +342,66 @@ This provides file/link reconstruction evidence only: real systemd unit
 loading, timer restoration, environment-file loading, application health,
 lock isolation and rollback remain maintenance-window gates.
 
+## Current release evidence (operator results)
+
+The operator reported `PASS` from the real protected backup
+`/media/t/uda-release/snapshots/uda-20261120T224219Z`:
+snapshot creation; archive SHA-256; safe disposable extraction of
+3,384 regular files; SQLite `quick_check=ok`; inventory of all
+46 symlinks (43 absolute, two link-to-link, one internal regular,
+no missing/invalid/outside-archive relative targets); seven critical
+**live** UDA link targets present; and disposable reconstruction of
+five UDA user-systemd enablement links against five backed-up unit
+files plus two override files. All link restoration remained within
+the temporary private backup tree, with `systemctl_invoked=false`.
+
+**These are distinct checks, not a full operational rollback:** the
+online backup covers `identity.db`, but the entire running state is
+not atomically frozen; no restored unit has actually been loaded,
+enabled or started; Caddy/SSO and app health have not been rechecked
+after a restore; and no production rollback or upgrade was authorised.
+
+## Fresh host baseline (read-only, approval still required)
+
+New `tools/v2_host_release_baseline.py` reads only the allowlisted
+user systemd timer/service properties through `systemctl --user show`:
+`LoadState`, `ActiveState`, `SubState`, `UnitFileState`,
+`Result`, `ExecMainStatus`, and `NextElapseUSecRealtime`.
+It does not read credentials or environment override values and does not
+invoke `start`, `stop`, `enable`, `disable`, `daemon-reload`,
+or the UDA installer. All observations are snapshots in time, not
+a guarantee that the host remains in that state.
+
+Validate **in the isolated test checkout** before running it:
+
+```bash
+cd ~/uda-integration-testing/uda-test
+source .venv/bin/activate
+git pull --ff-only
+git rev-parse HEAD
+python -m pytest -q tests/test_v2_host_release_baseline.py
+python -m pytest -q
+```
+
+If the tests pass, the **read-only** host inspection is:
+
+```bash
+python3 tools/v2_host_release_baseline.py
+```
+
+An exit code of 1 means one or more systemd unit observations were
+unavailable/incomplete; investigate, do not reset units automatically.
+Even an exit code of zero is not a green production release verdict.
+This helper deliberately reports
+`caddy_health_verified=false`, `sso_health_verified=false`,
+`application_health_verified=false`,
+`installed_runtime_rollback_verified=false` and
+`production_upgrade_authorized=false`. Caddy reverse-proxy routes,
+dashboard login/SSO, application liveness, original timer state,
+operator-approved quiescence and rollback triggers require separate
+explicit evidence. Avoid publishing unit environment data or private
+snapshot files in public issue comments.
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
