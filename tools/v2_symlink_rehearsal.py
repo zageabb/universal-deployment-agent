@@ -12,7 +12,11 @@ import json
 from pathlib import Path, PurePosixPath
 import tarfile
 
-from tools.v2_snapshot_rehearsal import ARCHIVE_NAME, SOURCES, SnapshotError
+# Support both `python -m tools.v2_symlink_rehearsal` and direct script use.
+if __package__ in (None, ""):
+    from v2_snapshot_rehearsal import ARCHIVE_NAME, SOURCES, SnapshotError
+else:
+    from tools.v2_snapshot_rehearsal import ARCHIVE_NAME, SOURCES, SnapshotError
 
 
 def _parts(path: str) -> tuple[str, ...]:
