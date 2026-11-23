@@ -301,6 +301,47 @@ mean systemd enablement or full rollback has been restored. A later
 maintenance-window restoration must account for systemd units, drop-ins
 and timer states, retaining the documented `0.0.0.0:5030` binding.
 
+## Disposable UDA systemd enablement reconstruction (not activation)
+
+`tools/v2_systemd_restore_rehearsal.py` validates the same protected
+snapshot's SHA-256 and the **five UDA-specific** enablement links:
+dashboard and home service links; deployment-agent, proxy refresh and proxy
+migration timer links. For each it requires the corresponding archived
+regular unit file plus the two dashboard/home `10-environment.conf`
+override files. It rebuilds only these five links **inside a temporary
+directory under `restore-rehearsals/`**, remapping acceptable archived
+absolute user-systemd links to private relative targets. The temporary
+directory is deleted after checks. No unrelated application links are
+recreated, no unit is enabled/started, and no live user systemd configuration
+is inspected or changed. The tool intentionally does **not** print
+environment-file content.
+
+Run independent regression on the new PR head:
+
+```bash
+cd ~/uda-integration-testing/uda-test
+source .venv/bin/activate
+git pull --ff-only
+git rev-parse HEAD
+python -m pytest -q tests/test_v2_systemd_restore_rehearsal.py
+python -m pytest -q
+```
+
+Only after tests pass, inspect the existing verified archive:
+
+```bash
+python3 tools/v2_systemd_restore_rehearsal.py \
+  --snapshot-dir /media/t/uda-release/snapshots/uda-20261120T224219Z
+```
+
+The expected report includes `uda_links_reconstructed=5`,
+`environment_overrides_present=2`, and
+`full_systemd_restore_rehearsed=false`. Any missing or unsafe link
+is a **fail**, not permission to repair or modify the live host.
+This provides file/link reconstruction evidence only: real systemd unit
+loading, timer restoration, environment-file loading, application health,
+lock isolation and rollback remain maintenance-window gates.
+
 ## Phase 2: release approval required before any production mutation
 
 Capture a named release owner and authorised maintenance operator, a
