@@ -190,3 +190,18 @@ maintenance window, isolation/recovery operator, scope of allowed writes and
 rollback plan. A documented read-only preflight and green CI alone do not
 satisfy those approvals. Keep PR #26 in draft until sign-off and host evidence
 are attached.
+
+
+## Additional read-only host-inspection fail-closed tests — 24 November 2026
+
+The host-readiness inspector now rejects ambiguous `systemctl show` evidence:
+duplicate known properties are treated as inspection errors, and any timer
+or oneshot state other than fully `inactive` is a scheduling blocker.
+Known `failed` states remain blocked by `systemd_unit_failed`.
+This protects against inadvertently reporting readiness while a timer or
+oneshot is activating, deactivating, reloading or returning an unfamiliar state.
+
+The added mocked tests cover four transitional/unrecognised timer states,
+two unexpected oneshot states and duplicate `ActiveState` properties.
+No production services, timers, Caddy configuration or locks are modified.
+These checks grant no maintenance, merge or V2 activation authorisation.
