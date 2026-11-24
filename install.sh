@@ -7,6 +7,51 @@ CONFIG_DIR=${XDG_CONFIG_HOME:-"$HOME/.config"}/deployment-agent
 UNIT_DIR=${XDG_CONFIG_HOME:-"$HOME/.config"}/systemd/user
 BIN_DIR=${HOME}/.local/bin
 
+# Existing installations require a separately approved maintenance procedure.
+# Stage-only never points at the live HOME/XDG directories and never invokes
+# systemctl. A staged venv is NOT relocatable; rebuild at its final path.
+MODE=${1:-}
+case "$MODE" in
+  --stage-only)
+    [ "$#" -eq 2 ] || { echo "Usage: install.sh --stage-only ABSOLUTE_NEW_DIRECTORY" >&2; exit 2; }
+    STAGE=$2
+    case "$STAGE" in /*) ;; *) echo "Absolute staging path required" >&2; exit 2;; esac
+    # Require a fresh directory under a private operator-owned staging parent.
+    # Refuse live paths even when a runtime subdirectory does not yet exist.
+    PARENT=$(CDPATH= cd -- "$(dirname -- "$STAGE")" && pwd -P) || exit 2
+    STAGE=$PARENT/$(basename -- "$STAGE")
+    [ "$(stat -c %u -- "$PARENT")" = "$(id -u)" ] && [ "$(stat -c %a -- "$PARENT")" = 700 ] || { echo "Staging parent must be owner-private (0700)" >&2; exit 2; }
+    for live in "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR" "$BIN_DIR"; do
+      LIVE=$(realpath -m -- "$live") || exit 2
+      case "$STAGE/" in "$LIVE/"*) echo "Staging inside live installation refused" >&2; exit 2;; esac
+    done
+    # mkdir creates the private directory atomically; require a fresh target.
+    # Do not accept existing directories, including symlinks.
+    umask 077
+    mkdir -m 0700 -- "$STAGE" || exit 2
+    STAGE=$(CDPATH= cd -- "$STAGE" && pwd -P)
+    DATA_DIR=$STAGE/runtime
+    CONFIG_DIR=$STAGE/config
+    UNIT_DIR=$STAGE/units
+    BIN_DIR=$STAGE/bin
+    ;;
+  --install-inactive)
+    [ "$#" -eq 1 ] || exit 2
+    echo "Inactive installation still writes live files; use only in approved maintenance." >&2
+    # Deliberately do not expose a live-write mode until the release/rollback
+    # gate is implemented. This argument is reserved for that future path.
+    exit 2
+    ;;
+  "")
+    [ "$#" -eq 0 ] || exit 2
+    if [ -e "$DATA_DIR" ] || [ -L "$DATA_DIR" ] || [ -e "$CONFIG_DIR" ] || [ -L "$CONFIG_DIR" ]; then
+      echo "Existing installation: use --stage-only and the controlled release procedure." >&2
+      exit 2
+    fi
+    ;;
+  *) echo "Usage: install.sh [--stage-only ABSOLUTE_NEW_DIRECTORY]" >&2; exit 2;;
+esac
+
 mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR" "$BIN_DIR"
 install -m 0755 "$SOURCE_DIR/deploy_agent.py" "$DATA_DIR/deploy_agent.py"
 install -m 0755 "$SOURCE_DIR/github_ci.py" "$DATA_DIR/github_ci.py"
@@ -69,6 +114,11 @@ install -m 0644 "$SOURCE_DIR/systemd/uda-proxy-migration.timer" "$UNIT_DIR/uda-p
 if [ ! -f "$CONFIG_DIR/config.json" ]; then
   install -m 0600 "$SOURCE_DIR/config.example.json" "$CONFIG_DIR/config.json"
   echo "Created $CONFIG_DIR/config.json; edit it before enabling the timer."
+fi
+if [ "$MODE" = "--stage-only" ]; then
+  echo "Staged runtime and dependencies: $STAGE"
+  echo "No service actions performed; staged venv is not relocatable."
+  exit 0
 fi
 systemctl --user daemon-reload
 systemctl --user enable --now deployment-agent-dashboard.service
