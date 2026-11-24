@@ -48,6 +48,8 @@ def health(name, failed=False):
         with urlopen(f"http://127.0.0.1:{PORTS[name]}{path}", timeout=2) as r:
             return r.status == 200 and json.loads(r.read())["ok"] is True
     if failed and name == "dashboard":
+        if not health(name):
+            raise RuntimeError("Candidate dashboard never became ready")
         from urllib.error import HTTPError
         try:
             check()
