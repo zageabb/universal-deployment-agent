@@ -307,7 +307,7 @@ and timer states, retaining the documented `0.0.0.0:5030` binding.
 snapshot's SHA-256 and the **five UDA-specific** enablement links:
 dashboard and home service links; deployment-agent, proxy refresh and proxy
 migration timer links. For each it requires the corresponding archived
-regular unit file plus the two dashboard/home `10-environment.conf`
+regular unit file, all three paired timer service files (`deployment-agent.service`, `uda-proxy-refresh.service`, `uda-proxy-migration.service`), plus the two dashboard/home `10-environment.conf`
 override files. It rebuilds only these five links **inside a temporary
 directory under `restore-rehearsals/`**, remapping acceptable archived
 absolute user-systemd links to private relative targets. The temporary
@@ -334,7 +334,7 @@ python3 tools/v2_systemd_restore_rehearsal.py \
   --snapshot-dir /media/t/uda-release/snapshots/uda-20261120T224219Z
 ```
 
-The expected report includes `uda_links_reconstructed=5`,
+The expected report includes `uda_links_reconstructed=5`, `uda_unit_files_present=8`, `timer_service_files_present=3`, `unit_and_override_bytes_verified=true`, `disposable_file_modes_private=true`, `timer_runtime_states_restored=false`,
 `environment_overrides_present=2`, and
 `full_systemd_restore_rehearsed=false`. Any missing or unsafe link
 is a **fail**, not permission to repair or modify the live host.
@@ -448,3 +448,7 @@ mark PR #26 ready or merge to `main` merely because unit tests passed or
 because GitHub reports the branch is mergeable. The next controlled action
 after approval is performed by the host operator using the authorised
 install/rollback procedure, never by this document.
+
+## Extended offline restore coverage
+
+The rehearsal now requires the three paired timer service files as well as the five enablement targets. All ten copied unit/override files are verified byte-for-byte against their archive members and must have owner-only mode 0600 in the temporary directory. Missing or unsafe timer service entries fail closed. These are private rehearsal modes, not an assertion about original production file modes. Timer-to-service runtime dependency resolution, actual systemd loading and active-state restoration remain unverified. The historical five-unit PASS above is not acceptance of this extended gate.
