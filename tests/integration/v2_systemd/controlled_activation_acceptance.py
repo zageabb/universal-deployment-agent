@@ -1,10 +1,11 @@
 """CI-only actual payload + real systemd + HTTP acceptance; never production."""
 from pathlib import Path
+import base64
 import json
 import os
 import subprocess
 import tempfile
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from lifecycle_acceptance import guard, wait_for
 from tools import uda_controlled_activation as model
@@ -45,7 +46,10 @@ def health(name, failed=False):
     # endpoint on the actual candidate dashboard (HTTP 404).
     path = "/missing-fixture-health" if failed and name == "dashboard" else "/health"
     def check():
-        with urlopen(f"http://127.0.0.1:{PORTS[name]}{path}", timeout=2) as r:
+        request = Request(f"http://127.0.0.1:{PORTS[name]}{path}")
+        if name == "dashboard":
+            request.add_header("Authorization", "Basic " + base64.b64encode(b"admin:fixture-only").decode())
+        with urlopen(request, timeout=2) as r:
             return r.status == 200 and json.loads(r.read())["ok"] is True
     if failed and name == "dashboard":
         if not health(name):
