@@ -3,7 +3,7 @@ on:
   push:
     branches: [feature/uda-v2-disposable-systemd-lifecycle]
   pull_request:
-    branches: [feature/uda-v2-systemd-verify]
+    branches: [feature/uda-v2-systemd-verify, feature/uda-v2-restore-unit-completeness]
   workflow_dispatch:
 permissions:
   contents: read
@@ -47,11 +47,18 @@ jobs:
             python3 /opt/uda-v2-disposable/lifecycle_acceptance.py
           docker exec uda-v2-disposable-systemd python3 -c \
             'import json; e=json.load(open("/tmp/uda-v2-systemd-evidence.json")); assert e["ubuntu"] == "${{ matrix.ubuntu-version }}"; assert e["production_activation_allowed"] is False; assert all(e[k] is True for k in ("systemd_started", "web_health", "worker_health", "degraded_worker_detected", "failed_upgrade_detected", "restored_previous_bytes", "restored_previous_running_state"))'
+      - name: Exercise mixed timer enablement and active-state rollback
+        run: |
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-disposable-systemd \
+            python3 /opt/uda-v2-disposable/timer_restore_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c \
+            'import json; e=json.load(open("/tmp/uda-v2-timer-restore.json")); assert e["production_upgrade_authorized"] is False; assert all(e[k] is True for k in ("restored_timer_states", "restored_unit_bytes", "mutation_detected", "paired_services_healthy"))'
       - name: Save acceptance evidence
         if: always()
         run: |
           mkdir -p /tmp/uda-v2-evidence
           docker cp uda-v2-disposable-systemd:/tmp/uda-v2-systemd-evidence.json /tmp/uda-v2-evidence/lifecycle.json || true
+          docker cp uda-v2-disposable-systemd:/tmp/uda-v2-timer-restore.json /tmp/uda-v2-evidence/timer-restore.json || true
           docker logs uda-v2-disposable-systemd > /tmp/uda-v2-evidence/container.log 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
