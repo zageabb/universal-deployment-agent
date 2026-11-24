@@ -1,9 +1,9 @@
 name: UDA Controlled Installer Regression
 on:
   push:
-    branches: [feature/uda-integrated-install-rehearsal, feature/uda-install-journal, feature/uda-runtime-integrity, feature/uda-controlled-installer]
+    branches: [feature/uda-controlled-activation, feature/uda-integrated-install-rehearsal, feature/uda-install-journal, feature/uda-runtime-integrity, feature/uda-controlled-installer]
   pull_request:
-    branches: [feature/uda-install-journal, feature/uda-runtime-integrity, feature/uda-controlled-installer, feature/uda-v2-process-crash-recovery]
+    branches: [feature/uda-integrated-install-rehearsal, feature/uda-install-journal, feature/uda-runtime-integrity, feature/uda-controlled-installer, feature/uda-v2-process-crash-recovery]
 permissions:
   contents: read
 jobs:
