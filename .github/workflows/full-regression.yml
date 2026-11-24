@@ -6,6 +6,9 @@ on:
       - main
       - feature/archive-restore
       - feature/deployment-reporting
+      - feature/uda-v2-process-crash-recovery
+      - feature/uda-v2-host-readiness-failclosed
+      - feature/uda-v2-restore-unit-completeness
   push:
     branches:
       - main

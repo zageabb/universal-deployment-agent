@@ -36,6 +36,8 @@ def _read_status(unit: str, runner) -> dict:
         key, sep, value = line.partition("=")
         if sep and key in {"LoadState", "ActiveState", "SubState",
                            "UnitFileState", "NextElapseUSecRealtime"}:
+            if key in parsed:
+                return {"unit": unit, "state": "unknown", "inspection_error": True}
             parsed[key] = value[:150]
     if not {"LoadState", "ActiveState", "SubState", "UnitFileState"}.issubset(parsed):
         return {"unit": unit, "state": "unknown", "inspection_error": True}
@@ -74,7 +76,14 @@ def inspect_host(*, runner=subprocess.run,
         "proxy_refresh_active" if items[SERVICES[1]]["state"] in
             {"active", "activating", "deactivating"} else None,
     ]
-    blockers = [e for e in errors if e]
+    # An unrecognised or transitional timer state must never appear safe.
+    # Inactive is the only acceptable timer state for isolated scheduling;
+    # oneshot services likewise must be fully inactive (failed is handled above).
+    if any(items[u]["state"] not in {"inactive", "failed"} for u in TIMERS):
+        errors.append("timer_not_quiescent")
+    if any(items[u]["state"] not in {"inactive", "failed"} for u in SERVICES):
+        errors.append("service_not_quiescent")
+    blockers = list(dict.fromkeys(e for e in errors if e))
     return {
         "target": "local_user_systemd",
         "ubuntu_version": version,

@@ -137,3 +137,33 @@ def test_partial_systemd_properties_fail_closed(tmp_path):
     result = inspect_host(os_release=release, runner=missing_property)
     assert "timer_inspection_incomplete" in result["maintenance_isolation_blockers"]
     assert not result["ready_for_isolated_test_scheduling"]
+
+
+
+@pytest.mark.parametrize("state", ["activating", "deactivating", "reloading", "unknown"])
+def test_transitional_timer_states_never_allow_scheduling(tmp_path, state):
+    release, runner, _ = fixture(tmp_path, states={"deployment-agent.timer": state})
+    result = inspect_host(os_release=release, runner=runner)
+    assert "timer_not_quiescent" in result["maintenance_isolation_blockers"]
+    assert result["ready_for_isolated_test_scheduling"] is False
+    assert result["deployment_allowed"] is False
+
+
+@pytest.mark.parametrize("state", ["reloading", "unknown"])
+def test_unexpected_oneshot_states_never_allow_scheduling(tmp_path, state):
+    release, runner, _ = fixture(tmp_path, states={"deployment-agent.service": state})
+    result = inspect_host(os_release=release, runner=runner)
+    assert "service_not_quiescent" in result["maintenance_isolation_blockers"]
+    assert result["ready_for_isolated_test_scheduling"] is False
+
+
+def test_duplicate_systemd_property_fails_closed(tmp_path):
+    release, runner, _ = fixture(tmp_path)
+    def duplicate_property(command, **kwargs):
+        result = runner(command, **kwargs)
+        return SimpleNamespace(returncode=0, stdout=(
+            result.stdout + "ActiveState=inactive\n"
+        ), stderr="")
+    result = inspect_host(os_release=release, runner=duplicate_property)
+    assert "timer_inspection_incomplete" in result["maintenance_isolation_blockers"]
+    assert result["ready_for_isolated_test_scheduling"] is False
