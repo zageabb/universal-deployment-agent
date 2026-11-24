@@ -83,12 +83,15 @@ def apply(root, manifest, crash):
         journal.save(root, record)
 
 
-def recover(root, manifest, crash):
+def recover(root, manifest, crash, *, activation_failed=False):
     with journal.locked(root):
         record = journal.load(root)
         entries = record["entries"]
-        if (record["version"] != 2 or record["phase"] not in
-                {"prepared", "applying", "recovering"} or set(entries) != set(manifest)):
+        phases = {"prepared", "applying", "recovering"}
+        if activation_failed:
+            phases.add("complete")
+        if (record["version"] != 2 or record["phase"] not in phases
+                or set(entries) != set(manifest)):
             raise ValueError("Unexpected transaction")
         for name, entry in entries.items():
             expected = {"sha256": manifest[name]["sha256"], "mode": manifest[name]["mode"]}

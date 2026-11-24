@@ -10,6 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # disposable image is built; the running container has no network.
 RUN python3 -m venv /opt/uda-v2-test-venv && \
     /opt/uda-v2-test-venv/bin/python -m pip install --no-cache-dir \
-    'PyYAML>=6,<7' 'jsonschema>=4.18,<5'
+    'PyYAML>=6,<7' 'jsonschema>=4.20,<5' 'Flask>=3,<4'
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
