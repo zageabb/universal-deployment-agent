@@ -20,6 +20,7 @@ case "$MODE" in
     # Refuse live paths even when a runtime subdirectory does not yet exist.
     PARENT=$(CDPATH= cd -- "$(dirname -- "$STAGE")" && pwd -P) || exit 2
     STAGE=$PARENT/$(basename -- "$STAGE")
+    [ "$(stat -c %u -- "$PARENT")" = "$(id -u)" ] && [ "$(stat -c %a -- "$PARENT")" = 700 ] || { echo "Staging parent must be owner-private (0700)" >&2; exit 2; }
     for live in "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR" "$BIN_DIR"; do
       LIVE=$(realpath -m -- "$live") || exit 2
       case "$STAGE/" in "$LIVE/"*) echo "Staging inside live installation refused" >&2; exit 2;; esac
