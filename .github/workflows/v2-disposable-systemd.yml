@@ -56,7 +56,7 @@ jobs:
       - name: Rehearse real UDA runtime installation and activation
         run: |
           docker exec uda-v2-disposable-systemd mkdir -p /opt/uda-source
-          docker cp ./. uda-v2-disposable-systemd:/opt/uda-source/
+          git archive HEAD | docker exec -i uda-v2-disposable-systemd tar -x -C /opt/uda-source
           docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 --env PYTHONPATH=/opt/uda-source uda-v2-disposable-systemd /opt/uda-v2-test-venv/bin/python /opt/uda-v2-disposable/controlled_activation_acceptance.py
           docker exec uda-v2-disposable-systemd python3 -c 'import json; e=json.load(open("/tmp/uda-controlled-activation.json")); assert not e["production_upgrade_authorized"]; assert e["success"]["actual_flask_health"] and e["success"]["timer_states_preserved"]; assert e["failed_health"]["failed_probe_detected"] and e["failed_health"]["payload_restored"] and e["failed_health"]["timer_states_preserved"]'
       - name: Save acceptance evidence
