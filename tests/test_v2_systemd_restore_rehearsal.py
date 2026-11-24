@@ -10,7 +10,7 @@ import tarfile
 import pytest
 
 from tools.v2_snapshot_rehearsal import ARCHIVE_NAME, SnapshotError
-from tools.v2_systemd_restore_rehearsal import ENABLED, OVERRIDES, rehearse_units
+from tools.v2_systemd_restore_rehearsal import ENABLED, OVERRIDES, TIMER_SERVICES, UNIT_FILES, rehearse_units
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ def fixture_snapshot(lab, *, replace=None, missing=None):
     items = {}
     for link, unit in ENABLED.items():
         items["systemd-user/" + link] = ("link", "/home/test/.config/systemd/user/" + unit)
-    for unit in (*ENABLED.values(), *OVERRIDES):
+    for unit in (*UNIT_FILES, *OVERRIDES):
         items["systemd-user/" + unit] = ("file", "[Unit]\nDescription=Synthetic\n")
     items.update(replace)
     if missing:
@@ -66,6 +66,11 @@ def test_five_units_and_overrides_are_reconstructed_offline(recovery_lab):
     assert result["status"] == "PASS"
     assert result["uda_links_reconstructed"] == 5
     assert result["environment_overrides_present"] == 2
+    assert result["uda_unit_files_present"] == 8
+    assert result["timer_service_files_present"] == 3
+    assert result["unit_and_override_bytes_verified"] is True
+    assert result["disposable_file_modes_private"] is True
+    assert result["timer_runtime_states_restored"] is False
     assert result["unrelated_links_reconstructed"] == 0
     assert result["systemctl_invoked"] is False
     assert result["full_systemd_restore_rehearsed"] is False
@@ -111,3 +116,20 @@ def test_no_backup_mount_refuses(recovery_lab, monkeypatch):
     with pytest.raises(SnapshotError, match="not mounted"):
         rehearse_units(snapshot, root=root, mountpoint=mount)
 
+
+
+@pytest.mark.parametrize("service", TIMER_SERVICES)
+def test_missing_timer_service_fails_closed(recovery_lab, service):
+    snapshot = fixture_snapshot(recovery_lab, missing="systemd-user/" + service)
+    root, mount = recovery_lab
+    with pytest.raises(SnapshotError, match="missing"):
+        rehearse_units(snapshot, root=root, mountpoint=mount)
+
+
+def test_timer_service_symlink_is_not_accepted(recovery_lab):
+    snapshot = fixture_snapshot(recovery_lab, replace={
+        "systemd-user/deployment-agent.service": ("link", "/tmp/other.service"),
+    })
+    root, mount = recovery_lab
+    with pytest.raises(SnapshotError, match="unsafe type"):
+        rehearse_units(snapshot, root=root, mountpoint=mount)
