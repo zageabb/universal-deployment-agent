@@ -484,3 +484,28 @@ procedure is implemented and tested. No automatic activation is added.
 Synthetic tests replace python3 dependency building and systemctl; real
 dependency staging still requires separate acceptance. Never run the
 default installer as an upgrade. Keep PR #26 on hold.
+
+
+## Source-bound payload inventory and offline replacement rehearsal
+
+The new `tools/uda_runtime_integrity.py` tool derives the explicit
+payload from the reviewed installer, verifies staged source file SHA-256
+and permitted modes, and excludes configuration, live data, caches and
+the non-relocatable virtual environment. It never writes to the stage.
+The rehearsal creates a synthetic installed tree in a private temporary
+directory, backs up the synthetic old files, replaces files individually,
+injects a failure and restores old bytes/modes and removes newly created
+files. Unmanaged state must be preserved.
+
+```sh
+python -m pytest -q tests/test_uda_runtime_integrity.py
+python tools/uda_runtime_integrity.py inventory --stage "$STAGE"
+python tools/uda_runtime_integrity.py rehearse --stage "$STAGE"
+```
+
+The stage must be the existing private staging candidate from PR #31
+and the source payload must match the current checkout. The manifest is
+not signed or an authorization. This does not establish dependency
+integrity, crash durability, full-tree atomic replacement, actual
+production rollback, or maintenance approval. No live target option,
+systemd actions, or production changes are provided.
