@@ -16,6 +16,14 @@ case "$MODE" in
     [ "$#" -eq 2 ] || { echo "Usage: install.sh --stage-only ABSOLUTE_NEW_DIRECTORY" >&2; exit 2; }
     STAGE=$2
     case "$STAGE" in /*) ;; *) echo "Absolute staging path required" >&2; exit 2;; esac
+    # Require a fresh directory under a private operator-owned staging parent.
+    # Refuse live paths even when a runtime subdirectory does not yet exist.
+    PARENT=$(CDPATH= cd -- "$(dirname -- "$STAGE")" && pwd -P) || exit 2
+    STAGE=$PARENT/$(basename -- "$STAGE")
+    for live in "$DATA_DIR" "$CONFIG_DIR" "$UNIT_DIR" "$BIN_DIR"; do
+      LIVE=$(realpath -m -- "$live") || exit 2
+      case "$STAGE/" in "$LIVE/"*) echo "Staging inside live installation refused" >&2; exit 2;; esac
+    done
     # mkdir creates the private directory atomically; require a fresh target.
     # Do not accept existing directories, including symlinks.
     umask 077
