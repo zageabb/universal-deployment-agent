@@ -93,7 +93,7 @@ class Model:
 
 
 def rehearse(original, isolated, *, writers_quiescent=True, backup_verified=True, health=None,
-             fail_start=None):
+             fail_start=None, rollback_verified=True, restored_health=True):
     admission(original, isolated, writers_quiescent=writers_quiescent, backup_verified=backup_verified)
     # This increment supports the known host topology with both web services active.
     if any(original[u].active != "active" for u in WEB):
@@ -114,13 +114,15 @@ def rehearse(original, isolated, *, writers_quiescent=True, backup_verified=True
         for unit in TIMERS + tuple(reversed(WEB)):
             if model.states[unit].active == "active":
                 model.stop(unit)
-        if not model.rollback_payload():
+        if not model.rollback_payload() or not rollback_verified:
             raise RuntimeError("Rollback not verified")
         for unit in WEB:
             model.start(unit)
         # Model the old runtime independently of candidate health.
         model.events.append(("health", "restored-home"))
         model.events.append(("health", "restored-dashboard"))
+        if not restored_health:
+            raise RuntimeError("Restored runtime health not verified")
         for unit in TIMERS:
             if original[unit].active == "active":
                 model.start(unit)
