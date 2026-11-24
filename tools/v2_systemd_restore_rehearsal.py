@@ -31,6 +31,12 @@ ENABLED = {
     "timers.target.wants/uda-proxy-refresh.timer": "uda-proxy-refresh.timer",
     "timers.target.wants/uda-proxy-migration.timer": "uda-proxy-migration.timer",
 }
+TIMER_SERVICES = (
+    "deployment-agent.service",
+    "uda-proxy-refresh.service",
+    "uda-proxy-migration.service",
+)
+UNIT_FILES = (*ENABLED.values(), *TIMER_SERVICES)
 OVERRIDES = (
     "deployment-agent-dashboard.service.d/10-environment.conf",
     "deployment-agent-home.service.d/10-environment.conf",
@@ -80,7 +86,7 @@ def rehearse_units(snapshot_dir: Path, *, root: Path = DEFAULT_ROOT,
     needed = {
         "systemd-user/" + name: "link" for name in ENABLED
     } | {
-        "systemd-user/" + name: "file" for name in (*ENABLED.values(), *OVERRIDES)
+        "systemd-user/" + name: "file" for name in (*UNIT_FILES, *OVERRIDES)
     }
     selected = {}
     with tarfile.open(archive, "r:gz") as tf:
@@ -111,15 +117,21 @@ def rehearse_units(snapshot_dir: Path, *, root: Path = DEFAULT_ROOT,
         ) as temp:
             folder = Path(temp) / "systemd-user"
             folder.mkdir(mode=0o700)
-            for unit in (*ENABLED.values(), *OVERRIDES):
+            for unit in (*UNIT_FILES, *OVERRIDES):
                 dest = folder / unit
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 source = tf.extractfile(selected["systemd-user/" + unit])
                 if source is None:
                     raise SnapshotError("Archived unit contents unreadable")
-                with source, dest.open("xb") as writer:
+                expected_digest = hashlib.sha256()
+                with source, os.fdopen(os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb") as writer:
                     while block := source.read(65536):
+                        expected_digest.update(block)
                         writer.write(block)
+                if (dest.stat().st_size != selected["systemd-user/" + unit].size
+                        or hashlib.sha256(dest.read_bytes()).digest() != expected_digest.digest()
+                        or stat.S_IMODE(dest.stat().st_mode) != 0o600):
+                    raise SnapshotError("Disposable unit byte or private mode verification failed")
             for link, unit in ENABLED.items():
                 dest = folder / link
                 dest.parent.mkdir(parents=True, exist_ok=True)
@@ -131,7 +143,11 @@ def rehearse_units(snapshot_dir: Path, *, root: Path = DEFAULT_ROOT,
                 "status": "PASS",
                 "snapshot_sha256_ok": True,
                 "uda_links_reconstructed": len(ENABLED),
-                "uda_unit_files_present": len(ENABLED),
+                "uda_unit_files_present": len(UNIT_FILES),
+                "timer_service_files_present": len(TIMER_SERVICES),
+                "unit_and_override_bytes_verified": True,
+                "disposable_file_modes_private": True,
+                "timer_runtime_states_restored": False,
                 "environment_overrides_present": len(OVERRIDES),
                 "unrelated_links_reconstructed": 0,
                 "disposable_links_resolved": True,
