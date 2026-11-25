@@ -68,24 +68,30 @@ def isolation_review(plan, isolated, *, writers_quiescent, backup_verified):
     return {"status": "ISOLATION_REVIEW_PASS", "production_upgrade_authorized": False}
 
 
-def inspect(stage):
+def inspect(stage, *, candidate_receipt=None):
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=ROOT, text=True).strip():
         raise ValueError("Release checkout is not clean")
     first = admission.collect(stage, Path.home())
-    baseline = admission.inspect(stage)
+    baseline = admission.inspect(stage) if candidate_receipt is None else admission.inspect(stage, candidate_receipt=candidate_receipt)
     second = admission.collect(stage, Path.home())
     if first != second:
         raise ValueError("Inventory changed during admission")
-    return contract(second, baseline, revision, socket.gethostname(), os.getuid())
+    plan = contract(second, baseline, revision, socket.gethostname(), os.getuid())
+    if candidate_receipt is not None:
+        plan['contract']['venv']['receipt'] = candidate_receipt
+        plan['sha256'] = digest(plan['contract'])
+    return plan
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", type=Path, required=True)
+    parser.add_argument("--candidate-receipt", type=Path)
     args = parser.parse_args()
     try:
-        print(json.dumps(inspect(args.stage), indent=2, sort_keys=True))
+        receipt = json.loads(args.candidate_receipt.read_text())["receipt"] if args.candidate_receipt else None
+        print(json.dumps(inspect(args.stage, candidate_receipt=receipt), indent=2, sort_keys=True))
     except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as exc:
         print(json.dumps({"status": "REVIEW", "error": str(exc),
                           "production_upgrade_authorized": False}))
