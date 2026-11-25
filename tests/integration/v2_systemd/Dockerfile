@@ -11,5 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /opt/uda-v2-test-venv && \
     /opt/uda-v2-test-venv/bin/python -m pip install --no-cache-dir \
     'PyYAML>=6,<7' 'jsonschema>=4.20,<5' 'Flask>=3,<4'
+RUN /opt/uda-v2-test-venv/bin/python -m pip download --only-binary=:all: -d /opt/uda-wheels \
+    'Flask>=3.0,<4' 'PyYAML>=6.0,<7' 'jsonschema>=4.20,<5'
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
