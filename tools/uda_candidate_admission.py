@@ -19,6 +19,8 @@ from tools.uda_stage_admission import SMOKE
 def tree(root):
     if prep.identity(root)[3] != 0o700:
         raise ValueError("Candidate must be private")
+    if any(k.startswith("system.posix_acl_") for k in os.listxattr(root, follow_symlinks=False)):
+        raise ValueError("Unsafe candidate root ACL")
     entries = {}
     for folder, dirs, files in os.walk(root, followlinks=False):
         for name in sorted(dirs + files):
@@ -41,7 +43,7 @@ def tree(root):
                 else:
                     raise ValueError("Unexpected candidate symlink")
             elif mode & 0o022 or any(k.startswith("system.posix_acl_") for k in os.listxattr(path, follow_symlinks=False)):
-                raise ValueError("Unsafe candidate permissions")
+                raise ValueError(f"Unsafe candidate permissions: {rel} mode={mode:04o}")
             elif stat.S_ISDIR(s.st_mode):
                 entries[rel] = ["directory", mode]
             elif stat.S_ISREG(s.st_mode) and s.st_nlink == 1:
