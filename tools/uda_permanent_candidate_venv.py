@@ -96,6 +96,8 @@ def execute(stage, create_candidate=False):
         candidate = runtime / "venv-v2"
         vacant(candidate)
         report = prepare(stage, candidate, lab)
+        from tools.uda_candidate_admission import seal
+        report["receipt"] = seal(stage, candidate, report)
         if identity(live) != old:
             raise ValueError("Live environment identity changed")
         vacant(retained)
