@@ -37,11 +37,35 @@ def run(exe, args, lab):
            "PIP_CONFIG_FILE": os.devnull, "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
     result = subprocess.run([str(exe), "-I", "-B", *map(str, args)],
                             cwd=lab, env=env, capture_output=True, text=True,
-                            timeout=240, check=False)
+                            timeout=240, check=False, umask=0o077)
     if result.returncode:
         raise RuntimeError("Candidate subprocess failed: " + str(args[0]) +
                            " (exit " + str(result.returncode) + ")")
     return result.stdout.strip()
+
+
+def harden_new_tree(root, reserved):
+    """Normalize only a newly reserved environment, never an admitted one."""
+    if identity(root) != reserved or reserved[3] != 0o700:
+        raise ValueError("Candidate reservation changed")
+    for folder, dirs, files in os.walk(root, followlinks=False):
+        for name in dirs + files:
+            path = Path(folder) / name
+            info = path.lstat()
+            if info.st_uid != os.getuid():
+                raise ValueError("Unexpected candidate owner")
+            if stat.S_ISLNK(info.st_mode):
+                continue
+            if not (stat.S_ISDIR(info.st_mode) or
+                    (stat.S_ISREG(info.st_mode) and info.st_nlink == 1)):
+                raise ValueError("Unsafe candidate object")
+            if any(k.startswith("system.posix_acl_") for k in os.listxattr(path, follow_symlinks=False)):
+                raise ValueError("Unexpected candidate ACL")
+            mode = stat.S_IMODE(info.st_mode)
+            if mode & 0o022:
+                path.chmod(mode & ~0o022)
+    if identity(root) != reserved:
+        raise ValueError("Candidate reservation changed")
 
 
 def prepare(stage, destination, lab):
@@ -55,10 +79,12 @@ def prepare(stage, destination, lab):
     destination.mkdir(mode=0o700)
     reserved = identity(destination)
     run(base, ["-m", "venv", destination], lab)
+    harden_new_tree(destination, reserved)
     python = destination / "bin/python"
     if Path(run(python, ["-c", "import sys; print(sys.prefix)"], lab)).resolve() != destination.resolve():
         raise ValueError("Candidate prefix mismatch")
     run(python, ["-m", "pip", "install", "--no-input", "-r", ROOT / "requirements.txt"], lab)
+    harden_new_tree(destination, reserved)
     run(python, ["-m", "pip", "check"], lab)
     config = lab / "fixture.json"
     config.write_text(json.dumps({"dashboard_token": "fixture-only", "applications": [],
@@ -96,6 +122,8 @@ def execute(stage, create_candidate=False):
         candidate = runtime / "venv-v2"
         vacant(candidate)
         report = prepare(stage, candidate, lab)
+        from tools.uda_candidate_admission import seal
+        report["receipt"] = seal(stage, candidate, report)
         if identity(live) != old:
             raise ValueError("Live environment identity changed")
         vacant(retained)
