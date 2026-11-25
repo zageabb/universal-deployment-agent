@@ -7,6 +7,7 @@ def test_tree_detects_changed_bytes(tmp_path):
     tmp_path.chmod(0o700)
     path = tmp_path / "module.py"
     path.write_text("first")
+    path.chmod(0o600)
     before = c.tree(tmp_path)
     path.write_text("second")
     assert c.tree(tmp_path) != before
@@ -16,6 +17,7 @@ def test_tree_detects_addition(tmp_path):
     tmp_path.chmod(0o700)
     before = c.tree(tmp_path)
     (tmp_path / "new").write_text("data")
+    (tmp_path / "new").chmod(0o600)
     assert c.tree(tmp_path) != before
 
 
@@ -39,6 +41,7 @@ def test_hardlink_refused(tmp_path):
     tmp_path.chmod(0o700)
     path = tmp_path / "module.py"
     path.write_text("data")
+    path.chmod(0o600)
     os.link(path, tmp_path / "copy")
     with pytest.raises(ValueError, match="object"):
         c.tree(tmp_path)
@@ -57,7 +60,16 @@ def test_real_disposable_candidate(tmp_path, monkeypatch):
     import subprocess
     destination = tmp_path / "venv-v2"
     destination.mkdir(mode=0o700)
-    subprocess.run([sys._base_executable, "-m", "venv", "--copies", "--without-pip", str(destination)], check=True)
+    subprocess.run([sys._base_executable, "-m", "venv", "--copies", "--without-pip", str(destination)], check=True, umask=0o077)
     before = c.tree(destination)
     assert len(before) == 64
     assert c.tree(destination) == before
+
+
+def test_preparation_subprocess_uses_private_umask(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    def run(*args, **kwargs):
+        assert kwargs["umask"] == 0o077
+        return SimpleNamespace(returncode=0, stdout="ok")
+    monkeypatch.setattr(c.prep.subprocess, "run", run)
+    assert c.prep.run("/usr/bin/python3", ["--version"], tmp_path) == "ok"
