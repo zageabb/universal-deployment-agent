@@ -109,7 +109,7 @@ def scenario(failed):
             transaction.put(root / "runtime" / n, prior, 0o644)
         payload = inventory(stage)["files"]
         manifest = {n: payload[n] for n in combined.REPLACE}
-        before = {n: transaction.identity(root / "runtime" / n) for n in manifest}
+        before = {n: transaction.identity(root / "runtime" / n) for n in payload}
         config = root / "config.json"
         transaction.put(config, json.dumps({"dashboard_token": "fixture-only",
                          "applications": []}).encode(), 0o600)
@@ -163,14 +163,18 @@ def scenario(failed):
             elif not result:
                 raise RuntimeError("Candidate activation failed")
             else:
-                combined.record(root, "fixture_accepted")
+                expected = {n: {"sha256": e["sha256"], "mode": e["mode"]} for n, e in payload.items()}
+                if any(transaction.identity(root / "runtime" / n) != identity for n, identity in expected.items()):
+                    raise RuntimeError("Candidate or preserved payload mismatch")
+                with combined.locked(root):
+                    combined.record(root, "fixture_accepted")
             if states() != original or json.loads(config.read_text())["dashboard_token"] != "fixture-only":
                 raise RuntimeError("Baseline mismatch")
             return {"actual_flask_health": True, "timer_states_preserved": True,
                     "real_interpreter_switched": True, "original_interpreter_restored": failed,
                     "combined_phase": combined.phase(root),
                     "failed_probe_detected": failed, "payload_restored": failed,
-                    "payload_count": len(manifest)}
+                    "payload_count": len(payload), "replacement_count": len(manifest)}
         finally:
             for u in owned:
                 ctl("stop", u)
