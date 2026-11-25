@@ -37,7 +37,7 @@ def run(exe, args, lab):
            "PIP_CONFIG_FILE": os.devnull, "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
     result = subprocess.run([str(exe), "-I", "-B", *map(str, args)],
                             cwd=lab, env=env, capture_output=True, text=True,
-                            timeout=240, check=False)
+                            timeout=240, check=False, umask=0o077)
     if result.returncode:
         raise RuntimeError("Candidate subprocess failed: " + str(args[0]) +
                            " (exit " + str(result.returncode) + ")")
