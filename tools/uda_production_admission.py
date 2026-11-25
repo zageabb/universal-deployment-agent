@@ -12,6 +12,7 @@ from pathlib import Path
 import pwd
 import stat
 import subprocess
+import time
 
 from tools.uda_controlled_activation import State, UNITS, WEB, TIMERS, WORKERS, validate
 from tools.uda_production_replacement_plan import collect
@@ -59,12 +60,12 @@ def read_states():
     states = {}
     for unit in UNITS:
         result = subprocess.run(["systemctl", "--user", "show", unit,
-                                 "--property=ActiveState,SubState,UnitFileState,LoadState,Result"],
+                                 "-p", "ActiveState", "-p", "SubState", "-p", "UnitFileState",
+                                 "-p", "LoadState", "-p", "Result"],
                                 check=True, text=True, capture_output=True, timeout=15)
         values = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
         states[unit] = State(values["ActiveState"], values["UnitFileState"],
                              values["LoadState"], values["SubState"], values.get("Result", "success") or "success")
-    validate(states)
     return states
 
 
@@ -74,6 +75,35 @@ def review_states(states):
         raise ValueError("Known running topology changed")
     if any(states[u].active != "inactive" for u in WORKERS):
         raise ValueError("Worker active: retry read-only inspection when idle")
+
+
+def stable_states(attempts=6, delay=2):
+    """Retry only healthy transient timer/worker states, never admit them."""
+    for attempt in range(attempts):
+        states = read_states()
+        try:
+            review_states(states)
+            return states
+        except ValueError as exc:
+            detail = "; ".join(f"{u}={s.active}/{s.sub}/{s.enabled}/{s.loaded}/{s.result}"
+                               for u, s in states.items())
+            # Normal timer activity is retryable. Any failed, missing, masked,
+            # or unexpected web unit remains a hard review.
+            transient = False
+            if set(states) == set(UNITS):
+                transient = all(
+                    s.loaded == "loaded" and s.result == "success" and
+                    ((u in WEB and s.active == "active" and s.sub == "running" and s.enabled == "enabled")
+                     or (u in TIMERS and s.active == "active" and s.sub in {"waiting", "running", "elapsed"} and s.enabled == "enabled")
+                     or (u in WORKERS and s.enabled in {"enabled", "disabled", "static"} and
+                         (s.active, s.sub) in {("inactive", "dead"), ("activating", "start"),
+                                               ("activating", "start-pre"), ("active", "running"),
+                                               ("deactivating", "stop"), ("deactivating", "stop-sigterm")}))
+                    for u, s in states.items())
+            if not transient or attempt + 1 == attempts:
+                raise ValueError(f"{exc}; snapshot {attempt + 1}/{attempts}: {detail}") from exc
+            time.sleep(delay)
+    raise ValueError("No systemd snapshot")
 
 
 def inspect(stage):
@@ -102,8 +132,7 @@ def inspect(stage):
             raise ValueError("Existing candidate or retained environment requires review")
     for p in (runtime / "venv", runtime / "venv/bin"):
         directory_review(p)
-    states = read_states()
-    review_states(states)
+    states = stable_states()
     return {"status": "BASELINE_PASS", "actions": report["actions"],
             "payload_count": report["payload_count"],
             "unit_states": {u: vars(s) for u, s in states.items()},
