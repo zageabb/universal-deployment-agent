@@ -106,7 +106,7 @@ def stable_states(attempts=6, delay=2):
     raise ValueError("No systemd snapshot")
 
 
-def inspect(stage):
+def inspect(stage, *, candidate_receipt=None):
     home = Path.home()
     runtime = home / ".local/share/deployment-agent"
     units = home / ".config/systemd/user"
@@ -128,7 +128,10 @@ def inspect(stage):
         directory_review(directory)
     for name in ("venv-v2", "venv-v1-retained"):
         p = runtime / name
-        if p.exists() or p.is_symlink():
+        if name == "venv-v2" and candidate_receipt is not None:
+            from tools.uda_candidate_admission import verify
+            verify(stage, p, candidate_receipt)
+        elif p.exists() or p.is_symlink():
             raise ValueError("Existing candidate or retained environment requires review")
     for p in (runtime / "venv", runtime / "venv/bin"):
         directory_review(p)
@@ -138,7 +141,7 @@ def inspect(stage):
             "unit_states": {u: vars(s) for u, s in states.items()},
             "directory_group_review_passed": True,
             "production_files_modified": False, "systemctl_read_only": True,
-            "fresh_backup_required": True, "candidate_venv_required": True,
+            "fresh_backup_required": True, "candidate_venv_required": candidate_receipt is None,
             "maintenance_isolation_required": True,
             "production_upgrade_authorized": False}
 
