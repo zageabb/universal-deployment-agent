@@ -82,6 +82,15 @@ def apply(session, stage, runtime, *, interrupt=lambda _: None):
             key = hashlib.sha256(name.encode()).hexdigest()
             if file_identity(backup, key) != {"sha256": item["old"]["sha256"], "mode": 0o600}:
                 raise ValueError("Backup verification failed")
+    missing_dirs = set()
+    for name in items:
+        for parent in Path(name.removeprefix("runtime/")).parents:
+            if parent == Path("."):
+                continue
+            p = runtime / parent
+            if not p.exists() and not p.is_symlink():
+                missing_dirs.add(str(parent))
+    record["missing_payload_dirs"] = sorted(missing_dirs)
     record["payload_backup_ready"] = True
     session.save(record)
     session.advance("applying")
@@ -112,6 +121,9 @@ def switch(session, runtime, *, interrupt=lambda _: None):
         raise ValueError("Candidate environment drift")
     if retained.exists() or retained.is_symlink():
         raise ValueError("Retained environment already exists")
+    from tools.uda_production_integrity_gates import verify_environment
+    if "original_environment" in record:
+        verify_environment(live, record["original_environment"])
     old = list(identity(live))
     record["old_venv_identity"] = old
     session.save(record)
@@ -138,6 +150,9 @@ def restore_environment(session, runtime):
         if retained.exists() or retained.is_symlink() or live.is_symlink():
             raise ValueError("Unexpected environment layout")
         return
+    if "original_environment" in record:
+        from tools.uda_production_integrity_gates import verify_environment
+        verify_environment(retained if retained.exists() or retained.is_symlink() else live, record["original_environment"])
     if live.is_symlink():
         if os.readlink(live) != "venv-v2" or list(identity(retained)) != old:
             raise ValueError("Unexpected switched environment")
@@ -189,3 +204,16 @@ def restore_files(session, stage, runtime):
             durable_write(runtime / rel, data[name], item["old"]["mode"])
     if any(file_identity(runtime, n.removeprefix("runtime/")) != expected(e["old"]) for n,e in items.items()):
         raise ValueError("Restored payload mismatch")
+
+    # Remove only previously absent, contract-derived empty directories.
+    allowed = {str(p) for name in items for p in Path(name.removeprefix("runtime/")).parents if p != Path(".")}
+    missing = set(record.get("missing_payload_dirs", []))
+    if not missing <= allowed:
+        raise ValueError("Unexpected rollback directory scope")
+    for rel in sorted(missing, key=lambda n: (len(Path(n).parts), n), reverse=True):
+        p = runtime / rel
+        if p.exists() or p.is_symlink():
+            parents(runtime, rel)
+            directory_review(p)
+            p.rmdir()
+            sync_dir(p.parent)
