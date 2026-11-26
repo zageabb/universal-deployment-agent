@@ -33,6 +33,9 @@ def recover(session, stage, runtime, adapter, gates):
         require(gates.verify_preserved(record["plan"]), "Preserved payload drift")
         payload.restore_environment(session, runtime)
         payload.restore_files(session, stage, runtime)
+        if "original_environment" in record:
+            from tools.uda_production_integrity_gates import verify_environment
+            verify_environment(runtime / "venv", record["original_environment"])
         require(gates.verify_original_environment(runtime), "Original environment not verified")
         require(gates.verify_preserved(record["plan"]), "Preserved payload drift")
         services.restore(adapter, original(record), gates.probe_restored)
@@ -53,6 +56,10 @@ def execute(session, stage, runtime, adapter, gates, plan):
         require(gates.fresh_backup(plan), "Fresh backup not verified")
         require(gates.verify_original_environment(runtime), "Original environment not verified")
         require(gates.verify_preserved(plan), "Preserved payload drift")
+        from tools.uda_production_integrity_gates import environment
+        record = session.load()
+        record["original_environment"] = environment(runtime / "venv")
+        session.save(record)
         payload.apply(session, stage, runtime)
         payload.switch(session, runtime)
         require(gates.verify_preserved(plan), "Preserved payload drift")
