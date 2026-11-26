@@ -77,6 +77,13 @@ def apply(session, stage, runtime, *, interrupt=lambda _: None):
             if hashlib.sha256(data).hexdigest() != item["old"]["sha256"]:
                 raise ValueError("Backup source drift")
             durable_write(backup / hashlib.sha256(name.encode()).hexdigest(), data)
+    for name, item in items.items():
+        if item["old"] is not None:
+            key = hashlib.sha256(name.encode()).hexdigest()
+            if file_identity(backup, key) != {"sha256": item["old"]["sha256"], "mode": 0o600}:
+                raise ValueError("Backup verification failed")
+    record["payload_backup_ready"] = True
+    session.save(record)
     session.advance("applying")
     for name, item in sorted(items.items()):
         rel = name.removeprefix("runtime/")
@@ -149,6 +156,10 @@ def restore_files(session, stage, runtime):
     record, items = entries(session, stage)
     if record["phase"] != "recovering":
         raise ValueError("Recovery phase required")
+    if not record.get("payload_backup_ready"):
+        if any(file_identity(runtime, n.removeprefix("runtime/")) != expected(e["old"]) for n,e in items.items()):
+            raise ValueError("Unprepared payload changed")
+        return
     backup = session.root / "payload-backup"
     directory_review(backup)
     data = {}
