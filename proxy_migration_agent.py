@@ -208,7 +208,7 @@ def main() -> int:
     lock_path = state_path.with_suffix(".lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     results: list[dict] = []
-    with lock_path.open("w") as lock:
+    with lock_path.open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
