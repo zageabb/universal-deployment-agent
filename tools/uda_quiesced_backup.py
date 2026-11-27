@@ -14,7 +14,7 @@ from tools.uda_install_journal import sync_dir
 from tools.uda_production_integrity_gates import units_idle
 
 
-def create(session, adapter, original, roots, destination, approval_record, writer_guard):
+def create(session, adapter, original, roots, destination, approval_record, writer_guard, *, selected=None, excluded=()):
     record = session.load()
     if record["phase"] != "isolated":
         raise ValueError("Isolated transaction required")
@@ -32,7 +32,7 @@ def create(session, adapter, original, roots, destination, approval_record, writ
             raise ValueError("Writer exclusion not established")
     guard()
     isolated_at = datetime.now(timezone.utc)
-    before = capture(roots)
+    before = capture(roots, selected=selected, excluded=excluded)
     databases = sorted(n for n,e in before.items()
                        if e["type"] == "file" and n.lower().endswith((".db", ".sqlite", ".sqlite3")))
     guard()
@@ -40,12 +40,12 @@ def create(session, adapter, original, roots, destination, approval_record, writ
     with os.fdopen(fd, "wb") as stream:
         with tarfile.open(fileobj=stream, mode="w", dereference=False) as tar:
             for name, root in sorted(roots.items()):
-                tar.add(root, arcname=name)
+                tar.add(root, arcname=name, filter=lambda member: member if member.name in before else None)
         stream.flush()
         os.fsync(stream.fileno())
     sync_dir(destination.parent)
     guard()
-    report = verify_snapshot(destination, roots, before, databases)
+    report = verify_snapshot(destination, roots, before, databases, selected=selected, excluded=excluded)
     with destination.open("rb") as stream:
         sha = hash_stream(stream)
     completed = datetime.now(timezone.utc)
