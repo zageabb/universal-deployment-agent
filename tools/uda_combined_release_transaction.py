@@ -18,7 +18,8 @@ from tools import uda_parallel_venv as venv
 from tools.uda_runtime_integrity import inventory, regular_file
 
 REPLACE = {"runtime/dashboard.py", "runtime/deploy_agent.py",
-           "runtime/templates/dashboard.html"}
+           "runtime/templates/dashboard.html", "runtime/home.py",
+           "runtime/proxy_config.py", "runtime/proxy_migration_agent.py"}
 
 
 @contextmanager
@@ -95,10 +96,9 @@ def rehearse(stage, scenario):
         for path, marker in ((live, "old"), (new, "new")):
             path.mkdir(mode=0o700)
             j.durable_write(path / ".uda-fixture", marker.encode())
-        # The operator inventory identified three replacements and 35 adds.
+        # The operator inventory identified six replacements and 35 adds.
         # Choose unchanged files by explicit existing V1 payload names below.
-        unchanged = {"runtime/github_ci.py", "runtime/home.py", "runtime/portal_auth.py",
-                     "runtime/proxy_config.py", "runtime/proxy_migration_agent.py",
+        unchanged = {"runtime/github_ci.py", "runtime/portal_auth.py",
                      "runtime/repo_visibility.py", "runtime/router_mapping.py",
                      "runtime/static/group-filter.js", "runtime/static/home.css",
                      "runtime/static/home.js", "runtime/templates/groups.html",
