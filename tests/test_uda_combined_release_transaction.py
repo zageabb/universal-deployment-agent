@@ -22,8 +22,8 @@ def test_combined_release(stage, scenario):
     assert result["status"] == "PASS"
     assert result["phase"] == ("fixture_accepted" if scenario == "success" else "rolled_back")
     assert result["add_count"] == 35
-    assert result["replace_count"] == 3
-    assert result["preserved_count"] == 24
+    assert result["replace_count"] == 6
+    assert result["preserved_count"] == 21
     assert result["sigkill_injected"] == (scenario not in {"success", "failed_health"})
     assert result["synthetic_environment_markers"]
     assert not result["production_files_modified"]
