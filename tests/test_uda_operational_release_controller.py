@@ -39,6 +39,15 @@ def lab(tmp_path, monkeypatch):
         finally:
             held[0] = False
             events.append("unlock")
+    @contextmanager
+    def legacy(*args):
+        assert held[0]
+        events.append("legacy_enter")
+        try:
+            yield event("legacy_check", True)
+        finally:
+            events.append("legacy_exit")
+    monkeypatch.setattr(c, "hold", legacy)
     monkeypatch.setattr(c, "maintenance_lock", lock)
     monkeypatch.setattr(c, "load_config", lambda *a: {})
     monkeypatch.setattr(c, "approval", event("approval", False))
@@ -71,7 +80,7 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(c.services, "restore", restore)
     controller = c.Controller(s, tmp_path, tmp_path, None,
                               lambda: True, lambda: True,
-                              lambda _: True, lambda _: True)
+                              lambda _: True, lambda _: True, process_review=lambda _: True)
     return controller, plan, events, s
 
 
@@ -87,6 +96,7 @@ def test_success_order(lab):
     expected = ["bind", "isolate", "lock", "application", "backup", "verify_backup",
                 "apply", "switch", "unlock", "restore"]
     assert [e for e in events if e in expected] == expected
+    assert events.index("lock") < events.index("legacy_enter") < events.index("apply") < events.index("legacy_exit") < events.index("unlock")
 
 
 def test_backup_failure_recovers(lab, monkeypatch):
@@ -106,6 +116,7 @@ def test_candidate_health_failure_recovers(lab):
     assert execute(lab) == "rolled_back"
     assert events.count("lock") == 2
     assert events.count("unlock") == 2
+    assert events.count("legacy_enter") == events.count("legacy_exit") == 2
     assert "reisolate" in events
     assert s.record["phase"] == "rolled_back"
 
@@ -116,4 +127,5 @@ def test_missing_writer_stops_mutation(lab):
     with pytest.raises(ValueError, match="writer exclusion"):
         execute(lab)
     assert "apply" not in events
-    assert s.record["phase"] == "review"
+    assert not s.record
+    assert "isolate" not in events
