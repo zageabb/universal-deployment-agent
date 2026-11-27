@@ -12,7 +12,7 @@ def fixture():
                for n in a.REPLACEMENTS}
     for i in range(35):
         entries[f"runtime/new{i}.py"] = {"action": "add", "installed": {"status": "missing"}, "candidate": new}
-    for i in range(17):
+    for i in range(14):
         entries[f"runtime/keep{i}.py"] = {"action": "unchanged", "installed": old, "candidate": new}
     for i in range(7):
         entries[f"units/keep{i}"] = {"action": "preserve_review", "installed": old, "candidate": {"mode": 420, "sha256": "old"}}
@@ -27,8 +27,8 @@ def plan():
 
 def test_contract():
     value = plan()
-    assert len(value["contract"]["mutations"]) == 38
-    assert len(value["contract"]["preserved"]) == 24
+    assert len(value["contract"]["mutations"]) == 41
+    assert len(value["contract"]["preserved"]) == 21
     assert not value["production_upgrade_authorized"]
     p.verify_unchanged(value, deepcopy(value))
 
