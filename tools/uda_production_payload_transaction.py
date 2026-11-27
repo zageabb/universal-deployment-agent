@@ -6,6 +6,9 @@ and authorization. Only installer runtime paths can be mutated.
 from pathlib import Path
 import hashlib
 import os
+import re
+from tools.uda_production_release_plan import digest
+from tools.uda_backup_coverage import safe_name
 from tools.uda_install_journal import durable_write, sync_dir
 from tools.uda_production_admission import directory_review, REPLACEMENTS
 from tools.uda_production_replacement_plan import inspect
@@ -32,6 +35,22 @@ def entries(session, stage):
     contract = record["plan"]["contract"]
     items = contract["mutations"]
     manifest = inventory(stage)["files"]
+    validate_scope(record, manifest)
+    return record, items
+
+
+def validate_scope(record, manifest):
+    plan = record["plan"]
+    contract = plan["contract"]
+    items = contract["mutations"]
+    if plan.get("status") != "PLAN_ONLY" or plan.get("production_upgrade_authorized") is not False or digest(contract) != plan["sha256"]:
+        raise ValueError("Invalid rollback contract")
+    if len(manifest) != 62 or len(contract["preserved"]) != 21:
+        raise ValueError("Incomplete payload scope")
+    for name in manifest:
+        safe_name(name)
+        if not name.startswith(("runtime/", "units/", "bin/")):
+            raise ValueError("Unsafe payload scope")
     if len(items) != 41 or {n for n,e in items.items() if e["action"] == "replace"} != REPLACEMENTS:
         raise ValueError("Unexpected mutation scope")
     if set(items) & set(contract["preserved"]) or set(items) | set(contract["preserved"]) != set(manifest):
@@ -41,7 +60,26 @@ def entries(session, stage):
             raise ValueError("Unexpected candidate payload")
         if entry["action"] not in {"add", "replace"} or (entry["old"] is None) != (entry["action"] == "add"):
             raise ValueError("Unexpected old identity")
-    return record, items
+        for value in (entry["new"], entry["old"]):
+            if value is not None and (not re.fullmatch(r"[0-9a-f]{64}", value["sha256"]) or type(value["mode"]) is not int or not 0 <= value["mode"] <= 0o777):
+                raise ValueError("Invalid payload identity")
+
+
+def recovery_entries(session):
+    record = session.load()
+    contract = record["plan"]["contract"]
+    # Before backup-ready, no runtime mutation is permitted. The contract
+    # already contains every affected old/new identity and preserved path.
+    manifest = record.get("rollback_manifest")
+    if manifest is None:
+        if record.get("payload_backup_ready"):
+            raise ValueError("Missing rollback manifest")
+        manifest = {n: e["new"] for n, e in contract["mutations"].items()}
+        manifest.update({n: e for n, e in contract["preserved"].items()})
+    elif digest(manifest) != record.get("rollback_manifest_sha256"):
+        raise ValueError("Rollback manifest digest mismatch")
+    validate_scope(record, manifest)
+    return record, contract["mutations"]
 
 
 def parents(root, relative, create=False):
@@ -91,6 +129,10 @@ def apply(session, stage, runtime, *, interrupt=lambda _: None):
             if not p.exists() and not p.is_symlink():
                 missing_dirs.add(str(parent))
     record["missing_payload_dirs"] = sorted(missing_dirs)
+    manifest = inventory(stage)["files"]
+    validate_scope(record, manifest)
+    record["rollback_manifest"] = manifest
+    record["rollback_manifest_sha256"] = digest(manifest)
     record["payload_backup_ready"] = True
     session.save(record)
     session.advance("applying")
@@ -168,7 +210,8 @@ def restore_environment(session, runtime):
 
 
 def restore_files(session, stage, runtime):
-    record, items = entries(session, stage)
+    # stage is retained as a compatibility argument; never read during rollback.
+    record, items = recovery_entries(session)
     if record["phase"] != "recovering":
         raise ValueError("Recovery phase required")
     if not record.get("payload_backup_ready"):
