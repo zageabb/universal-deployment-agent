@@ -27,7 +27,9 @@ def fingerprint(s):
             s.st_size, s.st_mtime_ns, s.st_ctime_ns, s.st_nlink)
 
 
-def capture(roots):
+def capture(roots, *, selected=None, excluded=()):
+    excluded = set(excluded)
+    selected = selected or {}
     entries = {}
     def visit(path, name):
         safe_name(name)
@@ -40,7 +42,12 @@ def capture(roots):
             item.update(type="directory")
             entries[name] = item
             for child in sorted(path.iterdir()):
-                visit(child, name + "/" + child.name)
+                child_name = name + "/" + child.name
+                if child_name in excluded:
+                    continue
+                if selected.get(name) is not None and child.name not in selected[name]:
+                    continue
+                visit(child, child_name)
         elif stat.S_ISREG(before.st_mode) and before.st_nlink == 1:
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
             with os.fdopen(fd, "rb") as stream:
@@ -132,8 +139,8 @@ def verify(archive, expected, sqlite_members=()):
             "production_upgrade_authorized": False}
 
 
-def verify_snapshot(archive, roots, before, sqlite_members=()):
+def verify_snapshot(archive, roots, before, sqlite_members=(), *, selected=None, excluded=()):
     report = verify(archive, before, sqlite_members)
-    if capture(roots) != before:
+    if capture(roots, selected=selected, excluded=excluded) != before:
         raise ValueError("Backup source inventory drift")
     return report
