@@ -32,7 +32,7 @@ def entries(session, stage):
     contract = record["plan"]["contract"]
     items = contract["mutations"]
     manifest = inventory(stage)["files"]
-    if len(items) != 38 or {n for n,e in items.items() if e["action"] == "replace"} != REPLACEMENTS:
+    if len(items) != 41 or {n for n,e in items.items() if e["action"] == "replace"} != REPLACEMENTS:
         raise ValueError("Unexpected mutation scope")
     if set(items) & set(contract["preserved"]) or set(items) | set(contract["preserved"]) != set(manifest):
         raise ValueError("Incomplete payload scope")
