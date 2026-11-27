@@ -544,6 +544,37 @@ def maintenance_lock(config, *, exclusive=False):
         os.close(fd)
 
 
+def register_web_maintenance_guard(app, config_path):
+    """Hold a shared lock through request teardown, including GET database writes.
+
+    All requests participate because identity/approval reads may initialise
+    storage. No maintenance-time health or authentication bypass is provided.
+    """
+    from flask import request, abort
+
+    @app.before_request
+    def acquire_uda_request_lock():
+        try:
+            cfg = load_config(config_path)
+            guard = maintenance_lock(cfg)
+            guard.__enter__()
+        except (DeployError, OSError):
+            abort(503, "UDA temporarily unavailable during maintenance")
+        request.environ["uda.maintenance.guard"] = guard
+        try:
+            current = load_config(config_path)
+            if maintenance_lock_path(current) != maintenance_lock_path(cfg):
+                raise DeployError("Maintenance lock configuration changed")
+        except (DeployError, OSError):
+            abort(503, "UDA temporarily unavailable during maintenance")
+
+    @app.teardown_request
+    def release_uda_request_lock(error):
+        guard = request.environ.pop("uda.maintenance.guard", None)
+        if guard is not None:
+            guard.__exit__(None, None, None)
+
+
 def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
             application_name: str | None = None) -> list[dict[str, Any]]:
     with maintenance_lock(config):
