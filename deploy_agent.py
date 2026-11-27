@@ -516,15 +516,15 @@ def write_state(config: dict[str, Any], results: list[dict[str, Any]], dry_run: 
 
 def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
             application_name: str | None = None) -> list[dict[str, Any]]:
-    logger = configure_logging(config, verbose)
     lock_path = Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     results = []
-    with lock_path.open("w") as lock:
+    with lock_path.open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise DeployError("Another deployment-agent run is active") from exc
+        logger = configure_logging(config, verbose)
         applications = config["applications"]
         if application_name is not None:
             applications = [app for app in applications if app["name"] == application_name]
@@ -544,7 +544,7 @@ def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
                 result = {"name": app.get("name", "unknown"), "status": "blocked", "error": str(exc)}
                 logger.error("%s: %s", result["name"], exc)
             results.append(result)
-    write_state(config, results, dry_run, partial=application_name is not None)
+        write_state(config, results, dry_run, partial=application_name is not None)
     return results
 
 
