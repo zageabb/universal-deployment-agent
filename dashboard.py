@@ -15,7 +15,7 @@ from urllib.request import urlopen
 
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
-from deploy_agent import VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
+from deploy_agent import register_web_maintenance_guard, VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
 from deployment_reporting import inventory, inventory_item
 from onboarding import inspect_repo, OnboardingError
@@ -33,6 +33,7 @@ SERVICE_ACTIONS = {"start", "stop", "restart"}
 
 def create_app(config_path: Path) -> Flask:
     app = Flask(__name__)
+    register_web_maintenance_guard(app, config_path)
     app.config["DEPLOY_CONFIG"] = config_path
     app.config["CSRF_TOKEN"] = secrets.token_urlsafe(32)
     app.config["ONBOARDING_APPROVAL_KEY"] = secrets.token_bytes(32)
