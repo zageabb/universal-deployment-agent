@@ -6,6 +6,8 @@ Existing V1 opens its lock with truncation and writes status after unlocking;
 holding its flock is supplementary, not a substitute for the freeze.
 """
 from contextlib import contextmanager, ExitStack
+import grp
+import pwd
 import fcntl
 import os
 from pathlib import Path
@@ -13,7 +15,7 @@ import stat
 
 from deploy_agent import load_config
 from tools.uda_production_backup_scope import scope, process_indicators
-from tools.uda_production_admission import directory_review
+from tools.uda_production_admission import directory_review, private_group
 
 
 def legacy_paths(home):
@@ -36,7 +38,9 @@ def identity(path, fd):
         raise ValueError("Unsafe or replaced legacy lock: " + str(path))
     if any(k.startswith("system.posix_acl_") for k in os.listxattr(fd)):
         raise ValueError("Legacy lock ACL requires review")
-    return (info.st_dev, info.st_ino)
+    if info.st_mode & 0o020 and not private_group(os.getuid(), info.st_gid, pwd.getpwall(), grp.getgrgid(info.st_gid)):
+        raise ValueError("Non-private legacy lock group")
+    return (info.st_dev, info.st_ino, info.st_uid, info.st_gid, info.st_mode)
 
 
 @contextmanager
