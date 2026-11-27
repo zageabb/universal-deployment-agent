@@ -57,7 +57,7 @@ def test_preserved_files(tmp_path):
         p.write_bytes(b"original")
         p.chmod(0o600)
         return {"status": "present", **g.file_identity(root, name)}
-    body = {"preserved": {f"runtime/keep{i}": write(runtime, f"keep{i}") for i in range(24)},
+    body = {"preserved": {f"runtime/keep{i}": write(runtime, f"keep{i}") for i in range(21)},
             "units": {u: write(units, u) for u in UNITS}}
     plan = {"contract": body, "sha256": digest(body)}
     assert g.preserved(plan, tmp_path)

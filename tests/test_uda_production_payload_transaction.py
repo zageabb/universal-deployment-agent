@@ -29,7 +29,7 @@ def fixture(tmp_path, monkeypatch):
             old = {"status": "present", "sha256": hashlib.sha256(b"old").hexdigest(), "mode": 0o640}
         entries[name] = {"old": old, "new": manifest[name], "action": "replace" if old else "add"}
     preserved = {}
-    for i in range(24):
+    for i in range(21):
         name = f"runtime/keep{i}"
         write(runtime / f"keep{i}", b"preserve", 0o600)
         manifest[name] = {"sha256": hashlib.sha256(b"preserve").hexdigest(), "mode": 0o600, "size": 8}

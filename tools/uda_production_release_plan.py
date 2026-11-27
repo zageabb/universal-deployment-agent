@@ -38,7 +38,7 @@ def contract(report, baseline, revision, host, uid):
                                "new": new, "action": entry["action"]}
         else:
             preserved[name] = old
-    if len(mutations) != 38 or len(preserved) != 24:
+    if len(mutations) != 41 or len(preserved) != 21:
         raise ValueError("Unexpected transaction scope")
     body = {"version": 1, "revision": revision, "host": host, "uid": uid,
             "mutations": mutations, "preserved": preserved,

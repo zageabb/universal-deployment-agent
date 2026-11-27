@@ -17,9 +17,10 @@ import time
 from tools.uda_controlled_activation import State, UNITS, WEB, TIMERS, WORKERS, validate
 from tools.uda_production_replacement_plan import collect
 
-EXPECTED = {"add": 35, "replace": 3, "unchanged": 17, "preserve_review": 7}
+EXPECTED = {"add": 35, "replace": 6, "unchanged": 14, "preserve_review": 7}
 REPLACEMENTS = {"runtime/dashboard.py", "runtime/deploy_agent.py",
-                "runtime/templates/dashboard.html"}
+                "runtime/templates/dashboard.html", "runtime/home.py",
+                "runtime/proxy_config.py", "runtime/proxy_migration_agent.py"}
 
 
 def private_group(uid, gid, accounts, group):
