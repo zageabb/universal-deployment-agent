@@ -7,14 +7,14 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 import tarfile
-from tools.uda_backup_inventory import capture, verify_snapshot, hash_stream
+from tools.uda_backup_inventory import capture, verify_snapshot, hash_stream, write_selected
 from tools.uda_maintenance_evidence import backup_evidence, approval
 from tools.uda_release_transaction_journal import private
 from tools.uda_install_journal import sync_dir
 from tools.uda_production_integrity_gates import units_idle
 
 
-def create(session, adapter, original, roots, destination, approval_record, writer_guard):
+def create(session, adapter, original, roots, destination, approval_record, writer_guard, *, selected=None, excluded=()):
     record = session.load()
     if record["phase"] != "isolated":
         raise ValueError("Isolated transaction required")
@@ -32,20 +32,19 @@ def create(session, adapter, original, roots, destination, approval_record, writ
             raise ValueError("Writer exclusion not established")
     guard()
     isolated_at = datetime.now(timezone.utc)
-    before = capture(roots)
+    before = capture(roots, selected=selected, excluded=excluded)
     databases = sorted(n for n,e in before.items()
                        if e["type"] == "file" and n.lower().endswith((".db", ".sqlite", ".sqlite3")))
     guard()
     fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "wb") as stream:
         with tarfile.open(fileobj=stream, mode="w", dereference=False) as tar:
-            for name, root in sorted(roots.items()):
-                tar.add(root, arcname=name)
+            write_selected(tar, roots, before)
         stream.flush()
         os.fsync(stream.fileno())
     sync_dir(destination.parent)
     guard()
-    report = verify_snapshot(destination, roots, before, databases)
+    report = verify_snapshot(destination, roots, before, databases, selected=selected, excluded=excluded)
     with destination.open("rb") as stream:
         sha = hash_stream(stream)
     completed = datetime.now(timezone.utc)

@@ -5,6 +5,7 @@ establish writer quiescence and select all required production roots.
 """
 import hashlib
 import os
+import re
 from pathlib import Path
 import sqlite3
 import stat
@@ -27,7 +28,16 @@ def fingerprint(s):
             s.st_size, s.st_mtime_ns, s.st_ctime_ns, s.st_nlink)
 
 
-def capture(roots):
+def reviewed_git_object(name):
+    return re.fullmatch(
+        r"runtime/(?:publishers/lucky-lab/\.git|remotes/lucky-lab\.git)/objects/"
+        r"(?:[0-9a-f]{2}/[0-9a-f]{38}|pack/pack-[0-9a-f]{40}\.(?:pack|idx|rev))",
+        name) is not None
+
+
+def capture(roots, *, selected=None, excluded=()):
+    excluded = set(excluded)
+    selected = selected or {}
     entries = {}
     def visit(path, name):
         safe_name(name)
@@ -40,8 +50,17 @@ def capture(roots):
             item.update(type="directory")
             entries[name] = item
             for child in sorted(path.iterdir()):
-                visit(child, name + "/" + child.name)
-        elif stat.S_ISREG(before.st_mode) and before.st_nlink == 1:
+                child_name = name + "/" + child.name
+                if child_name in excluded:
+                    continue
+                if selected.get(name) is not None and child.name not in selected[name]:
+                    continue
+                visit(child, child_name)
+        elif stat.S_ISREG(before.st_mode) and (before.st_nlink == 1 or reviewed_git_object(name)):
+            if before.st_nlink > 1:
+                if before.st_uid != os.getuid():
+                    raise ValueError("Unexpected Git object owner: " + name)
+                item["source_link_count"] = before.st_nlink
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
             with os.fdopen(fd, "rb") as stream:
                 if fingerprint(os.fstat(stream.fileno())) != fingerprint(before):
@@ -62,6 +81,20 @@ def capture(roots):
             raise ValueError("Unsafe backup root")
         visit(path, name)
     return entries
+
+
+def write_selected(tar, roots, inventory):
+    """Store each selected regular file independently, including Git aliases.
+
+    Clear tar's inode cache before each nonrecursive add so that the archive
+    cannot contain hardlink references to another member or an omitted path.
+    """
+    for name in sorted(inventory):
+        safe_name(name)
+        label, _, relative = name.partition("/")
+        path = roots[label] / relative if relative else roots[label]
+        tar.inodes.clear()
+        tar.add(path, arcname=name, recursive=False)
 
 
 def sqlite_check(path):
@@ -132,8 +165,8 @@ def verify(archive, expected, sqlite_members=()):
             "production_upgrade_authorized": False}
 
 
-def verify_snapshot(archive, roots, before, sqlite_members=()):
+def verify_snapshot(archive, roots, before, sqlite_members=(), *, selected=None, excluded=()):
     report = verify(archive, before, sqlite_members)
-    if capture(roots) != before:
+    if capture(roots, selected=selected, excluded=excluded) != before:
         raise ValueError("Backup source inventory drift")
     return report
