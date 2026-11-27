@@ -84,3 +84,23 @@ def test_symlink_refused(lab):
     with pytest.raises(OSError):
         with w.hold(home, lambda: True, lambda _: True):
             pytest.fail("entered")
+
+
+def test_nonprivate_group_refused(lab, monkeypatch):
+    home, paths = lab
+    paths[0].chmod(0o664)
+    monkeypatch.setattr(w, "private_group", lambda *args: False)
+    with pytest.raises(ValueError, match="Non-private legacy lock group"):
+        with w.hold(home, lambda: True, lambda _: True):
+            pytest.fail("entered")
+
+
+def test_group_membership_revalidated(lab, monkeypatch):
+    home, paths = lab
+    paths[0].chmod(0o664)
+    private = [True]
+    monkeypatch.setattr(w, "private_group", lambda *args: private[0])
+    with w.hold(home, lambda: True, lambda _: True) as guard:
+        private[0] = False
+        with pytest.raises(ValueError, match="Non-private legacy lock group"):
+            guard()
