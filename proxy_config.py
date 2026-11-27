@@ -5,7 +5,7 @@ import argparse
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
-from deploy_agent import load_config
+from deploy_agent import DeployError, load_config, maintenance_lock, maintenance_lock_path
 
 def assertion_headers(app: dict) -> list[str]:
     assertion=app.get('proxy_assertion')
@@ -48,6 +48,11 @@ def render(config: dict) -> str:
 
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--config',required=True,type=Path); p.add_argument('--output',required=True,type=Path); args=p.parse_args()
-    content=render(load_config(args.config.expanduser())); args.output.parent.mkdir(parents=True,exist_ok=True)
-    if not args.output.exists() or args.output.read_text()!=content: args.output.write_text(content)
+    config = load_config(args.config.expanduser())
+    with maintenance_lock(config):
+        current = load_config(args.config.expanduser())
+        if maintenance_lock_path(current) != maintenance_lock_path(config):
+            raise DeployError("Maintenance lock configuration changed")
+        content=render(current); args.output.parent.mkdir(parents=True,exist_ok=True)
+        if not args.output.exists() or args.output.read_text()!=content: args.output.write_text(content)
 if __name__=='__main__': main()
