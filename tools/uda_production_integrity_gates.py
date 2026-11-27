@@ -19,7 +19,7 @@ def preserved(plan, home):
         raise ValueError("Contract digest mismatch")
     roots = {"runtime": home / ".local/share/deployment-agent",
              "units": home / ".config/systemd/user", "bin": home / ".local/bin"}
-    if len(body["preserved"]) != 24 or set(body["units"]) != set(UNITS):
+    if len(body["preserved"]) != 21 or set(body["units"]) != set(UNITS):
         raise ValueError("Incomplete preserved inventory")
     for name, item in list(body["preserved"].items()) + [
             ("units/" + u, v) for u, v in body["units"].items()]:
