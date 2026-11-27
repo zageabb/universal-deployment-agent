@@ -16,7 +16,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
-from deploy_agent import DeployError, load_config
+from deploy_agent import DeployError, load_config, maintenance_lock, maintenance_lock_path
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
@@ -204,11 +204,19 @@ def main() -> int:
     arguments = parser.parse_args()
     global CONFIG_PATH
     CONFIG_PATH = arguments.config.expanduser().resolve()
+    config = load_config(CONFIG_PATH)
+    with maintenance_lock(config):
+        if maintenance_lock_path(load_config(CONFIG_PATH)) != maintenance_lock_path(config):
+            raise DeployError("Maintenance lock configuration changed")
+        return _main_locked(arguments)
+
+
+def _main_locked(arguments):
     state_path = arguments.state.expanduser().resolve()
     lock_path = state_path.with_suffix(".lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     results: list[dict] = []
-    with lock_path.open("w") as lock:
+    with lock_path.open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:

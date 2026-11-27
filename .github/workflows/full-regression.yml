@@ -1,0 +1,58 @@
+name: UDA Full Regression
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feature/archive-restore
+      - feature/deployment-reporting
+      - feature/uda-v2-process-crash-recovery
+      - feature/uda-v2-host-readiness-failclosed
+      - feature/uda-v2-restore-unit-completeness
+  push:
+    branches:
+      - main
+      - feature/archive-restore
+      - feature/deployment-reporting
+      - feature/repository-onboarding
+      - feature/uda-v2-systemd-crash-acceptance
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uda-full-regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-pytest:
+    name: Full pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Run full regression suite
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q --junitxml=uda-full-regression.xml
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uda-regression-${{ matrix.python-version }}
+          path: uda-full-regression.xml
+          if-no-files-found: ignore

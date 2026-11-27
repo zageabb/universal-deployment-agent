@@ -1,0 +1,83 @@
+name: V2-003 Disposable Ubuntu Systemd Lifecycle
+on:
+  push:
+    branches: [feature/uda-v2-disposable-systemd-lifecycle, feature/uda-disposable-activation, feature/uda-combined-real-activation]
+  pull_request:
+    branches: [feature/uda-v2-systemd-verify, feature/uda-v2-restore-unit-completeness, feature/uda-controlled-activation, feature/uda-combined-release-transaction, feature/uda-v2-process-crash-recovery]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-systemd-disposable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu-version: ['22.04', '24.04']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build disposable Ubuntu ${{ matrix.ubuntu-version }} systemd image
+        run: |
+          docker build --build-arg UBUNTU_VERSION=${{ matrix.ubuntu-version }} \
+            -t uda-v2-disposable:${{ github.sha }}-${{ matrix.ubuntu-version }} \
+            tests/integration/v2_systemd
+      - name: Start isolated systemd PID1 container (no host mounts or network)
+        run: |
+          docker run -d --name uda-v2-disposable-systemd \
+            --privileged --cgroupns=private \
+            --network none --read-only=false \
+            --tmpfs /run --tmpfs /run/lock \
+            uda-v2-disposable:${{ github.sha }}-${{ matrix.ubuntu-version }}
+          for i in $(seq 1 60); do
+            if docker exec uda-v2-disposable-systemd systemctl list-units --no-pager >/dev/null 2>&1; then
+              echo "Disposable systemd is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs uda-v2-disposable-systemd
+          exit 1
+      - name: Copy reviewed test fixtures into disposable container
+        run: |
+          docker cp tests/integration/v2_systemd/. uda-v2-disposable-systemd:/opt/uda-v2-disposable/
+      - name: Exercise real services, health, failed upgrade and rollback
+        run: |
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-disposable-systemd \
+            python3 /opt/uda-v2-disposable/lifecycle_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c \
+            'import json; e=json.load(open("/tmp/uda-v2-systemd-evidence.json")); assert e["ubuntu"] == "${{ matrix.ubuntu-version }}"; assert e["production_activation_allowed"] is False; assert all(e[k] is True for k in ("systemd_started", "web_health", "worker_health", "degraded_worker_detected", "failed_upgrade_detected", "restored_previous_bytes", "restored_previous_running_state"))'
+      - name: Exercise mixed timer enablement and active-state rollback
+        run: |
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 uda-v2-disposable-systemd \
+            python3 /opt/uda-v2-disposable/timer_restore_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c \
+            'import json; e=json.load(open("/tmp/uda-v2-timer-restore.json")); assert e["production_upgrade_authorized"] is False; assert all(e[k] is True for k in ("restored_timer_states", "restored_unit_bytes", "mutation_detected", "paired_services_healthy"))'
+      - name: Rehearse real UDA runtime installation and activation
+        run: |
+          docker exec uda-v2-disposable-systemd mkdir -p /opt/uda-source
+          git archive HEAD | docker exec -i uda-v2-disposable-systemd tar -x -C /opt/uda-source
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 --env PYTHONPATH=/opt/uda-source uda-v2-disposable-systemd /opt/uda-v2-test-venv/bin/python /opt/uda-v2-disposable/controlled_activation_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c 'import json; e=json.load(open("/tmp/uda-controlled-activation.json")); assert not e["production_upgrade_authorized"]; assert e["success"]["actual_flask_health"] and e["success"]["timer_states_preserved"]; assert e["failed_health"]["failed_probe_detected"] and e["failed_health"]["payload_restored"] and e["failed_health"]["timer_states_preserved"]'
+      - name: Rehearse combined real interpreter and runtime activation
+        run: |
+          docker exec --env UDA_V2_DISPOSABLE_CONTAINER=1 --env PYTHONPATH=/opt/uda-source uda-v2-disposable-systemd /opt/uda-v2-test-venv/bin/python /opt/uda-v2-disposable/combined_real_activation_acceptance.py
+          docker exec uda-v2-disposable-systemd python3 -c 'import json; e=json.load(open("/tmp/uda-combined-real-activation.json")); assert not e["production_upgrade_authorized"]; assert e["success"]["real_interpreter_switched"] and e["success"]["combined_phase"] == "fixture_accepted"; assert e["failed_health"]["original_interpreter_restored"] and e["failed_health"]["payload_restored"] and e["failed_health"]["timer_states_preserved"] and e["failed_health"]["combined_phase"] == "rolled_back"'
+      - name: Save acceptance evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/uda-v2-evidence
+          docker cp uda-v2-disposable-systemd:/tmp/uda-v2-systemd-evidence.json /tmp/uda-v2-evidence/lifecycle.json || true
+          docker cp uda-v2-disposable-systemd:/tmp/uda-v2-timer-restore.json /tmp/uda-v2-evidence/timer-restore.json || true
+          docker cp uda-v2-disposable-systemd:/tmp/uda-controlled-activation.json /tmp/uda-v2-evidence/activation.json || true
+          docker cp uda-v2-disposable-systemd:/tmp/uda-combined-real-activation.json /tmp/uda-v2-evidence/combined-activation.json || true
+          docker logs uda-v2-disposable-systemd > /tmp/uda-v2-evidence/container.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: uda-v2-disposable-systemd-${{ matrix.ubuntu-version }}-evidence
+          path: /tmp/uda-v2-evidence/
+          retention-days: 7
+      - name: Remove disposable container
+        if: always()
+        run: docker rm -f uda-v2-disposable-systemd || true

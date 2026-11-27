@@ -1,0 +1,19 @@
+[Unit]
+Description=UDA V2 disposable integration worker
+Requires=uda-v2-test-web.service
+After=uda-v2-test-web.service
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/python3 /opt/uda-v2-disposable/worker.py
+Restart=no
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/run
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

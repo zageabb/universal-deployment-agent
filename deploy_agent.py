@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+from contextlib import contextmanager
+import stat
 import json
 import logging
 import os
@@ -20,6 +22,7 @@ from urllib.request import urlopen
 from urllib.parse import urlsplit
 
 from ui_groups import DEFAULT_GROUP, clean_group_name
+from deployment_reporting import write_attestation
 
 VERSION = "1.6.0"
 
@@ -408,6 +411,12 @@ def deploy_application(app: dict[str, Any], dry_run: bool, logger: logging.Logge
                 raise DeployError(f"{original}; rollback failed: {recovery}") from original
         raise
     result = {"name": name, "status": "deployed", "from": previous, "to": state["remote"]}
+    if service and app.get("deployed_sha_file"):
+        try:
+            write_attestation(app, state["remote"])
+        except ValueError as exc:
+            logger.error("%s deployed successfully but attestation failed: %s", name, exc)
+            result["attestation_error"] = str(exc)
     result["diagnostics"] = diagnostics(app, repo)
     return result
 
@@ -507,17 +516,81 @@ def write_state(config: dict[str, Any], results: list[dict[str, Any]], dry_run: 
     temporary.replace(path)
 
 
+def maintenance_lock_path(config):
+    return Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser().absolute().with_name(
+        Path(config.get("lock_file", "/tmp/deployment-agent.lock")).name + ".maintenance")
+
+
+@contextmanager
+def maintenance_lock(config, *, exclusive=False):
+    """Advisory common lock; only participating processes are excluded."""
+    path = maintenance_lock_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise DeployError("Unsafe maintenance lock")
+        try:
+            fcntl.flock(fd, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise DeployError("UDA maintenance lock busy") from exc
+        current = path.lstat()
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+            raise DeployError("Maintenance lock replaced")
+        yield
+    finally:
+        os.close(fd)
+
+
+def register_web_maintenance_guard(app, config_path):
+    """Hold a shared lock through request teardown, including GET database writes.
+
+    All requests participate because identity/approval reads may initialise
+    storage. No maintenance-time health or authentication bypass is provided.
+    """
+    from flask import request, abort
+
+    @app.before_request
+    def acquire_uda_request_lock():
+        try:
+            cfg = load_config(config_path)
+            guard = maintenance_lock(cfg)
+            guard.__enter__()
+        except (DeployError, OSError):
+            abort(503, "UDA temporarily unavailable during maintenance")
+        request.environ["uda.maintenance.guard"] = guard
+        try:
+            current = load_config(config_path)
+            if maintenance_lock_path(current) != maintenance_lock_path(cfg):
+                raise DeployError("Maintenance lock configuration changed")
+        except (DeployError, OSError):
+            abort(503, "UDA temporarily unavailable during maintenance")
+
+    @app.teardown_request
+    def release_uda_request_lock(error):
+        guard = request.environ.pop("uda.maintenance.guard", None)
+        if guard is not None:
+            guard.__exit__(None, None, None)
+
+
 def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
             application_name: str | None = None) -> list[dict[str, Any]]:
-    logger = configure_logging(config, verbose)
+    with maintenance_lock(config):
+        return _execute_locked(config, dry_run, verbose, application_name)
+
+
+def _execute_locked(config, dry_run, verbose, application_name):
     lock_path = Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     results = []
-    with lock_path.open("w") as lock:
+    with lock_path.open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise DeployError("Another deployment-agent run is active") from exc
+        logger = configure_logging(config, verbose)
         applications = config["applications"]
         if application_name is not None:
             applications = [app for app in applications if app["name"] == application_name]
@@ -537,7 +610,7 @@ def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
                 result = {"name": app.get("name", "unknown"), "status": "blocked", "error": str(exc)}
                 logger.error("%s: %s", result["name"], exc)
             results.append(result)
-    write_state(config, results, dry_run, partial=application_name is not None)
+        write_state(config, results, dry_run, partial=application_name is not None)
     return results
 
 

@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
-from deploy_agent import DeployError, load_config
+from deploy_agent import register_web_maintenance_guard, DeployError, load_config
 from repo_visibility import resolved_repo_visibility
 from portal_auth import applications as application_memberships, authenticate, connect, consume_token, create_user, groups as memberships, issue_token, send_email, user_for_email, user_for_token
 from ui_groups import application_group, application_proxy_group, application_proxy_groups, configured_groups, group_summary
@@ -97,6 +97,7 @@ def application_cards(config: dict, public_host: str, user_groups: set[str] | No
 
 def create_app(config_path: Path, public_host: str | None = None) -> Flask:
     app = Flask(__name__)
+    register_web_maintenance_guard(app, config_path)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     app.session_interface = RequestSchemeSessionInterface()
     try: initial = load_config(config_path)

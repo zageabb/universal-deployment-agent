@@ -15,8 +15,17 @@ from urllib.request import urlopen
 
 from flask import Flask, abort, redirect, render_template, request, url_for, Response
 
-from deploy_agent import VERSION, DeployError, load_config, scheduled_job_status, unit_names
+from deploy_agent import register_web_maintenance_guard, VERSION, DeployError, load_config, reconcile_scheduled_jobs, scheduled_job_status, unit_names
 from repo_visibility import resolved_repo_visibility
+from deployment_reporting import inventory, inventory_item
+from onboarding import inspect_repo, OnboardingError
+from onboarding_v2 import preview_v2
+from onboarding_install import prepare_plan, issue_ticket, approved_stage
+from approval_centre import ACTIONS as APPROVAL_ACTIONS, ApprovalError, create_request, decide, overview, read_only_approval_notice
+from approval_identity import reviewer_for_action, ReviewerAuthError
+from tools.validate_v2_only import REVIEW_GATES as V2_REVIEW_GATES
+from tools.v2_design_holds import DESIGN_ONLY_HOLDS
+from tools.validate_v2_fleet import REPOS as V1_V2_FLEET
 from ui_groups import DEFAULT_GROUP, application_group, application_proxy_group, clean_group_name, configured_groups, group_summary
 
 SERVICE_ACTIONS = {"start", "stop", "restart"}
@@ -24,8 +33,10 @@ SERVICE_ACTIONS = {"start", "stop", "restart"}
 
 def create_app(config_path: Path) -> Flask:
     app = Flask(__name__)
+    register_web_maintenance_guard(app, config_path)
     app.config["DEPLOY_CONFIG"] = config_path
     app.config["CSRF_TOKEN"] = secrets.token_urlsafe(32)
+    app.config["ONBOARDING_APPROVAL_KEY"] = secrets.token_bytes(32)
     config_write_lock = Lock()
 
     def config():
@@ -124,6 +135,7 @@ def create_app(config_path: Path) -> Flask:
             applications.append(item | {
                 "group": application_group(item),
                 "repo_visibility": resolved_repo_visibility(item),
+                "deployment_inventory": inventory_item(item),
                 "last_result": prior_by_name.get(item["name"]),
                 "health": health(str(item["health_url"])) if item.get("enabled") and item.get("health_url") else None,
                 "service": service_status(item.get("service_unit")),
@@ -276,6 +288,138 @@ def create_app(config_path: Path) -> Flask:
         label = selected_group or "same as UDA group"
         return redirect(url_for("manage_groups", message=f"{name} portal group set to {label}"))
 
+    def approval_store() -> Path:
+        cfg = config()
+        configured = cfg.get("approval_centre_store")
+        return (Path(configured).expanduser() if configured
+                else Path(app.config["DEPLOY_CONFIG"]).resolve().parent / "approvals.sqlite3")
+
+    @app.get("/approvals")
+    def approvals_index():
+        try:
+            requests, events = overview(approval_store())
+        except Exception as exc:
+            # Don't expose storage details or accidentally turn errors into
+            # permission to proceed. Existing dashboard stays available.
+            app.logger.error("Approval Centre unavailable: %s", type(exc).__name__)
+            abort(503, "Approval Centre storage unavailable")
+        return render_template(
+            "approvals.html", requests=requests, events=events,
+            apps=sorted((item["name"] for item in config()["applications"])),
+            action_types=sorted(APPROVAL_ACTIONS),
+            design_only_holds=DESIGN_ONLY_HOLDS,
+            legacy_v1_v2_conversions=V1_V2_FLEET,
+            known_v2_gates=sorted(
+                ({"repository": name, "gates": gates}
+                 for name, gates in V2_REVIEW_GATES.items()),
+                key=lambda row: row["repository"].casefold(),
+            ),
+            csrf_token=app.config["CSRF_TOKEN"],
+            notice=read_only_approval_notice(),
+            message=request.args.get("message"),
+        )
+
+    @app.post("/approvals/request")
+    def approvals_request():
+        application = request.form.get("application", "")
+        if application not in {item["name"] for item in config()["applications"]}:
+            abort(400, "Only registered applications may request approval")
+        try:
+            reviewer = reviewer_for_action(
+                config(), request.form.get("reviewer_username", ""),
+                request.form.get("reviewer_password", ""))
+            ttl_hours = int(request.form.get("ttl_hours", "24"))
+            ident = create_request(
+                approval_store(), application=application,
+                action=request.form.get("action", ""),
+                scope=request.form.get("scope", ""),
+                source_sha=request.form.get("source_sha", ""),
+                reason=request.form.get("reason", ""),
+                ttl_hours=ttl_hours, actor=reviewer,
+            )
+        except ReviewerAuthError:
+            abort(403, "Named reviewer authentication required")
+        except (ValueError, ApprovalError) as exc:
+            abort(400, str(exc))
+        except Exception:
+            abort(503, "Approval Centre storage unavailable")
+        return redirect(url_for("approvals_index", message="Review request recorded: " + ident[:8]))
+
+    @app.post("/approvals/<ident>/decision")
+    def approvals_decide(ident: str):
+        try:
+            reviewer = reviewer_for_action(
+                config(), request.form.get("reviewer_username", ""),
+                request.form.get("reviewer_password", ""), decision=True)
+            decide(approval_store(), ident, decision=request.form.get("decision", ""),
+                   reason=request.form.get("reason", ""), actor=reviewer)
+        except ReviewerAuthError:
+            abort(403, "Named approver authentication required")
+        except ApprovalError as exc:
+            abort(409, str(exc))
+        except (OSError, Exception):
+            abort(503, "Approval Centre storage unavailable")
+        return redirect(url_for("approvals_index", message="Review decision recorded"))
+
+    @app.get("/onboarding")
+    def onboarding_form():
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url="", branch="main", plan=None, v2_plan=None, ticket=None,
+                               staged=None, error=None)
+
+    @app.post("/onboarding/preview")
+    def onboarding_preview():
+        repository_url = request.form.get("repository_url", "").strip()
+        branch = request.form.get("branch", "main").strip()
+        try:
+            preview = inspect_repo(repository_url, branch)
+            if preview["manifest"]["schema_version"] == 2:
+                # No signed stage ticket, port allocation, registry mutation
+                # or executable command handling on the v2 read-only path.
+                v2_plan = preview_v2(preview, config())
+                plan, ticket = None, None
+            else:
+                plan = prepare_plan(preview, config())
+                ticket = issue_ticket(plan, app.config["ONBOARDING_APPROVAL_KEY"])
+                v2_plan = None
+            error = None
+        except OnboardingError as exc:
+            plan, ticket, v2_plan, error = None, None, None, str(exc)
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url=repository_url, branch=branch,
+                               plan=plan, v2_plan=v2_plan, ticket=ticket, staged=None,
+                               error=error), (400 if error else 200)
+
+    @app.post("/onboarding/stage")
+    def onboarding_stage():
+        ticket = request.form.get("approval_ticket", "")
+        cfg = config()
+        lock_path = Path(cfg.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
+        staging_root = Path(cfg.get("onboarding_staging_root",
+                                      "~/.local/state/deployment-agent/onboarding-staging")).expanduser()
+        try:
+            # Prevent an approved operation racing a running deployment or a second stage.
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            with lock_path.open("a") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    abort(409, "A deployment or onboarding operation is already running")
+                staging_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                staged = approved_stage(ticket, app.config["ONBOARDING_APPROVAL_KEY"],
+                                        config(), staging_root)
+            error = None
+        except (OnboardingError, OSError) as exc:
+            staged, error = None, str(exc)
+        return render_template("onboarding.html", csrf_token=app.config["CSRF_TOKEN"],
+                               repository_url="", branch="main", plan=None, v2_plan=None, ticket=None,
+                               staged=staged, error=error), (400 if error else 200)
+
+    @app.get("/api/deployments")
+    def deployment_inventory_api():
+        """Authenticated read-only deployment inventory for future UDA clients."""
+        return inventory(config())
+
     @app.get("/health")
     def dashboard_health():
         return {"ok": True, "version": VERSION}
@@ -290,7 +434,11 @@ def create_app(config_path: Path) -> Flask:
             abort(403, "Application is not authorized for automatic deployment")
         command = [str(Path(__file__).with_name("deploy_agent.py")), "--config",
                    str(app.config["DEPLOY_CONFIG"]), "--application", name]
-        result = subprocess.run(command, text=True, capture_output=True, timeout=600, check=False)
+        try:
+            result = subprocess.run(command, text=True, capture_output=True, timeout=600, check=False)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            app.logger.warning("Manual update for %s could not complete: %s", name, type(exc).__name__)
+            return redirect(url_for("index", message=f"{name}: update failed; inspect deployment logs"))
         message = f"{name}: update completed" if result.returncode == 0 else f"{name}: update failed"
         return redirect(url_for("index", message=message))
 
@@ -325,6 +473,77 @@ def create_app(config_path: Path) -> Flask:
             detail = (result.stderr or result.stdout).strip()[-300:]
             message = f"{name}: {action} failed: {detail}"
         return redirect(url_for("index", message=message))
+
+    @app.post("/applications/<name>/enabled")
+    def set_application_enabled(name: str):
+        requested = request.form.get("enabled")
+        if requested not in {"true", "false"}:
+            abort(400, "enabled must be true or false")
+        enabled = requested == "true"
+        cfg = config()
+        selected = next((item for item in cfg["applications"] if item["name"] == name), None)
+        if selected is None:
+            abort(404)
+        unit = selected.get("service_unit")
+        if selected.get("kind", "service") == "service" and not unit:
+            abort(409, "Configure service_unit before archiving or restoring this service")
+        lock_path = Path(cfg.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
+        try:
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            with lock_path.open("a") as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    abort(409, "A deployment or service action is already running")
+                if unit:
+                    verb = "enable" if enabled else "disable"
+                    result = subprocess.run(
+                        ["systemctl", "--user", verb, "--now", "--", unit],
+                        text=True, capture_output=True, timeout=30, check=False,
+                    )
+                    if result.returncode:
+                        detail = (result.stderr or result.stdout).strip()[-300:]
+                        action = "restore" if enabled else "archive"
+                        return redirect(url_for("index", message=f"{name}: {action} failed: {detail}"))
+                with config_write_lock:
+                    current = config()
+                    current_app = next(
+                        (item for item in current["applications"] if item["name"] == name),
+                        None,
+                    )
+                    if current_app is None:
+                        abort(404)
+                    current_app["enabled"] = enabled
+                    save_config(current)
+                try:
+                    reconcile_scheduled_jobs(current, app.logger)
+                except (DeployError, OSError, subprocess.SubprocessError) as exc:
+                    app.logger.exception("Could not reconcile scheduled jobs after changing %s", name)
+                    action = "restored" if enabled else "archived"
+                    message = f"{name}: {action}, but scheduled jobs need attention: {exc}"
+                    return redirect(url_for("index", message=message))
+                suffix = ""
+                if selected.get("proxy_enabled"):
+                    try:
+                        refresh = subprocess.run(
+                            ["systemctl", "--user", "start", "uda-proxy-refresh.service"],
+                            text=True, capture_output=True, timeout=120, check=False,
+                        )
+                        if refresh.returncode:
+                            app.logger.warning(
+                                "Proxy refresh failed after changing %s: %s",
+                                name,
+                                (refresh.stderr or refresh.stdout).strip()[-300:],
+                            )
+                            suffix = "; proxy refresh needs attention"
+                    except (OSError, subprocess.TimeoutExpired) as exc:
+                        app.logger.warning("Proxy refresh unavailable for %s: %s", name, type(exc).__name__)
+                        suffix = "; proxy refresh needs attention"
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            action = "restore" if enabled else "archive"
+            return redirect(url_for("index", message=f"{name}: {action} failed: {exc}"))
+        action = "restored" if enabled else "archived"
+        return redirect(url_for("index", message=f"{name}: {action}{suffix}"))
 
     @app.post("/applications/<name>/scheduled-jobs/<job_name>/run")
     def run_scheduled_job(name: str, job_name: str):

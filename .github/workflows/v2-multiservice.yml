@@ -1,0 +1,29 @@
+name: V2-003 Multiservice Coordinator
+
+on:
+  push:
+    branches: [feature/uda-v2-multiservice-coordinator]
+  pull_request:
+    branches: [feature/uda-v2-readonly-preview]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coordinator:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -r requirements.txt pytest
+      - name: V2-003 transaction and legacy safety tests
+        run: python -m pytest -q tests/test_onboarding_v2_multiservice.py tests/test_onboarding_v2.py tests/test_onboarding_transaction.py tests/test_onboarding_adapter.py
+      - name: Compile coordinator
+        run: python -m py_compile onboarding_v2_multiservice.py
