@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+from contextlib import contextmanager
+import stat
 import json
 import logging
 import os
@@ -514,8 +516,41 @@ def write_state(config: dict[str, Any], results: list[dict[str, Any]], dry_run: 
     temporary.replace(path)
 
 
+def maintenance_lock_path(config):
+    return Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser().absolute().with_name(
+        Path(config.get("lock_file", "/tmp/deployment-agent.lock")).name + ".maintenance")
+
+
+@contextmanager
+def maintenance_lock(config, *, exclusive=False):
+    """Advisory common lock; only participating processes are excluded."""
+    path = maintenance_lock_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise DeployError("Unsafe maintenance lock")
+        try:
+            fcntl.flock(fd, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise DeployError("UDA maintenance lock busy") from exc
+        current = path.lstat()
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+            raise DeployError("Maintenance lock replaced")
+        yield
+    finally:
+        os.close(fd)
+
+
 def execute(config: dict[str, Any], dry_run: bool, verbose: bool,
             application_name: str | None = None) -> list[dict[str, Any]]:
+    with maintenance_lock(config):
+        return _execute_locked(config, dry_run, verbose, application_name)
+
+
+def _execute_locked(config, dry_run, verbose, application_name):
     lock_path = Path(config.get("lock_file", "/tmp/deployment-agent.lock")).expanduser()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     results = []
