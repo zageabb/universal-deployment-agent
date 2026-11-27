@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 import tarfile
-from tools.uda_backup_inventory import capture, verify_snapshot, hash_stream
+from tools.uda_backup_inventory import capture, verify_snapshot, hash_stream, write_selected
 from tools.uda_maintenance_evidence import backup_evidence, approval
 from tools.uda_release_transaction_journal import private
 from tools.uda_install_journal import sync_dir
@@ -39,8 +39,7 @@ def create(session, adapter, original, roots, destination, approval_record, writ
     fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "wb") as stream:
         with tarfile.open(fileobj=stream, mode="w", dereference=False) as tar:
-            for name, root in sorted(roots.items()):
-                tar.add(root, arcname=name, filter=lambda member: member if member.name in before else None)
+            write_selected(tar, roots, before)
         stream.flush()
         os.fsync(stream.fileno())
     sync_dir(destination.parent)
